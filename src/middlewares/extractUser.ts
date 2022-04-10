@@ -1,5 +1,6 @@
 import * as jwt from "jsonwebtoken";
 import { UserRole } from "../utils/constants/role.constant";
+import { InvalidTokenError } from "../utils/errors/invalidToken.error";
 
 export function extractUser(req: any, res: any, next: any) {
   const token =
@@ -19,11 +20,6 @@ export function extractUser(req: any, res: any, next: any) {
     req.user = decoded;
     return next();
   } catch (err) {
-    req.user = {
-      accountId: undefined,
-      username: undefined,
-      role: UserRole.GUEST,
-    };
-    return next();
+    return next(new InvalidTokenError());
   }
 }
