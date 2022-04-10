@@ -31,11 +31,13 @@ router.post(
             expiresIn: "1d",
           }
         );
-
+        
+        const decodeJWT = jwt.decode(token) as any;
         return res.status(200).json({
           username: account.username,
           role: account.role,
           token: token,
+          expireTime: decodeJWT?.exp,
         });
       }
       return next(new NotFoundError());
