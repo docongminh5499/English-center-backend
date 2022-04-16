@@ -1,9 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany} from "typeorm";
 import { IsDate, IsEnum, IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 import { Document } from "./Document";
-import { Lecture } from "./Lecture";
 import { StudySession } from "./StudySession";
 
 @Entity()

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from "typeorm";
 import { IsEnum, IsNotEmpty } from "class-validator";
 import { Weekday } from "../utils/constants/weekday.constant";
 import { MyBaseEntity } from "./MyBaseEntity";

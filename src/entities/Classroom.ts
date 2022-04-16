@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, PrimaryColumn } from "typeorm";
+import { Entity, Column, PrimaryColumn } from "typeorm";
 import { IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 
