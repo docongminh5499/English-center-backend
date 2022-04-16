@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany } from "typeorm";
 import { IsEnum, IsNotEmpty } from "class-validator";
 import { Weekday } from "../utils/constants/weekday.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
+import { StudySession } from "./StudySession";
 
 @Entity()
 export class Shift extends MyBaseEntity {
@@ -20,4 +21,8 @@ export class Shift extends MyBaseEntity {
   @IsNotEmpty()
   @Column({ type: "time", nullable: false })
   endTime: Date;
+
+  //Relation StudySession==N==<belong to>--N--Shift
+  @ManyToMany(() => StudySession, (studySession) => studySession.shifts)
+  studySessions: StudySession[];
 }
