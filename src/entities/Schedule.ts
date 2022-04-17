@@ -1,4 +1,4 @@
-import { Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 // import { Classroom } from "./Classroom";
 import { Course } from "./Course";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -10,7 +10,7 @@ export class Schedule extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @OneToOne(() => Course, {
+  @ManyToOne(() => Course, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -18,7 +18,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   course: Course;
 
-  @OneToOne(() => UserTutor, {
+  @ManyToOne(() => UserTutor, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -26,7 +26,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   tutor: UserTutor;
 
-  @OneToOne(() => Shift, {
+  @ManyToOne(() => Shift, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -34,7 +34,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   startShift: Shift;
 
-  @OneToOne(() => Shift, {
+  @ManyToOne(() => Shift, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -42,10 +42,10 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   endShift: Shift;
 
-  // @OneToOne(() => Classroom)
+  // @ManyToOne(() => Classroom)
   // @JoinColumn([
   //   {name: "room", referencedColumnName: "name"},
-  //   {name: "brand", referencedColumnName: "brandId"}
+  //   {name: "branch", referencedColumnName: "branchId"}
   // ])
   // classroom: Classroom;
 }

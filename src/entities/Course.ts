@@ -5,8 +5,8 @@ import {
   OneToMany,
   ManyToMany,
   JoinTable,
-  OneToOne,
   JoinColumn,
+  ManyToOne,
 } from "typeorm";
 import {
   IsDate,
@@ -24,6 +24,7 @@ import { StudySession } from "./StudySession";
 import { Exercise } from "./Exercise";
 import { UserTeacher } from "./UserTeacher";
 import { Curriculum } from "./Curriculum";
+import { Schedule } from "./Schedule";
 
 @Entity()
 export class Course extends MyBaseEntity {
@@ -86,7 +87,7 @@ export class Course extends MyBaseEntity {
   @JoinTable({ name: "course_contain_exercise" })
   exercises: Exercise[];
 
-  @OneToOne(() => UserTeacher, {
+  @ManyToOne(() => UserTeacher, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -94,11 +95,15 @@ export class Course extends MyBaseEntity {
   @JoinColumn()
   teacher: UserTeacher;
 
-  @OneToOne(() => Curriculum, {
+  @ManyToOne(() => Curriculum, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
   })
   @JoinColumn()
   curriculum: Curriculum;
+
+  @OneToMany(() => Schedule, (schedule) => schedule.course)
+  @JoinColumn()
+  schedules: Schedule[];
 }

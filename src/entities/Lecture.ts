@@ -3,8 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  OneToOne,
   JoinColumn,
+  ManyToOne,
 } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -32,7 +32,7 @@ export class Lecture extends MyBaseEntity {
   @OneToMany(() => StudySession, (studySession) => studySession.lecture)
   studySessions: StudySession[];
 
-  @OneToOne(() => Curriculum, {
+  @ManyToOne(() => Curriculum, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
