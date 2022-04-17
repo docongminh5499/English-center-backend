@@ -3,6 +3,7 @@ import { IsNotEmpty,IsEnum, IsString, Length } from "class-validator";
 import { UserRole } from "../utils/constants/role.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
 
+
 @Entity()
 export class User  extends MyBaseEntity{
     @PrimaryGeneratedColumn()
@@ -38,4 +39,6 @@ export class User  extends MyBaseEntity{
     @IsEnum(UserRole)
     @Column({ type: "enum", enum: UserRole, nullable: false })
     roles: UserRole;
+
+
     }

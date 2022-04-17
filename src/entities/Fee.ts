@@ -4,6 +4,7 @@ import {
   Column,
   OneToOne,
   JoinColumn,
+  ManyToOne,
 } from "typeorm";
 import {
   IsDate,
@@ -15,6 +16,7 @@ import {
 } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Money } from "./Money";
+import { Branch } from "./Branch";
 
 @Entity()
 export class Fee extends MyBaseEntity {
@@ -50,4 +52,7 @@ export class Fee extends MyBaseEntity {
   })
   @JoinColumn()
   money: Money;
+
+  @ManyToOne(() => Branch, branch => branch.id)
+  branch: Branch;
 }

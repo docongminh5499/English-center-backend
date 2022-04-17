@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column,  OneToOne } from "typeorm";
 import { IsBoolean, IsNotEmpty, IsString } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
+import { User } from "./UserEntity";
 
 @Entity()
 export class Notification extends MyBaseEntity {
@@ -15,4 +16,7 @@ export class Notification extends MyBaseEntity {
   @IsBoolean()
   @Column({ type: "bool", default: false })
   read: boolean;
+
+  @OneToOne(type => User, user => user.id)
+  user: User;
 }
