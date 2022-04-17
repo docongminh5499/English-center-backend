@@ -32,10 +32,10 @@ export class UserTutor extends User {
     nation: string;
 
     @IsNotEmpty()
-    @IsNumber()
+    @IsString()
     @Length(0, 20)
     @Column({ length: 20, unique: true, nullable: false })
-    passport: number;
+    passport: string;
 
     // nguyên quán
     @IsString()

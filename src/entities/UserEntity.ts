@@ -1,9 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 import { IsNotEmpty,IsEnum, IsString, Length } from "class-validator";
 import { UserRole } from "../utils/constants/role.constant";
+import { MyBaseEntity } from "./MyBaseEntity";
 
 @Entity()
-export class User {
+export class User  extends MyBaseEntity{
     @PrimaryGeneratedColumn()
     id: number
 
@@ -17,9 +18,9 @@ export class User {
     @Column()
     fullName: string
 
-    @Length(10)
+    @Length(0, 10)
     @Column({ length: 10, nullable: false })
-    phone: number
+    phone: string
 
     @Column()
     age: number
@@ -32,12 +33,6 @@ export class User {
     @Length(0, 255)
     @Column({ length: 255, nullable: true })
     address: string
-
-    @CreateDateColumn({ type: "timestamp" })
-    createdU: Date;
-
-    @UpdateDateColumn({ type: "timestamp" })
-    updatedU: Date;
 
     @IsNotEmpty()
     @IsEnum(UserRole)
