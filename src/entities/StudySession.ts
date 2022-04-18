@@ -37,7 +37,7 @@ export class StudySession extends MyBaseEntity {
 
   //Relation StudySession==N==<belong to>--N--Shift
   @ManyToMany(() => Shift, (shift) => shift.studySessions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
-  @JoinTable()
+  @JoinTable({name: "StudySessionBelongToShift"})
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>

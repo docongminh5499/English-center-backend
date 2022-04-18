@@ -9,7 +9,7 @@ export class UserTutor extends Worker {
 
   //Relation: Tutor--N--<Free In>--N--Shift
   @ManyToMany(() => Shift, (shift) => shift.tutors, {onDelete: "CASCADE", onUpdate: "CASCADE"})
-  @JoinTable()
+  @JoinTable({name: "TutorFreeInShift"})
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>
