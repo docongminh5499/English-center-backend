@@ -7,6 +7,7 @@ import {
   ManyToOne,
 } from "typeorm";
 import {
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsPositive,
@@ -15,7 +16,7 @@ import {
 } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Money } from "./Money";
-import { Branch} from "./Branch";
+import { Branch } from "./Branch";
 
 @Entity()
 export class Salary extends MyBaseEntity {
@@ -39,6 +40,10 @@ export class Salary extends MyBaseEntity {
   @Column({ length: 50, nullable: true })
   transCode: string;
 
+  @IsBoolean()
+  @Column({ type: "bool", default: false })
+  paid: boolean;
+
   @OneToOne(() => Money, {
     nullable: false,
     onUpdate: "CASCADE",
@@ -47,7 +52,7 @@ export class Salary extends MyBaseEntity {
   @JoinColumn()
   money: Money;
 
-  @ManyToOne(() => Branch, branch => branch.id)
+  @ManyToOne(() => Branch, (branch) => branch.id)
   @JoinColumn()
   branch: Branch;
 }

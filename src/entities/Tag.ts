@@ -11,7 +11,7 @@ export class Tag extends MyBaseEntity {
   @PrimaryColumn({ length: 100 })
   name: string;
 
-  @ManyToMany(() => Question)
+  @ManyToMany(() => Question, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinTable({ name: "question_belong_tag" })
   questions: Question[];
 }
