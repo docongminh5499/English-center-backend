@@ -1,13 +1,33 @@
+import * as bcrypt from "bcryptjs";
+
+import { Account } from "../entities/Account";
 import { Course } from "../entities/Course";
 import { Curriculum } from "../entities/Curriculum";
 import { Lecture } from "../entities/Lecture"
 import { UserTeacher } from "../entities/UserTeacher";
+import { AccountRole, UserRole } from "../utils/constants/role.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
+
+
 export async function initData(){
 
-    // const teacherMinh = await UserTeacher.save(UserTeacher.create({
-    //     id: 2000001
-    // }));
+    const hash = bcrypt.hashSync("doremon123", 10);
+    await Account.save(Account.create({
+        username: "minh5499",
+        password: hash,
+        role: AccountRole.TEACHER,
+    }));
+
+    const teacherMinh = await UserTeacher.save(UserTeacher.create({
+        id: 2000001,
+        email: "meozzz123@gmail.com",
+        fullName: "Do Cong Minh",
+        phone: "9999999999",
+        age: 40,
+        sex: 1,
+        address: "Đồng Nai",
+        roles: UserRole.TEACHER,
+    }));
 
     const curriculumEnglish10 = await Curriculum.save(Curriculum.create({
         name: "Chương trình tiếng anh lớp 10",
@@ -54,6 +74,7 @@ export async function initData(){
         closingDate: new Date(2022, 5, 31),
         image: "Image",
         curriculum: curriculumEnglish10,
+        teacher: teacherMinh,
     }));
 }
 

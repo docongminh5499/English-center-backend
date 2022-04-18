@@ -88,7 +88,7 @@ export class Course extends MyBaseEntity {
   exercises: Exercise[];
 
   @ManyToOne(() => UserTeacher, {
-    //nullable: false,
+    nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
   })
