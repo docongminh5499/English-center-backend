@@ -1,9 +1,11 @@
-import { Entity,  PrimaryGeneratedColumn } from "typeorm";
+import { Entity,  JoinColumn,  OneToOne } from "typeorm";
 import { Worker } from "./Worker";
 
 
 @Entity()
-export class UserTutor extends Worker {
-    @PrimaryGeneratedColumn()
-    id: number;
+export class UserTutor {
+
+    @OneToOne(() => Worker, {onUpdate: "CASCADE", onDelete: "RESTRICT",})
+    @JoinColumn()
+    worker: Worker;
 }
