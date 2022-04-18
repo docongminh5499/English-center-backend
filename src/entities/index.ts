@@ -20,15 +20,15 @@ import { WrongAnswer } from "./WrongAnswer";
 import { UserAdmin } from "./UserAdmin";
 import { UserEmployee } from "./UserEmployee";
 import { User } from "./UserEntity";
-import { UserParent} from "./UserParent";
-import { UserStudent} from "./UserStudent";
-import { UserTeacher} from "./UserTeacher";
-import { UserTutor} from "./UserTutor";
+import { UserParent } from "./UserParent";
+import { UserStudent } from "./UserStudent";
+import { UserTeacher } from "./UserTeacher";
+import { UserTutor } from "./UserTutor";
 import { StudentParticipateCourse } from "./StudentParticipateCourse";
 import { UserChatEachOther } from "./UsersChatEachOther";
 import { UserAttendStudySession } from "./UserAttendStudySession";
 import { MakeUpLession } from "./MakeUpLession";
-
+import { StudentDoExercise } from "./StudentDoExercise";
 
 module.exports = [
   Account,
@@ -61,4 +61,5 @@ module.exports = [
   UserChatEachOther,
   UserAttendStudySession,
   MakeUpLession,
+  StudentDoExercise,
 ];
