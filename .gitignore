@@ -7,4 +7,3 @@ temp/
 .env
 lib/
 package-lock.json
-lib/

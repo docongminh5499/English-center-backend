@@ -9,13 +9,13 @@ import { UserStudent } from "./UserStudent";
 export class StudentParticipateCourse extends MyBaseEntity {
 
   
-  @PrimaryColumn({type: "int", name:"studentId"})
-  @ManyToOne(() => UserStudent)
+  @PrimaryColumn({type: "int", name:"studentId", })
+  @ManyToOne(() => UserStudent, {onDelete: "CASCADE", onUpdate: "CASCADE"})
   @JoinColumn()
   student: UserStudent;
 
   @PrimaryColumn({type: "int", name:"courseId"})
-  @ManyToOne(() => Course)
+  @ManyToOne(() => Course, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinColumn()
   course: Course;
 

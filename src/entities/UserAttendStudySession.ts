@@ -10,12 +10,12 @@ export class UserAttendStudySession extends MyBaseEntity {
 
   
   @PrimaryColumn({type: "int", name:"studentId"})
-  @ManyToOne(() => UserStudent)
+  @ManyToOne(() => UserStudent, {onDelete: "CASCADE", onUpdate: "CASCADE"})
   @JoinColumn()
   student: UserStudent;
 
   @PrimaryColumn({type: "int", name:"studySessionId"})
-  @ManyToOne(() => StudySession)
+  @ManyToOne(() => StudySession, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinColumn()
   studySession: StudySession;
   

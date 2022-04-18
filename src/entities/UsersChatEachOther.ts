@@ -9,12 +9,12 @@ export class UserChatEachOther extends MyBaseEntity {
 
   
   @PrimaryColumn({type: "int", name:"senderId"})
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE"})
   @JoinColumn()
   sender: User;
 
   @PrimaryColumn({type: "int", name:"receiverId"})
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE"})
   @JoinColumn()
   receiver: User;
 

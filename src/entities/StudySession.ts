@@ -28,19 +28,19 @@ export class StudySession extends MyBaseEntity {
   isTeacherAbsent: boolean
 
   //Relation StudySession==N==<has>--1--Lecture
-  @ManyToOne(() => Lecture, (lecture) => lecture.studySessions)
+  @ManyToOne(() => Lecture, (lecture) => lecture.studySessions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   lecture: Lecture;
 
   //Relation Course--1--<include>==N==StudySession
-  @ManyToOne(() => Course, (course) => course.studySessions)
+  @ManyToOne(() => Course, (course) => course.studySessions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   course: Course;
 
   //Relation StudySession==N==<belong to>--N--Shift
-  @ManyToMany(() => Shift, (shift) => shift.studySessions)
+  @ManyToMany(() => Shift, (shift) => shift.studySessions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinTable()
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>
-  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions)
+  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions, {onDelete: "SET NULL", onUpdate: "CASCADE"})
   tutor: UserTutor;
 }
