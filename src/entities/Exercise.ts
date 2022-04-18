@@ -1,7 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToMany,
+  JoinTable,
+} from "typeorm";
 import { IsDate, IsEnum, IsNotEmpty, IsNumber } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { ExerciseStatus } from "../utils/constants/exercise.constant";
+import { Question } from "./Question";
 
 @Entity()
 export class Exercise extends MyBaseEntity {
@@ -24,4 +31,8 @@ export class Exercise extends MyBaseEntity {
   @IsNumber()
   @Column({ type: "integer", default: 3 })
   maxTime: number;
+
+  @ManyToMany(() => Question)
+  @JoinTable({ name: "exercise_contain_question" })
+  questions: Question[];
 }
