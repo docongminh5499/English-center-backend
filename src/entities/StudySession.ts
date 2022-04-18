@@ -4,6 +4,7 @@ import { MyBaseEntity } from "./MyBaseEntity";
 import { Lecture } from "./Lecture";
 import { Course } from "./Course";
 import { Shift } from "./Shift";
+import { UserTutor } from "./UserTutor";
 
 @Entity()
 export class StudySession extends MyBaseEntity {
@@ -39,4 +40,7 @@ export class StudySession extends MyBaseEntity {
   @JoinTable()
   shifts: Shift[];
 
+  //Relation Tutor--1--<Teach>==N==<StudySession>
+  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions)
+  tutor: UserTutor;
 }

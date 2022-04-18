@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne } from "typeorm";
+import { Entity, ManyToOne } from "typeorm";
 import { User} from "./UserEntity";
 import { Fee} from "./Fee";
 import { Exercise} from "./Exercise";
@@ -7,10 +7,6 @@ import { Notification} from "./Notification";
 
 @Entity()
 export class UserStudent extends User {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-
   @ManyToOne(()=>Fee, fee => fee.money)
   fee: Fee;
 

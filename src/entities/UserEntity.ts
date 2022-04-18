@@ -41,4 +41,4 @@ export class User  extends MyBaseEntity{
     roles: UserRole;
 
 
-    }
+}

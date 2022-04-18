@@ -24,6 +24,10 @@ import { UserParent} from "./UserParent";
 import { UserStudent} from "./UserStudent";
 import { UserTeacher} from "./UserTeacher";
 import { UserTutor} from "./UserTutor";
+import { StudentParticipateCourse } from "./StudentParticipateCourse";
+import { UserChatEachOther } from "./UsersChatEachOther";
+import { UserAttendStudySession } from "./UserAttendStudySession";
+import { MakeUpLession } from "./MakeUpLession";
 
 
 module.exports = [
@@ -53,4 +57,8 @@ module.exports = [
   Lecture,
   StudySession,
   Schedule,
+  StudentParticipateCourse,
+  UserChatEachOther,
+  UserAttendStudySession,
+  MakeUpLession,
 ];
