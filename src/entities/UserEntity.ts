@@ -5,7 +5,7 @@ import { MyBaseEntity } from "./MyBaseEntity";
 
 
 @Entity()
-export class User  extends MyBaseEntity{
+export class User extends MyBaseEntity{
     @PrimaryGeneratedColumn()
     id: number
 
