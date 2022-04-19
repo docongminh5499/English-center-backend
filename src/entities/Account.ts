@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from "typeorm";
+import { Entity, Column, OneToOne, JoinColumn, PrimaryColumn } from "typeorm";
 import { IsNotEmpty, IsString, Length, IsEnum } from "class-validator";
 import { AccountRole } from "../utils/constants/role.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -6,13 +6,10 @@ import { User } from "./UserEntity";
 
 @Entity()
 export class Account extends MyBaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
   @IsNotEmpty()
   @IsString()
   @Length(0, 50)
-  @Column({ length: 50, unique: true, nullable: false })
+  @PrimaryColumn({ length: 50, unique: true, nullable: false })
   username: string;
 
   @IsNotEmpty()

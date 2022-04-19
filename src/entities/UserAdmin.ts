@@ -1,13 +1,13 @@
-import { Entity, OneToMany, OneToOne } from "typeorm";
+import { Entity, JoinColumn, OneToOne, PrimaryColumn } from "typeorm";
 import { User} from "./UserEntity";
-import { Branch} from "./Branch";
+import { MyBaseEntity } from "./MyBaseEntity";
 
 @Entity()
-export class UserAdmin extends User {
+export class UserAdmin extends MyBaseEntity {
 
-  @OneToMany(() => User, user => user.id)
-  user: User[];
-
-  @OneToOne(() => Branch, branch => branch.id)
-  branch: Branch;
+  @PrimaryColumn({type: "int", name: "adminId"})
+  @OneToOne(()=>User)
+  @JoinColumn({name: "adminId"})
+  user: User;
+  
 }

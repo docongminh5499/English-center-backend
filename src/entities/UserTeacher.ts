@@ -1,13 +1,15 @@
-import { Entity, JoinColumn, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Entity, JoinColumn, OneToMany, OneToOne, PrimaryColumn } from "typeorm";
 import { Course } from "./Course";
+import { MyBaseEntity } from "./MyBaseEntity";
 import { Worker } from "./Worker";
 
 @Entity()
-export class UserTeacher extends Worker {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class UserTeacher extends MyBaseEntity {
   @OneToMany(() => Course, (course) => course.teacher)
-  @JoinColumn()
   courses: Course[];
+
+  @PrimaryColumn({type: "int", name: "teacherId"})
+  @OneToOne(() => Worker, {onDelete: "CASCADE", onUpdate: "CASCADE"})
+  @JoinColumn({name: "teacherId"})
+  worker: Worker;
 }

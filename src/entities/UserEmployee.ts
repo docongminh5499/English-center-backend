@@ -1,16 +1,13 @@
-import { Entity, OneToMany } from "typeorm";
+import { Entity, JoinColumn, OneToOne, PrimaryColumn } from "typeorm";
+import { MyBaseEntity } from "./MyBaseEntity";
 import { Worker } from "./Worker";
-import { UserTeacher } from "./UserTeacher";
-import { UserTutor } from "./UserTutor";
 
 
 @Entity()
-export class UserEmployee extends Worker {
+export class UserEmployee extends MyBaseEntity {
 
-    @OneToMany(() => UserTeacher, userTeacher => userTeacher.id)
-    userTeacher: UserTeacher[];
-
-    @OneToMany(() => UserTutor, userTutor => userTutor.id)
-    userTutor: UserTutor[];
-
+    @PrimaryColumn({type: "int", name: "employeeId"})
+    @OneToOne(()=>Worker)
+    @JoinColumn({name: "employeeId"})
+    worker: Worker;
 }

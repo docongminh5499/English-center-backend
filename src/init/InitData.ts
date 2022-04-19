@@ -6,12 +6,13 @@ import { Curriculum } from "../entities/Curriculum";
 import { Lecture } from "../entities/Lecture"
 import { User } from "../entities/UserEntity";
 import { UserTeacher } from "../entities/UserTeacher";
+import { Worker } from "../entities/Worker";
 import { AccountRole, UserRole } from "../utils/constants/role.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 
 export async function initData(){
 
-    //Create UserTeacher
+    //Create User role Teacher
     const userMinh = await User.save(User.create({
         id: 2000001,
         email: "meozzz123@gmail.com",
@@ -22,11 +23,16 @@ export async function initData(){
         address: "Đồng Nai",
         roles: UserRole.TEACHER,
     }));
+    console.log(userMinh)
+    //Create Worker for Teacher
+    const workerMinh = await Worker.save(Worker.create({
+        user: userMinh,
+    }));
 
     //Create UserTeacher
-    const teacherMinh = await UserTeacher.save(UserTeacher.create(
-        userMinh
-    ));
+    const teacherMinh = await UserTeacher.save(UserTeacher.create({
+        worker: workerMinh,
+    }));
 
     //Create Account for UserTeacher
     const hash = bcrypt.hashSync("doremon123", 10);

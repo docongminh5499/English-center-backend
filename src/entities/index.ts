@@ -29,6 +29,7 @@ import { UserChatEachOther } from "./UsersChatEachOther";
 import { UserAttendStudySession } from "./UserAttendStudySession";
 import { MakeUpLession } from "./MakeUpLession";
 import { StudentDoExercise } from "./StudentDoExercise";
+import { Worker } from "./Worker";
 
 module.exports = [
   Account,
@@ -49,6 +50,7 @@ module.exports = [
   UserStudent,
   UserTeacher,
   UserTutor,
+  Worker,
   //Hoc
   Branch,
   Classroom,

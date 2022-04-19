@@ -22,7 +22,7 @@ router.post(
       if (account && (await bcrypt.compare(password, account.password))) {
         const token = jwt.sign(
           {
-            accountId: account.id,
+            //accountId: account.id,
             username: account.username,
             role: account.role,
           },
