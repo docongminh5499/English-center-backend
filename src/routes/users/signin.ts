@@ -18,11 +18,11 @@ router.post(
         return next(new ValidationError([]));
       }
 
-      const account = await Account.findOne({ where: { username } });
+      const account = await Account.findOne({ where: { username }, relations: ['user'] });
       if (account && (await bcrypt.compare(password, account.password))) {
         const token = jwt.sign(
           {
-            //accountId: account.id,
+            userId: account.user.id,
             username: account.username,
             role: account.role,
           },
