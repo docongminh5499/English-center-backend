@@ -17,7 +17,7 @@ export class UserTutor extends MyBaseEntity {
     onDelete: "RESTRICT",
     onUpdate: "CASCADE",
   })
-  @JoinTable({ name: "TutorFreeInShift" })
+  @JoinTable({ name: "tutor_free_in_shift" })
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>

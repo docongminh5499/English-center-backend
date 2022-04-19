@@ -19,8 +19,8 @@ export class MakeUpLession extends MyBaseEntity {
   @JoinColumn()
   studySession: StudySession;
   
-  @IsBoolean()
   @IsNotEmpty()
+  @IsBoolean()
   @Column({type: "boolean", nullable: false})
   isAttend: boolean;
 

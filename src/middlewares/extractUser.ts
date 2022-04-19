@@ -8,7 +8,7 @@ export function extractUser(req: any, res: any, next: any) {
 
   if (!token) {
     req.user = {
-      accountId: undefined,
+      userId: undefined,
       username: undefined,
       role: UserRole.GUEST,
     };

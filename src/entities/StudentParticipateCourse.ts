@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from "typeorm";
-import { IsBoolean, IsDate, IsNotEmpty, IsString } from "class-validator";
+import { IsBoolean, IsDate, IsNumber, IsString, Max, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Course } from "./Course";
 import { UserStudent } from "./UserStudent";
@@ -20,20 +20,19 @@ export class StudentParticipateCourse extends MyBaseEntity {
   course: Course;
 
   @IsDate()
-  @Column({type: "date"})
+  @Column({type: "timestamp"})
   billingDate: Date;
 
-  @IsNotEmpty()
   @IsString()
   @Column({ type: "text"})
   comment: string;
   
-  @IsNotEmpty()
-  @IsString()
+  @IsNumber()
+  @Min(1)
+  @Max(5)
   @Column({ type: "integer"})
   starPoint: number;
 
-  @IsNotEmpty()
   @IsBoolean()
   @Column({ type: "boolean"})
   isIncognito: boolean;
