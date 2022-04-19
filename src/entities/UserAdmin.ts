@@ -1,11 +1,9 @@
-import { Entity,OneToMany , OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Entity, OneToMany, OneToOne } from "typeorm";
 import { User} from "./UserEntity";
 import { Branch} from "./Branch";
 
 @Entity()
 export class UserAdmin extends User {
-  @PrimaryGeneratedColumn()
-  id: number;
 
   @OneToMany(() => User, user => user.id)
   user: User[];

@@ -1,6 +1,7 @@
 
 import "dotenv/config";
 import { server } from './app';
+import { initData } from "./init/InitData";
 import { initializeDataSource } from './utils/functions/dataSource';
 
 
@@ -12,6 +13,7 @@ import { initializeDataSource } from './utils/functions/dataSource';
     server.listen(PORT, () => {
       console.log(`Listening on port ${PORT}`);
     });
+    initData();
   } catch (error) {
     console.log('Connecting to database failed', error);
   }

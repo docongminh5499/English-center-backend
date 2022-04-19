@@ -36,6 +36,6 @@ export class Document extends MyBaseEntity {
   src: string;
 
   //Relation Cuorse--1--<has>==N==Document
-  @ManyToOne(() => Course, (course) => course.documents)
+  @ManyToOne(() => Course, (course) => course.documents,{onDelete: "CASCADE", onUpdate:"CASCADE"})
   course: Course;
 }

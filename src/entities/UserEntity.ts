@@ -8,17 +8,17 @@ import { Sex } from "../utils/constants/sex.constant";
 @Entity()
 export class User extends MyBaseEntity{
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @IsNotEmpty()
     @IsString()
     @Column({ length: 50, unique: true, nullable: false })
-    email: string
+    email: string;
 
     @IsString()
     @Length(0, 255)
     @Column()
-    userName: string
+    fullName: string;
 
     @IsNumber()
     @Length(0, 10)
@@ -38,7 +38,7 @@ export class User extends MyBaseEntity{
     @IsString()
     @Length(0, 255)
     @Column({ length: 255, nullable: true })
-    address: string
+    address: string;
 
     @IsNotEmpty()
     @IsEnum(UserRole)
@@ -49,4 +49,8 @@ export class User extends MyBaseEntity{
     @Column()
     account: Account
 
-    }
+    @IsString()
+    @Length(0, 255)
+    @Column({ length: 255, nullable: true })
+    avatar: string;
+}
