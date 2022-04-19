@@ -5,11 +5,13 @@ import { Branch } from "./Branch";
 
 @Entity()
 export class Classroom extends MyBaseEntity {
+  @IsNotEmpty()
   @IsString()
   @Length(0, 100)
   @PrimaryColumn({ length: 100 })
   name: string;
 
+  @IsNotEmpty()
   @OneToOne(() => Branch, {
     nullable: false,
     onDelete: "RESTRICT",

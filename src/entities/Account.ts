@@ -24,6 +24,7 @@ export class Account extends MyBaseEntity {
   role: AccountRole;
   
   //Relation User==1==<has>==1==Account
+  @IsNotEmpty()
   @OneToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE", nullable: false})
   @JoinColumn()
   user: User;

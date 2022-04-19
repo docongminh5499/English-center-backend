@@ -87,6 +87,7 @@ export class Course extends MyBaseEntity {
   @JoinTable({ name: "course_contain_exercise" })
   exercises: Exercise[];
 
+  @IsNotEmpty()
   @ManyToOne(() => UserTeacher, (userTeacher) => userTeacher.courses, {
     nullable: false,
     onUpdate: "CASCADE",
@@ -95,6 +96,7 @@ export class Course extends MyBaseEntity {
   @JoinColumn()
   teacher: UserTeacher;
 
+  @IsNotEmpty()
   @ManyToOne(() => Curriculum, {
     nullable: false,
     onUpdate: "CASCADE",

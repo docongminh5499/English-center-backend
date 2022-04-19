@@ -32,6 +32,7 @@ export class Lecture extends MyBaseEntity {
   @OneToMany(() => StudySession, (studySession) => studySession.lecture)
   studySessions: StudySession[];
 
+  @IsNotEmpty()
   @ManyToOne(() => Curriculum, {
     nullable: false,
     onUpdate: "CASCADE",

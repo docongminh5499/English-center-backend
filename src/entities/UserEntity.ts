@@ -14,6 +14,7 @@ export class User extends MyBaseEntity{
     @Column({ length: 50, unique: true, nullable: true })
     email: string;
 
+    @IsNotEmpty()
     @IsString()
     @Length(0, 255)
     @Column()
