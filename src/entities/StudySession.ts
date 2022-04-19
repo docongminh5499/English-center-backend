@@ -19,7 +19,7 @@ export class StudySession extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "date", nullable: false })
+  @Column({ type: "timestamp", nullable: false })
   date: Date;
   
   @IsNotEmpty()
@@ -28,11 +28,11 @@ export class StudySession extends MyBaseEntity {
   isTeacherAbsent: boolean
 
   //Relation StudySession==N==<has>--1--Lecture
-  @ManyToOne(() => Lecture, (lecture) => lecture.studySessions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
+  @ManyToOne(() => Lecture, (lecture) => lecture.studySessions, {nullable: false, onDelete: "RESTRICT", onUpdate: "CASCADE"})
   lecture: Lecture;
 
   //Relation Course--1--<include>==N==StudySession
-  @ManyToOne(() => Course, (course) => course.studySessions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
+  @ManyToOne(() => Course, (course) => course.studySessions, {nullable: false, onDelete: "RESTRICT", onUpdate: "CASCADE"})
   course: Course;
 
   //Relation StudySession==N==<belong to>--N--Shift
@@ -41,6 +41,6 @@ export class StudySession extends MyBaseEntity {
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>
-  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions, {onDelete: "SET NULL", onUpdate: "CASCADE"})
+  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions, {nullable: false, onDelete: "SET NULL", onUpdate: "CASCADE"})
   tutor: UserTutor;
 }

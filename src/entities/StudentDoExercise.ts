@@ -25,7 +25,7 @@ export class StudentDoExercise extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
-  @Column({ type: "integer", nullable: false })
+  @Column({ type: "decimal", precision: 3, scale: 1, nullable: false })
   score: number;
 
   @IsDate()
