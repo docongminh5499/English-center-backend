@@ -6,8 +6,8 @@ import { UserStudent} from "./UserStudent";
 @Entity()
 export class UserParent extends MyBaseEntity {
 
-  @OneToMany(()=>UserStudent, userStudent => userStudent.user.id)
-  userStudent: UserStudent[];
+  @OneToMany(()=>UserStudent, userStudent => userStudent.userParent)
+  userStudents: UserStudent[];
 
   @PrimaryColumn({type: "int", name: "parentId"})
   @OneToOne(()=>User)

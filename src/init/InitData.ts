@@ -13,7 +13,7 @@ import { TermCourse } from "../utils/constants/termCuorse.constant";
 
 export async function initData(){
 
-    //Create User role Teacher
+    // //Create User role Teacher
     // const userMinh = await User.save(User.create({
     //     id: 2000001,
     //     email: "meozzz123@gmail.com",
@@ -33,12 +33,14 @@ export async function initData(){
     //     coefficients: 100,
     //     nation: "Kinh",
     //     passport: "11111111",
-    //     domicile: "Tp. HCM",
+    //     homeTown: "Tp. HCM",
     // }));
 
     // //Create UserTeacher
     // const teacherMinh = await UserTeacher.save(UserTeacher.create({
     //     worker: workerMinh,
+    //     experience: "experience",
+    //     shortDesc: "shortDesc",
     // }));
 
     var userMinh = new User();
@@ -59,15 +61,17 @@ export async function initData(){
     workerMinh.coefficients= 100;
     workerMinh.nation= "Kinh";
     workerMinh.passport= "11111111";
-    workerMinh.domicile= "Tp. HCM";
+    workerMinh.homeTown= "Tp. HCM";
 
     var teacherMinh = new UserTeacher();
-    teacherMinh.worker= workerMinh;
+    teacherMinh.worker = workerMinh;
+    teacherMinh.experience = "experience";
+    teacherMinh.shortDesc = "shortDesc";
 
     await User.save(userMinh);
     await Worker.save(workerMinh);
     await UserTeacher.save(teacherMinh);
-    //Create Account for UserTeacher
+    // //Create Account for UserTeacher
     const hash = bcrypt.hashSync("doremon123", 10);
     await Account.save(Account.create({
         username: "minh5499",

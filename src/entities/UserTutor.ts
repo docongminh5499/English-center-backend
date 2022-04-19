@@ -14,7 +14,7 @@ export class UserTutor extends MyBaseEntity {
 
   //Relation: Tutor--N--<Free In>--N--Shift
   @ManyToMany(() => Shift, (shift) => shift.tutors, {
-    onDelete: "CASCADE",
+    onDelete: "RESTRICT",
     onUpdate: "CASCADE",
   })
   @JoinTable({ name: "TutorFreeInShift" })

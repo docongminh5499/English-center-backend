@@ -41,6 +41,6 @@ export class StudySession extends MyBaseEntity {
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>
-  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions, {onDelete: "SET NULL", onUpdate: "CASCADE"})
+  @ManyToOne(() => UserTutor, (tutor) => tutor.studySessions, {onDelete: "NO ACTION", onUpdate: "CASCADE"})
   tutor: UserTutor;
 }

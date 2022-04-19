@@ -56,17 +56,17 @@ export class Course extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column({ nullable: false })
+  @Column({type: "decimal", nullable: false })
   price: number;
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "date", nullable: false })
+  @Column({ type: "timestamp", nullable: false })
   openingDate: Date;
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "date", nullable: false })
+  @Column({ type: "timestamp", nullable: false })
   closingDate: Date;
 
   @IsNotEmpty()
@@ -87,7 +87,7 @@ export class Course extends MyBaseEntity {
   @JoinTable({ name: "course_contain_exercise" })
   exercises: Exercise[];
 
-  @ManyToOne(() => UserTeacher, {
+  @ManyToOne(() => UserTeacher, (userTeacher) => userTeacher.courses, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -104,6 +104,6 @@ export class Course extends MyBaseEntity {
   curriculum: Curriculum;
 
   @OneToMany(() => Schedule, (schedule) => schedule.course)
-  @JoinColumn()
+  //@JoinColumn()
   schedules: Schedule[];
 }

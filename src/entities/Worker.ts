@@ -20,7 +20,7 @@ export class Worker extends MyBaseEntity {
   @JoinColumn({name: "workerId"})
   user: User;
 
-  @ManyToOne(() => Branch, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
+  @ManyToOne(() => Branch, (branch) => branch.workers, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   branch: Branch;
   
   @IsNotEmpty()
@@ -32,16 +32,18 @@ export class Worker extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column()
+  @Column({type: "decimal"})
   coefficients: number;
 
   //dân tộc
+  @IsNotEmpty()
   @IsString()
   @Length(0, 20)
-  @Column({ length: 20, nullable: true })
+  @Column({length: 20, nullable: true })
   nation: string;
 
   //cmnd | cccd | passport
+  @IsNotEmpty()
   @IsString()
   @Length(0, 20)
   @Column({ length: 20, unique: true, nullable: false })
@@ -51,8 +53,13 @@ export class Worker extends MyBaseEntity {
   @IsString()
   @Length(0, 20)
   @Column({ length: 20, nullable: true })
-  domicile: string;
-
-  @OneToMany(() => Salary, (salary) => salary.id, {})
+  homeTown: string;
+  
+  //Ngày mới nhất tính lương
+  @IsDate()
+  @Column({type: "timestamp", nullable: true})
+  salaryDate: Date;
+  
+  @OneToMany(() => Salary, (salary) => salary.id)
   salary: Salary;
 }

@@ -9,7 +9,7 @@ export class Account extends MyBaseEntity {
   @IsNotEmpty()
   @IsString()
   @Length(0, 50)
-  @PrimaryColumn({ length: 50, unique: true, nullable: false })
+  @PrimaryColumn({ length: 50, nullable: false })
   username: string;
 
   @IsNotEmpty()

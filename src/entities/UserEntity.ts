@@ -11,7 +11,7 @@ export class User extends MyBaseEntity{
 
     @IsNotEmpty()
     @IsString()
-    @Column({ length: 50, unique: true, nullable: false })
+    @Column({ length: 50, unique: true, nullable: true })
     email: string;
 
     @IsString()
@@ -20,14 +20,16 @@ export class User extends MyBaseEntity{
     fullName: string;
 
     @IsString()
-    @Length(0, 10)
-    @Column({ length: 10, nullable: false })
+    @Length(0, 11)
+    @Column({ length: 11, nullable: true })
     phone: string
     
+    @IsNotEmpty()
     @IsDate()
-    @Column({nullable: false})
+    @Column({type: "timestamp", nullable: false})
     dateOfBirth: Date
     
+    @IsNotEmpty()
     @IsEnum(Sex)
     @Column({ type: "enum", enum: Sex, nullable: false })
     sex: Sex;

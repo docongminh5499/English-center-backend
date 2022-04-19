@@ -21,8 +21,8 @@ export class Classroom extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsString()
-  @Length(0, 100)
-  @Column({ length: 100, nullable: false })
+  @Length(0, 255)
+  @Column({ length: 255, nullable: false })
   function: string;
 
   @IsNotEmpty()
