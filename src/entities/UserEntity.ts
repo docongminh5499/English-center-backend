@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
-import { IsNotEmpty,IsEnum, IsString, Length, Min, Max, IsNumber, IsDate } from "class-validator";
+import { IsNotEmpty,IsEnum, IsString, Length, IsDate } from "class-validator";
 import { UserRole } from "../utils/constants/role.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Sex } from "../utils/constants/sex.constant";

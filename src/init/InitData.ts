@@ -14,40 +14,66 @@ import { TermCourse } from "../utils/constants/termCuorse.constant";
 export async function initData(){
 
     //Create User role Teacher
-    const userMinh = await User.save(User.create({
-        id: 2000001,
-        email: "meozzz123@gmail.com",
-        fullName: "Do Cong Minh",
-        phone: "9999999999",
-        dateOfBirth: new Date(1990, 4, 5),
-        sex: Sex.MALE,
-        address: "Đồng Nai",
-        roles: UserRole.TEACHER,
-        avatar: "Iamge",
-    }));
-    console.log(userMinh)
-    //Create Worker for Teacher
-    const workerMinh = await Worker.save(Worker.create({
-        user: userMinh,
-        startDate: new Date(2021, 6, 1),
-        coefficients: 100,
-        nation: "Kinh",
-        passport: "11111111",
-        domicile: "Tp. HCM",
-    }));
+    // const userMinh = await User.save(User.create({
+    //     id: 2000001,
+    //     email: "meozzz123@gmail.com",
+    //     fullName: "Do Cong Minh",
+    //     phone: "9999999999",
+    //     dateOfBirth: new Date(1990, 4, 5),
+    //     sex: Sex.MALE,
+    //     address: "Đồng Nai",
+    //     roles: UserRole.TEACHER,
+    //     avatar: "Iamge",
+    // }));
+    // console.log(userMinh)
+    // //Create Worker for Teacher
+    // const workerMinh = await Worker.save(Worker.create({
+    //     user: userMinh,
+    //     startDate: new Date(2021, 6, 1),
+    //     coefficients: 100,
+    //     nation: "Kinh",
+    //     passport: "11111111",
+    //     domicile: "Tp. HCM",
+    // }));
 
-    //Create UserTeacher
-    const teacherMinh = await UserTeacher.save(UserTeacher.create({
-        worker: workerMinh,
-    }));
+    // //Create UserTeacher
+    // const teacherMinh = await UserTeacher.save(UserTeacher.create({
+    //     worker: workerMinh,
+    // }));
 
+    var userMinh = new User();
+
+    userMinh.id= 2000001;
+    userMinh.email= "meozzz123@gmail.com";
+    userMinh.fullName= "Do Cong Minh";
+    userMinh.phone= "9999999999";
+    userMinh.dateOfBirth= new Date(1990, 4, 5);
+    userMinh.sex= Sex.MALE;
+    userMinh.address= "Đồng Nai";
+    userMinh.roles= UserRole.TEACHER;
+    userMinh.avatar= "Iamge";
+
+    var workerMinh = new Worker();
+    workerMinh.user= userMinh;
+    workerMinh.startDate= new Date(2021, 6, 1);
+    workerMinh.coefficients= 100;
+    workerMinh.nation= "Kinh";
+    workerMinh.passport= "11111111";
+    workerMinh.domicile= "Tp. HCM";
+
+    var teacherMinh = new UserTeacher();
+    teacherMinh.worker= workerMinh;
+
+    await User.save(userMinh);
+    await Worker.save(workerMinh);
+    await UserTeacher.save(teacherMinh);
     //Create Account for UserTeacher
     const hash = bcrypt.hashSync("doremon123", 10);
     await Account.save(Account.create({
         username: "minh5499",
         password: hash,
         role: AccountRole.TEACHER,
-        user: teacherMinh,
+        user: userMinh,
     }));
 
     //Create Curriculum
