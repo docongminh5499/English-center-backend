@@ -1,5 +1,5 @@
 import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-// import { Classroom } from "./Classroom";
+import { Classroom } from "./Classroom";
 import { Course } from "./Course";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Shift } from "./Shift";
@@ -42,10 +42,14 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   endShift: Shift;
 
-  // @ManyToOne(() => Classroom)
-  // @JoinColumn([
-  //   {name: "room", referencedColumnName: "name"},
-  //   {name: "branch", referencedColumnName: "branchId"}
-  // ])
-  // classroom: Classroom;
+  @ManyToOne(() => Classroom, {
+    nullable: false,
+    onUpdate: "CASCADE",
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn([
+    { name: "classroomName", referencedColumnName: "name" },
+    { name: "branchId", referencedColumnName: "branch" },
+  ])
+  classroom: Classroom;
 }

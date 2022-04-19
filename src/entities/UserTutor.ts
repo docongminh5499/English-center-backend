@@ -4,7 +4,6 @@ import { Shift } from "./Shift";
 import { StudySession } from "./StudySession";
 import { Worker } from "./Worker";
 
-
 @Entity()
 export class UserTutor extends MyBaseEntity {
 
@@ -14,8 +13,11 @@ export class UserTutor extends MyBaseEntity {
   worker: Worker;
 
   //Relation: Tutor--N--<Free In>--N--Shift
-  @ManyToMany(() => Shift, (shift) => shift.tutors, {onDelete: "CASCADE", onUpdate: "CASCADE"})
-  @JoinTable({name: "TutorFreeInShift"})
+  @ManyToMany(() => Shift, (shift) => shift.tutors, {
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+  })
+  @JoinTable({ name: "TutorFreeInShift" })
   shifts: Shift[];
 
   //Relation Tutor--1--<Teach>==N==<StudySession>

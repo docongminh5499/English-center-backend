@@ -1,4 +1,4 @@
-import { Entity, Column, OneToOne, PrimaryColumn, JoinColumn } from "typeorm";
+import { Entity, Column, PrimaryColumn, JoinColumn, ManyToOne } from "typeorm";
 import { IsDate, IsNotEmpty, IsNumber, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { UserStudent } from "./UserStudent";
@@ -7,7 +7,7 @@ import { Exercise } from "./Exercise";
 @Entity()
 export class StudentDoExercise extends MyBaseEntity {
   @PrimaryColumn({ type: "int", name: 'studentId' })
-  @OneToOne(() => UserStudent, {
+  @ManyToOne(() => UserStudent, {
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
   })
@@ -15,7 +15,7 @@ export class StudentDoExercise extends MyBaseEntity {
   student: UserStudent;
 
   @PrimaryColumn({ type: "int", name: 'exerciseId' })
-  @OneToOne(() => Exercise, {
+  @ManyToOne(() => Exercise, {
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
   })

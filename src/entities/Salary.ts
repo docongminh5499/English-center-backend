@@ -7,6 +7,7 @@ import {
   ManyToOne,
 } from "typeorm";
 import {
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsPositive,
@@ -38,6 +39,10 @@ export class Salary extends MyBaseEntity {
   @Length(0, 50)
   @Column({ length: 50, nullable: true })
   transCode: string;
+
+  @IsBoolean()
+  @Column({ type: "bool", default: false })
+  paid: boolean;
 
   @OneToOne(() => Money, {
     nullable: false,
