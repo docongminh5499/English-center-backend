@@ -83,7 +83,7 @@ export class Course extends MyBaseEntity {
   @OneToMany(() => StudySession, (studySession) => studySession.course)
   studySessions: StudySession[];
 
-  @ManyToMany(() => Exercise)
+  @ManyToMany(() => Exercise, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinTable({ name: "course_contain_exercise" })
   exercises: Exercise[];
 

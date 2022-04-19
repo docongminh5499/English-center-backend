@@ -1,18 +1,27 @@
 import { Entity, Column, PrimaryColumn, OneToOne } from "typeorm";
-import { IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsString,
+  Length,
+} from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Branch } from "./Branch";
 
 @Entity()
 export class Classroom extends MyBaseEntity {
-  
   @IsString()
   @Length(0, 100)
-  @PrimaryColumn({length: 100})
+  @PrimaryColumn({ length: 100 })
   name: string;
-  
-  @OneToOne(() => Branch)
-  @PrimaryColumn({type: "int", name: "branchId"})
+
+  @OneToOne(() => Branch, {
+    nullable: false,
+    onDelete: "RESTRICT",
+    onUpdate: "CASCADE",
+  })
+  @PrimaryColumn({ type: "int", name: "branchId" })
   branch: Branch;
 
   @IsNotEmpty()
@@ -24,6 +33,6 @@ export class Classroom extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column({type: "integer", nullable: false })
+  @Column({ type: "integer", nullable: false })
   capacity: number;
 }

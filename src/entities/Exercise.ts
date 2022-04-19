@@ -32,7 +32,7 @@ export class Exercise extends MyBaseEntity {
   @Column({ type: "integer", default: 3 })
   maxTime: number;
 
-  @ManyToMany(() => Question)
+  @ManyToMany(() => Question, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinTable({ name: "exercise_contain_question" })
   questions: Question[];
 }
