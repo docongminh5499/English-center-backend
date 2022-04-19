@@ -28,7 +28,6 @@ export class Worker extends MyBaseEntity {
   user: User;
 
   @ManyToOne(() => Branch, (branch) => branch.workers, {
-    nullable: false,
     onDelete: "RESTRICT",
     onUpdate: "CASCADE",
   })
