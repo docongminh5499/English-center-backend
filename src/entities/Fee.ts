@@ -16,7 +16,8 @@ import {
 } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Money } from "./Money";
-import { Branch } from "./Branch";
+import { UserStudent } from "./UserStudent";
+import { UserEmployee } from "./UserEmployee";
 
 @Entity()
 export class Fee extends MyBaseEntity {
@@ -53,6 +54,22 @@ export class Fee extends MyBaseEntity {
   @JoinColumn()
   money: Money;
 
-  @ManyToOne(() => Branch, branch => branch.id)
-  branch: Branch;
+  @ManyToOne(() => UserStudent, {
+    nullable: false,
+    onUpdate: "CASCADE",
+    onDelete: "CASCADE",
+  })
+  @JoinColumn()
+  userStudent: UserStudent;
+
+  @ManyToOne(() => UserEmployee, {
+    onUpdate: "CASCADE",
+    onDelete: "NO ACTION",
+  })
+  @JoinColumn()
+  userEmployee: UserEmployee;
+  
+  @IsDate()
+  @Column({type: "timestamp"})
+  payDate: Date;
 }

@@ -15,7 +15,7 @@ import {
 } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Money } from "./Money";
-import { Branch} from "./Branch";
+import { Worker } from "./Worker";
 
 @Entity()
 export class Salary extends MyBaseEntity {
@@ -47,7 +47,6 @@ export class Salary extends MyBaseEntity {
   @JoinColumn()
   money: Money;
 
-  @ManyToOne(() => Branch, branch => branch.id)
-  @JoinColumn()
-  branch: Branch;
+  @ManyToOne(() => Worker, {onDelete: "RESTRICT", onUpdate: "CASCADE", nullable: false})
+  worker: Worker;
 }

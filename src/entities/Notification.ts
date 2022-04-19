@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column,  OneToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm";
 import { IsBoolean, IsNotEmpty, IsString } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { User } from "./UserEntity";
@@ -17,6 +17,6 @@ export class Notification extends MyBaseEntity {
   @Column({ type: "bool", default: false })
   read: boolean;
 
-  @OneToOne(type => User, user => user.id)
+  @ManyToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE", nullable: false})
   user: User;
 }
