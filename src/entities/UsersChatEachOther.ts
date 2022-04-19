@@ -18,6 +18,7 @@ export class UserChatEachOther extends MyBaseEntity {
   @JoinColumn()
   receiver: User;
 
+  @IsNotEmpty()
   @IsDate()
   @Column({type: "timestamp", nullable: false})
   sendingTime: Date;

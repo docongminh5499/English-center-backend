@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, OneToOne, JoinColumn } from "typeorm";
+import { Entity, Column, PrimaryColumn, JoinColumn, ManyToOne } from "typeorm";
 import { IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Branch } from "./Branch";
@@ -11,8 +11,7 @@ export class Classroom extends MyBaseEntity {
   @PrimaryColumn({ length: 100 })
   name: string;
 
-  @IsNotEmpty()
-  @OneToOne(() => Branch, {
+  @ManyToOne(() => Branch, {
     nullable: false,
     onDelete: "RESTRICT",
     onUpdate: "CASCADE",

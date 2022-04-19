@@ -58,7 +58,7 @@ export async function initData(){
     var workerMinh = new Worker();
     workerMinh.user= userMinh;
     workerMinh.startDate= new Date(2021, 6, 1);
-    workerMinh.coefficients= 100;
+    workerMinh.coefficients= 90;
     workerMinh.nation= "Kinh";
     workerMinh.passport= "11111111";
     workerMinh.homeTown= "Tp. HCM";
