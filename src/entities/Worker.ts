@@ -53,6 +53,6 @@ export class Worker extends MyBaseEntity {
   @Column({ length: 20, nullable: true })
   domicile: string;
 
-  @OneToMany(() => Salary, (salary) => salary.id, {})
-  salary: Salary;
+  @OneToMany(() => Salary, (salary) => salary.id)
+  salaries: Salary[];
 }
