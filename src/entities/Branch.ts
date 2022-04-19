@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
+import { UserEmployee } from "./UserEmployee";
 
 @Entity()
 export class Branch extends MyBaseEntity {
@@ -24,4 +25,8 @@ export class Branch extends MyBaseEntity {
   @Length(0, 255)
   @Column({ length: 255, nullable: false })
   name: string;
+
+  @OneToOne(() => UserEmployee, {onDelete: "SET NULL", onUpdate: "CASCADE"})
+  @JoinColumn({name: "employeeId"})
+  userEmployee: UserEmployee;
 }

@@ -48,5 +48,6 @@ export class Salary extends MyBaseEntity {
   money: Money;
 
   @ManyToOne(() => Worker, {onDelete: "RESTRICT", onUpdate: "CASCADE", nullable: false})
+  @JoinColumn({name: "workerId"})
   worker: Worker;
 }

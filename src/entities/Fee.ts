@@ -59,14 +59,14 @@ export class Fee extends MyBaseEntity {
     onUpdate: "CASCADE",
     onDelete: "CASCADE",
   })
-  @JoinColumn()
+  @JoinColumn({name: "studentId"})
   userStudent: UserStudent;
 
   @ManyToOne(() => UserEmployee, {
     onUpdate: "CASCADE",
     onDelete: "NO ACTION",
   })
-  @JoinColumn()
+  @JoinColumn({name: "employeeId"})
   userEmployee: UserEmployee;
   
   @IsDate()
