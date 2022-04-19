@@ -15,6 +15,7 @@ export class Classroom extends MyBaseEntity {
     onDelete: "RESTRICT",
     onUpdate: "CASCADE",
   })
+  @JoinColumn()
   @PrimaryColumn({ type: "int", name: "branchId" })
   branch: Branch;
 

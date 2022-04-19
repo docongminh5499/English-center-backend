@@ -1,8 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 import { IsNotEmpty,IsEnum, IsString, Length, Min, Max, IsNumber } from "class-validator";
 import { UserRole } from "../utils/constants/role.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
-import {Account} from "./Account"
 import { Sex } from "../utils/constants/sex.constant";
 
 @Entity()
@@ -20,7 +19,7 @@ export class User extends MyBaseEntity{
     @Column()
     fullName: string;
 
-    @IsNumber()
+    @IsString()
     @Length(0, 10)
     @Column({ length: 10, nullable: false })
     phone: string
@@ -44,10 +43,6 @@ export class User extends MyBaseEntity{
     @IsEnum(UserRole)
     @Column({ type: "enum", enum: UserRole, nullable: false })
     roles: UserRole;
-
-    @OneToOne(type => Account, account => account.id)
-    @Column()
-    account: Account
 
     @IsString()
     @Length(0, 255)

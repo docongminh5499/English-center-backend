@@ -8,6 +8,7 @@ import { User } from "../entities/UserEntity";
 import { UserTeacher } from "../entities/UserTeacher";
 import { Worker } from "../entities/Worker";
 import { AccountRole, UserRole } from "../utils/constants/role.constant";
+import { Sex } from "../utils/constants/sex.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 
 export async function initData(){
@@ -19,14 +20,19 @@ export async function initData(){
         fullName: "Do Cong Minh",
         phone: "9999999999",
         age: 40,
-        sex: 1,
+        sex: Sex.MALE,
         address: "Đồng Nai",
         roles: UserRole.TEACHER,
+        avatar: "Iamge",
     }));
     console.log(userMinh)
     //Create Worker for Teacher
     const workerMinh = await Worker.save(Worker.create({
         user: userMinh,
+        coefficients: 100,
+        nation: "Kinh",
+        passport: "11111111",
+        domicile: "Tp. HCM",
     }));
 
     //Create UserTeacher
