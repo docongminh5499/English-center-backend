@@ -19,7 +19,7 @@ export async function initData(){
         email: "meozzz123@gmail.com",
         fullName: "Do Cong Minh",
         phone: "9999999999",
-        age: 40,
+        dateOfBirth: new Date(1990, 4, 5),
         sex: Sex.MALE,
         address: "Đồng Nai",
         roles: UserRole.TEACHER,
@@ -29,6 +29,7 @@ export async function initData(){
     //Create Worker for Teacher
     const workerMinh = await Worker.save(Worker.create({
         user: userMinh,
+        startDate: new Date(2021, 6, 1),
         coefficients: 100,
         nation: "Kinh",
         passport: "11111111",

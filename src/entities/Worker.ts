@@ -3,6 +3,7 @@ import { MyBaseEntity } from "./MyBaseEntity";
 import { User } from "./UserEntity";
 import { Salary } from "./Salary";
 import {
+  IsDate,
   IsNotEmpty,
   IsNumber,
   IsPositive,
@@ -21,6 +22,11 @@ export class Worker extends MyBaseEntity {
 
   @ManyToOne(() => Branch, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   branch: Branch;
+  
+  @IsNotEmpty()
+  @IsDate()
+  @Column({type: "timestamp", nullable: false})
+  startDate: Date;
 
   //hệ số lương
   @IsNotEmpty()

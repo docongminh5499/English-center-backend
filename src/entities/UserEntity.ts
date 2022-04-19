@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
-import { IsNotEmpty,IsEnum, IsString, Length, Min, Max, IsNumber } from "class-validator";
+import { IsNotEmpty,IsEnum, IsString, Length, Min, Max, IsNumber, IsDate } from "class-validator";
 import { UserRole } from "../utils/constants/role.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Sex } from "../utils/constants/sex.constant";
@@ -24,11 +24,9 @@ export class User extends MyBaseEntity{
     @Column({ length: 10, nullable: false })
     phone: string
     
-    @IsNumber()
-    @Column()
-    @Min(1)
-    @Max(99)
-    age: number
+    @IsDate()
+    @Column({nullable: false})
+    dateOfBirth: Date
     
     @IsEnum(Sex)
     @Column({ type: "enum", enum: Sex, nullable: false })
