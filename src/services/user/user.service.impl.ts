@@ -1,14 +1,28 @@
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
-import { AccountDto } from "../../dto";
+import { AccountDto, DecodeCredentialDto } from "../../dto";
 import { CredentialDto } from "../../dto";
 import { AccountRepository } from "../../repositories";
 import { ValidationError } from "../../utils/errors/validation.error";
 import { NotFoundError } from "../../utils/errors/notFound.error";
 import UserServiceInterface from "./user.service.interface";
+import { InvalidTokenError } from "../../utils/errors/invalidToken.error";
 
 
 class UserServiceImpl implements UserServiceInterface {
+	async decode(dto: CredentialDto): Promise<DecodeCredentialDto> {
+		if (dto.token === undefined)
+			throw new InvalidTokenError();
+		try {
+			const decoded = jwt.verify(dto.token, process.env.TOKEN_KEY || "") as DecodeCredentialDto;
+			return decoded;
+		} catch (err) {
+			console.log(err);
+			throw new InvalidTokenError();
+		}
+	}
+
+
 	async signin(dto: AccountDto): Promise<CredentialDto> {
 		if (!(dto.username && dto.password))
 			throw new ValidationError([]);
