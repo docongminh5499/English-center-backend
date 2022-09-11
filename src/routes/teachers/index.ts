@@ -1,7 +1,7 @@
 import * as express from "express";
 import { guard } from "../../middlewares/guard";
 import { UserRole } from "../../utils/constants/role.constant";
-import { CourseRouter } from "./course";
+import { CourseRouter } from "./routers/course.router";
 
 const router = express.Router();
 
