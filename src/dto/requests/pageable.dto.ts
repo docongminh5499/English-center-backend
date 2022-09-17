@@ -1,4 +1,4 @@
 export default class PageableDto {
-    limit?: number;
-    skip?: number;
+    limit: number;
+    skip: number;
 }

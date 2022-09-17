@@ -1,34 +1,28 @@
+import { Pageable, Selectable, Sortable } from "..";
 import { Course } from "../../entities/Course";
+import Queryable from "../../utils/common/queryable.interface";
 import CourseRepositoryInterface from "./course.repository.interface";
 
 class CourseRepositoryImpl implements CourseRepositoryInterface {
-    async countCourseByTeacher(teacherId?: number): Promise<number> {
+    async countCourseByTeacher(queryable: Queryable<Course>, teacherId?: number): Promise<number> {
         let query = Course.createQueryBuilder();
+        query = queryable.buildQuery(query);
         if (teacherId !== undefined)
             query = query.where("teacherWorker = :id", { id: teacherId });
         return query.getCount()
     }
 
-    async findCourseByTeacher(teacherId?: number, limit?: number,
-        offset?: number, selectField?: string[] | undefined): Promise<Course[]> {
+    async findCourseByTeacher(pageable: Pageable, sortable: Sortable,
+        selectable: Selectable, queryable: Queryable<Course>, teacherId?: number): Promise<Course[]> {
         let query = Course.createQueryBuilder();
-        if (selectField !== undefined && selectField.length > 0) {
-            query = query.select([
-                "name AS name",
-                "openingDate AS openingDate",
-                ...selectField
-            ]);
-        }
-        if (teacherId !== undefined) 
+        query = selectable.buildQuery(query);
+        query = queryable.buildQuery(query);
+        if (teacherId !== undefined)
             query = query.where("teacherWorker = :id", { id: teacherId });
-        query = query.orderBy("openingDate", "DESC").addOrderBy("name", "ASC");
-        if (limit !== undefined)
-            query = query.limit(limit);
-        if (offset !== undefined)
-            query = query.offset(offset);
+        query = sortable.buildQuery(query);
+        query = pageable.buildQuery(query);
         return query.execute()
     }
-
 }
 
 const CourseRepository = new CourseRepositoryImpl();
