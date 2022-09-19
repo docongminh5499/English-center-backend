@@ -11,6 +11,7 @@ export class Classroom extends MyBaseEntity {
   @PrimaryColumn({ length: 100 })
   name: string;
 
+  @IsNotEmpty()
   @ManyToOne(() => Branch, {
     nullable: false,
     onDelete: "RESTRICT",

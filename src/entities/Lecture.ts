@@ -3,7 +3,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  JoinColumn,
   ManyToOne,
 } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
@@ -38,6 +37,5 @@ export class Lecture extends MyBaseEntity {
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
   })
-  @JoinColumn()
   curriculum: Curriculum;
 }

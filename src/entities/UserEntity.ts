@@ -9,15 +9,14 @@ export class User extends MyBaseEntity{
     @PrimaryGeneratedColumn()
     id: number;
 
-    @IsNotEmpty()
     @IsString()
     @Column({ length: 50, unique: true, nullable: true })
     email: string;
 
     @IsNotEmpty()
     @IsString()
-    @Length(0, 255)
-    @Column()
+    @Length(0, 50)
+    @Column({ length: 50, nullable: false })
     fullName: string;
 
     @IsString()
@@ -40,13 +39,13 @@ export class User extends MyBaseEntity{
     @Column({ length: 255, nullable: true })
     address: string;
 
-    @IsNotEmpty()
-    @IsEnum(UserRole)
-    @Column({ type: "enum", enum: UserRole, nullable: false })
-    roles: UserRole;
-
     @IsString()
     @Length(0, 255)
     @Column({ length: 255, nullable: true })
     avatar: string;
+
+    @IsNotEmpty()
+    @IsEnum(UserRole)
+    @Column({ type: "enum", enum: UserRole, nullable: false })
+    roles: UserRole;
 }

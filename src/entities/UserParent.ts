@@ -10,7 +10,7 @@ export class UserParent extends MyBaseEntity {
   userStudents: UserStudent[];
 
   @PrimaryColumn({type: "int", name: "parentId"})
-  @OneToOne(()=>User)
+  @OneToOne(()=>User, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinColumn({name: "parentId"})
   user: User;
 }

@@ -7,7 +7,7 @@ import { Worker } from "./Worker";
 export class UserEmployee extends MyBaseEntity {
 
     @PrimaryColumn({type: "int", name: "employeeId"})
-    @OneToOne(()=>Worker)
+    @OneToOne(()=>Worker, { onDelete: "CASCADE", onUpdate: "CASCADE" })
     @JoinColumn({name: "employeeId"})
     worker: Worker;
 }

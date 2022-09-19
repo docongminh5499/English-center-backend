@@ -3,7 +3,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  JoinColumn,
 } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -33,6 +32,5 @@ export class Curriculum extends MyBaseEntity {
   image: string;
 
   @OneToMany(() => Lecture, (lecture) => lecture.curriculum)
-  @JoinColumn()
   lectures: Lecture[];
 }

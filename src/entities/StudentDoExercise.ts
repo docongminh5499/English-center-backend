@@ -28,10 +28,12 @@ export class StudentDoExercise extends MyBaseEntity {
   @Column({ type: "decimal", precision: 3, scale: 1, nullable: false })
   score: number;
 
+  @IsNotEmpty()
   @IsDate()
   @Column({ type: "timestamp", nullable: false })
   startTime: Date;
 
+  @IsNotEmpty()
   @IsDate()
   @Column({ type: "timestamp", nullable: false })
   endTime: Date;

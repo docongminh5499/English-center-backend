@@ -1,4 +1,4 @@
-import { Entity, JoinTable, ManyToMany, PrimaryColumn } from "typeorm";
+import { Entity, ManyToMany, PrimaryColumn } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Question } from "./Question";
@@ -11,7 +11,6 @@ export class Tag extends MyBaseEntity {
   @PrimaryColumn({ length: 100 })
   name: string;
 
-  @ManyToMany(() => Question, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
-  @JoinTable({ name: "question_belong_tag" })
+  @ManyToMany(() => Question, (question) => question.tags, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   questions: Question[];
 }

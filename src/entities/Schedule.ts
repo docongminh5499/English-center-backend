@@ -1,4 +1,5 @@
 import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { IsNotEmpty } from "class-validator";
 import { Classroom } from "./Classroom";
 import { Course } from "./Course";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -10,6 +11,7 @@ export class Schedule extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @IsNotEmpty()
   @ManyToOne(() => Course, {
     nullable: false,
     onUpdate: "CASCADE",
@@ -18,6 +20,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   course: Course;
 
+  @IsNotEmpty()
   @ManyToOne(() => UserTutor, {
     nullable: false,
     onUpdate: "CASCADE",
@@ -26,6 +29,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   tutor: UserTutor;
 
+  @IsNotEmpty()
   @ManyToOne(() => Shift, {
     nullable: false,
     onUpdate: "CASCADE",
@@ -34,6 +38,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   startShift: Shift;
 
+  @IsNotEmpty()
   @ManyToOne(() => Shift, {
     nullable: false,
     onUpdate: "CASCADE",
@@ -42,6 +47,7 @@ export class Schedule extends MyBaseEntity {
   @JoinColumn()
   endShift: Shift;
 
+  @IsNotEmpty()
   @ManyToOne(() => Classroom, {
     nullable: false,
     onUpdate: "CASCADE",

@@ -8,7 +8,7 @@ import { Exercise } from "./Exercise";
 import { Fee } from "./Fee";
 import { Lecture } from "./Lecture";
 import { StudySession } from "./StudySession";
-import { Money } from "./Money";
+import { Transaction } from "./Transaction";
 import { Notification } from "./Notification";
 import { Question } from "./Question";
 import { Salary } from "./Salary";
@@ -40,7 +40,7 @@ module.exports = [
   Tag,
   Document,
   Notification,
-  Money,
+  Transaction,
   Salary,
   Fee,
   UserAdmin,

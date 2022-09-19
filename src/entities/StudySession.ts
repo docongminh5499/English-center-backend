@@ -1,10 +1,11 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable } from "typeorm";
-import { IsBoolean, IsDate, IsNotEmpty, IsString, Length } from "class-validator";
+import { IsBoolean, IsDate, IsNotEmpty, IsString, Length, IsEnum } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Lecture } from "./Lecture";
 import { Course } from "./Course";
 import { Shift } from "./Shift";
 import { UserTutor } from "./UserTutor";
+import { StudySessionState } from "../utils/constants/studySession.constant";
 
 @Entity()
 export class StudySession extends MyBaseEntity {
@@ -27,7 +28,17 @@ export class StudySession extends MyBaseEntity {
   @Column({ type: "boolean", nullable: false })
   isTeacherAbsent: boolean
 
+  @IsString()
+  @Column({ type: "text", nullable: true })
+  notes: string;
+
+  @IsNotEmpty()
+  @IsEnum(StudySessionState)
+  @Column({ type: "enum", enum: StudySessionState, nullable: false })
+  state: StudySessionState;
+
   //Relation StudySession==N==<has>--1--Lecture
+  @IsNotEmpty()
   @ManyToOne(() => Lecture, (lecture) => lecture.studySessions, {nullable: false, onDelete: "RESTRICT", onUpdate: "CASCADE"})
   lecture: Lecture;
 
