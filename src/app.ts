@@ -16,6 +16,7 @@ app.use(json());
 app.use(urlencoded({ extended: true }));
 app.use(extractUser);
 
+app.use(express.static('public'))
 app.use("/api/users", UserRouter);
 app.use("/api/teachers", TeacherRouter);
 

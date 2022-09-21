@@ -5,6 +5,7 @@ import { Course } from "../entities/Course";
 import { Curriculum } from "../entities/Curriculum";
 import { Lecture } from "../entities/Lecture"
 import { User } from "../entities/UserEntity";
+import { UserStudent } from "../entities/UserStudent";
 import { UserTeacher } from "../entities/UserTeacher";
 import { Worker } from "../entities/Worker";
 import { AccountRole, UserRole } from "../utils/constants/role.constant";
@@ -53,7 +54,7 @@ export async function initData(){
     userMinh.sex= Sex.MALE;
     userMinh.address= "Đồng Nai";
     userMinh.roles= UserRole.TEACHER;
-    userMinh.avatar= "Iamge";
+    userMinh.avatar= "http://localhost:5000/assets/images/avatar/teacher.jpg";
 
     var workerMinh = new Worker();
     workerMinh.user= userMinh;
@@ -72,12 +73,64 @@ export async function initData(){
     await Worker.save(workerMinh);
     await UserTeacher.save(teacherMinh);
     // //Create Account for UserTeacher
-    const hash = bcrypt.hashSync("doremon123", 10);
+    const hashTeacherPW = bcrypt.hashSync("doremon123", 10);
     await Account.save(Account.create({
         username: "minh5499",
-        password: hash,
+        password: hashTeacherPW,
         role: AccountRole.TEACHER,
         user: userMinh,
+    }));
+
+    //Create Student 1
+    var userSttudent1 = new User();
+
+    userSttudent1.id= 1000001;
+    userSttudent1.email= "hocdoan1@gmail.com";
+    userSttudent1.fullName= "Doan Hoc";
+    userSttudent1.phone= "1111111111";
+    userSttudent1.dateOfBirth= new Date(1999, 6, 12);
+    userSttudent1.sex= Sex.MALE;
+    userSttudent1.address= "Đồng Nai";
+    userSttudent1.roles= UserRole.STUDENT;
+    userSttudent1.avatar= "http://localhost:5000/assets/images/avatar/student1.jpg";
+
+    var student1 = new UserStudent();
+    student1.user = userSttudent1;
+
+    await User.save(userSttudent1);
+    await UserStudent.save(student1);
+    const hashStudent1 = bcrypt.hashSync("hocdoan1", 10);
+    await Account.save(Account.create({
+        username: "hocdoan1",
+        password: hashStudent1,
+        role: AccountRole.STUDENT,
+        user: userSttudent1,
+    }));
+
+    //Create Student 2
+    var userSttudent2 = new User();
+
+    userSttudent2.id= 1000002;
+    userSttudent2.email= "hocdoan2@gmail.com";
+    userSttudent2.fullName= "Doan Thai Hoc";
+    userSttudent2.phone= "2222222222";
+    userSttudent2.dateOfBirth= new Date(1999, 12, 6);
+    userSttudent2.sex= Sex.MALE;
+    userSttudent2.address= "Đồng Nai";
+    userSttudent2.roles= UserRole.STUDENT;
+    userSttudent2.avatar= "http://localhost:5000/assets/images/avatar/student2.jpg";
+
+    var student2 = new UserStudent();
+    student2.user = userSttudent2;
+
+    await User.save(userSttudent2);
+    await UserStudent.save(student2);
+    const hashStudent2 = bcrypt.hashSync("hocdoan2", 10);
+    await Account.save(Account.create({
+        username: "hocdoan2",
+        password: hashStudent2,
+        role: AccountRole.STUDENT,
+        user: userSttudent2,
     }));
 
     //Create Curriculum
