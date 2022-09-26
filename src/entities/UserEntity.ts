@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
 import { IsNotEmpty,IsEnum, IsString, Length, IsDate } from "class-validator";
 import { UserRole } from "../utils/constants/role.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Sex } from "../utils/constants/sex.constant";
+import { SocketStatus } from "./SocketStatus";
 
 @Entity()
 export class User extends MyBaseEntity{
@@ -26,7 +27,7 @@ export class User extends MyBaseEntity{
     
     @IsNotEmpty()
     @IsDate()
-    @Column({type: "timestamp", nullable: false})
+    @Column({type: "timestamp", precision: 6, nullable: false})
     dateOfBirth: Date
     
     @IsNotEmpty()
@@ -48,4 +49,7 @@ export class User extends MyBaseEntity{
     @IsEnum(UserRole)
     @Column({ type: "enum", enum: UserRole, nullable: false })
     roles: UserRole;
+
+    @OneToMany(()=>SocketStatus, socketStatus => socketStatus.user)
+    socketStatuses: SocketStatus[];
 }

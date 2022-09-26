@@ -20,7 +20,7 @@ export class StudySession extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", nullable: false })
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   date: Date;
   
   @IsNotEmpty()

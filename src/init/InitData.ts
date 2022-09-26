@@ -12,7 +12,7 @@ import { AccountRole, UserRole } from "../utils/constants/role.constant";
 import { Sex } from "../utils/constants/sex.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 
-export async function initData(){
+export async function initData() {
 
     // //Create User role Teacher
     // const userMinh = await User.save(User.create({
@@ -46,23 +46,23 @@ export async function initData(){
 
     var userMinh = new User();
 
-    userMinh.id= 2000001;
-    userMinh.email= "meozzz123@gmail.com";
-    userMinh.fullName= "Do Cong Minh";
-    userMinh.phone= "9999999999";
-    userMinh.dateOfBirth= new Date(1990, 4, 5);
-    userMinh.sex= Sex.MALE;
-    userMinh.address= "Đồng Nai";
-    userMinh.roles= UserRole.TEACHER;
-    userMinh.avatar= "http://localhost:5000/assets/images/avatar/teacher.jpg";
+    userMinh.id = 2000001;
+    userMinh.email = "meozzz123@gmail.com";
+    userMinh.fullName = "Do Cong Minh";
+    userMinh.phone = "9999999999";
+    userMinh.dateOfBirth = new Date(1990, 4, 5);
+    userMinh.sex = Sex.MALE;
+    userMinh.address = "Đồng Nai";
+    userMinh.roles = UserRole.TEACHER;
+    userMinh.avatar = "/assets/images/avatar/teacher.jpg";
 
     var workerMinh = new Worker();
-    workerMinh.user= userMinh;
-    workerMinh.startDate= new Date(2021, 6, 1);
-    workerMinh.coefficients= 90;
-    workerMinh.nation= "Kinh";
-    workerMinh.passport= "11111111";
-    workerMinh.homeTown= "Tp. HCM";
+    workerMinh.user = userMinh;
+    workerMinh.startDate = new Date(2021, 6, 1);
+    workerMinh.coefficients = 90;
+    workerMinh.nation = "Kinh";
+    workerMinh.passport = "11111111";
+    workerMinh.homeTown = "Tp. HCM";
 
     var teacherMinh = new UserTeacher();
     teacherMinh.worker = workerMinh;
@@ -81,18 +81,56 @@ export async function initData(){
         user: userMinh,
     }));
 
+    // Create Teacher 2
+    var userTeacher2 = new User();
+
+    userTeacher2.id = 2000002;
+    userTeacher2.email = "teacher2@gmail.com";
+    userTeacher2.fullName = "Mike Do";
+    userTeacher2.phone = "9999999999";
+    userTeacher2.dateOfBirth = new Date(1990, 4, 5);
+    userTeacher2.sex = Sex.MALE;
+    userTeacher2.address = "Đồng Nai";
+    userTeacher2.roles = UserRole.TEACHER;
+    userTeacher2.avatar = "/assets/images/avatar/teacher.jpg";
+
+    var workerTeacher2 = new Worker();
+    workerTeacher2.user = userTeacher2;
+    workerTeacher2.startDate = new Date(2021, 6, 1);
+    workerTeacher2.coefficients = 90;
+    workerTeacher2.nation = "Kinh";
+    workerTeacher2.passport = "22222222";
+    workerTeacher2.homeTown = "Tp. HCM";
+
+    var teacher2 = new UserTeacher();
+    teacher2.worker = workerTeacher2;
+    teacher2.experience = "experience";
+    teacher2.shortDesc = "shortDesc";
+
+    await User.save(userTeacher2);
+    await Worker.save(workerTeacher2);
+    await UserTeacher.save(teacher2);
+    // //Create Account for UserTeacher
+    const hashTeacherPW2 = bcrypt.hashSync("minh2", 10);
+    await Account.save(Account.create({
+        username: "minh2",
+        password: hashTeacherPW2,
+        role: AccountRole.TEACHER,
+        user: userTeacher2,
+    }));
+
     //Create Student 1
     var userSttudent1 = new User();
 
-    userSttudent1.id= 1000001;
-    userSttudent1.email= "hocdoan1@gmail.com";
-    userSttudent1.fullName= "Doan Hoc";
-    userSttudent1.phone= "1111111111";
-    userSttudent1.dateOfBirth= new Date(1999, 6, 12);
-    userSttudent1.sex= Sex.MALE;
-    userSttudent1.address= "Đồng Nai";
-    userSttudent1.roles= UserRole.STUDENT;
-    userSttudent1.avatar= "http://localhost:5000/assets/images/avatar/student1.jpg";
+    userSttudent1.id = 1000001;
+    userSttudent1.email = "hocdoan1@gmail.com";
+    userSttudent1.fullName = "Doan Hoc";
+    userSttudent1.phone = "1111111111";
+    userSttudent1.dateOfBirth = new Date(1999, 6, 12);
+    userSttudent1.sex = Sex.MALE;
+    userSttudent1.address = "Đồng Nai";
+    userSttudent1.roles = UserRole.STUDENT;
+    userSttudent1.avatar = "/assets/images/avatar/student1.jpg";
 
     var student1 = new UserStudent();
     student1.user = userSttudent1;
@@ -110,15 +148,15 @@ export async function initData(){
     //Create Student 2
     var userSttudent2 = new User();
 
-    userSttudent2.id= 1000002;
-    userSttudent2.email= "hocdoan2@gmail.com";
-    userSttudent2.fullName= "Doan Thai Hoc";
-    userSttudent2.phone= "2222222222";
-    userSttudent2.dateOfBirth= new Date(1999, 12, 6);
-    userSttudent2.sex= Sex.MALE;
-    userSttudent2.address= "Đồng Nai";
-    userSttudent2.roles= UserRole.STUDENT;
-    userSttudent2.avatar= "http://localhost:5000/assets/images/avatar/student2.jpg";
+    userSttudent2.id = 1000002;
+    userSttudent2.email = "hocdoan2@gmail.com";
+    userSttudent2.fullName = "Doan Thai Hoc";
+    userSttudent2.phone = "2222222222";
+    userSttudent2.dateOfBirth = new Date(1999, 12, 6);
+    userSttudent2.sex = Sex.MALE;
+    userSttudent2.address = "Đồng Nai";
+    userSttudent2.roles = UserRole.STUDENT;
+    userSttudent2.avatar = "/assets/images/avatar/student2.jpg";
 
     var student2 = new UserStudent();
     student2.user = userSttudent2;

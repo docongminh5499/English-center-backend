@@ -58,6 +58,6 @@ export class Fee extends MyBaseEntity {
   userEmployee: UserEmployee;
   
   @IsDate()
-  @Column({type: "timestamp"})
+  @Column({type: "timestamp", precision: 6})
   payDate: Date;
 }

@@ -30,11 +30,11 @@ export class StudentDoExercise extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", nullable: false })
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   startTime: Date;
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", nullable: false })
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   endTime: Date;
 }

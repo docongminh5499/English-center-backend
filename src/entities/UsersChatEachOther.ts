@@ -1,5 +1,5 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from "typeorm";
-import { IsDate, IsNotEmpty, IsString } from "class-validator";
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from "typeorm";
+import { IsBoolean, IsDate, IsNotEmpty, IsString } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { User } from "./UserEntity";
 
@@ -7,25 +7,28 @@ import { User } from "./UserEntity";
 @Entity()
 export class UserChatEachOther extends MyBaseEntity {
 
-  
-  @PrimaryColumn({type: "int", name:"senderId"})
-  @ManyToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE"})
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => User, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinColumn()
   sender: User;
 
-  @PrimaryColumn({type: "int", name:"receiverId"})
-  @ManyToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE"})
+  @ManyToOne(() => User, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinColumn()
   receiver: User;
 
   @IsNotEmpty()
   @IsDate()
-  @Column({type: "timestamp", nullable: false})
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   sendingTime: Date;
 
   @IsNotEmpty()
   @IsString()
   @Column({ type: "text", nullable: false })
   messageContent: string;
-  
+
+  @IsBoolean()
+  @Column({ type: "boolean", default: false })
+  read: boolean;
 }

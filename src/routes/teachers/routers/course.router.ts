@@ -12,7 +12,7 @@ router.get("/get-course", async (req: any, res: any, next: any) => {
     
     const pageableDto = PageableMapper.mapToDto(req.query);
     const queryable = new CourseQueryable().map(req.query);
-    const courseListDto = await TeacherService.getCoursesByTeacher(req.user.id, pageableDto, queryable);
+    const courseListDto = await TeacherService.getCoursesByTeacher(req.user.userId, pageableDto, queryable);
     return res.status(200).json(courseListDto);
   } catch (err) {
     console.log(err);
