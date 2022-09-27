@@ -47,5 +47,5 @@ export class User extends MyBaseEntity{
     @IsNotEmpty()
     @IsEnum(UserRole)
     @Column({ type: "enum", enum: UserRole, nullable: false })
-    roles: UserRole;
+    role: UserRole;
 }

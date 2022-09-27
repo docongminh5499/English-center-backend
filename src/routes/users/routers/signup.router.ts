@@ -14,7 +14,7 @@ router.post("/", async (req: any, res: any, next: any) => {
   const account = new Account();
   account.username = accountInfo.username;
   account.password = await bcrypt.hash(accountInfo.password, 10);
-  account.role = accountInfo.role;
+  account.role = user.role;
   account.user = user;
 
   console.log(user);

@@ -53,7 +53,7 @@ export async function initData(){
     userMinh.dateOfBirth= new Date(1990, 4, 5);
     userMinh.sex= Sex.MALE;
     userMinh.address= "Đồng Nai";
-    userMinh.roles= UserRole.TEACHER;
+    userMinh.role= UserRole.TEACHER;
     userMinh.avatar= "http://localhost:5000/assets/images/avatar/teacher.jpg";
 
     var workerMinh = new Worker();
@@ -91,7 +91,7 @@ export async function initData(){
     userSttudent1.dateOfBirth= new Date(1999, 6, 12);
     userSttudent1.sex= Sex.MALE;
     userSttudent1.address= "Đồng Nai";
-    userSttudent1.roles= UserRole.STUDENT;
+    userSttudent1.role= UserRole.STUDENT;
     userSttudent1.avatar= "http://localhost:5000/assets/images/avatar/student1.jpg";
 
     var student1 = new UserStudent();
@@ -117,7 +117,7 @@ export async function initData(){
     userSttudent2.dateOfBirth= new Date(1999, 12, 6);
     userSttudent2.sex= Sex.MALE;
     userSttudent2.address= "Đồng Nai";
-    userSttudent2.roles= UserRole.STUDENT;
+    userSttudent2.role= UserRole.STUDENT;
     userSttudent2.avatar= "http://localhost:5000/assets/images/avatar/student2.jpg";
 
     var student2 = new UserStudent();
