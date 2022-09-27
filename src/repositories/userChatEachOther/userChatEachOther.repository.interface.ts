@@ -13,4 +13,6 @@ export default interface UserChatEachOtherRepository {
     saveMessage: (sender: User, receiver: User, messageContent: string) => Promise<UserChatEachOther | null>;
 
     readMessage: (sender: User, receiver: User) => Promise<boolean>;
+
+    getUnreadMessageCount: (receiver: User) => Promise<number>;
 }

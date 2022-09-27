@@ -11,4 +11,6 @@ export default interface MessageService {
     findContacts: (name?: string) => Promise<ContactListDto>;
 
     getMessages: (user: UserDto, targetUser: UserDto, pageable: PageableDto) => Promise<MessageListDto>
+
+    getUnreadMessageCount: (user: UserDto) => Promise<number>;
 }

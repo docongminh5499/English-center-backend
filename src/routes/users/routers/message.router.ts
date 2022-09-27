@@ -43,7 +43,9 @@ router.post("/get-messages", async (req: any, res: any, next: any) => {
 
 router.post("/get-unread-messages-count", async (req: any, res: any, next: any) => {
   try {
-
+    const userDto = UserMapper.mapToDto({ id: req.user.userId });
+    const count = await MessageService.getUnreadMessageCount(userDto);
+    return res.status(200).json({ messageCount: count });
   } catch (err) {
     console.log(err);
     next(err);

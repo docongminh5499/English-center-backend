@@ -115,6 +115,15 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
       && result.affected !== null
       && result.affected > 0;
   }
+
+
+  async getUnreadMessageCount(receiver: User): Promise<number> {
+    const result = await UserChatEachOther.createQueryBuilder("chat")
+      .where("chat.receiverId = :receiverId", { receiverId: receiver.id })
+      .andWhere("chat.read = 0")
+      .getCount();
+    return result;
+  }
 }
 
 const UserChatEachOtherRepository = new UserChatEachOtherImpl();

@@ -2,6 +2,7 @@ import moment = require("moment");
 import { ContactListDto, MessageDto, MessageListDto, MessageResponseDto, PageableDto, SocketDto, UserDto } from "../../dto";
 import { Pageable, SocketStatusRepository, Sortable, UserChatEachOtherRepository, UserRepository } from "../../repositories";
 import { InvalidTokenError } from "../../utils/errors/invalidToken.error";
+import { NotFoundError } from "../../utils/errors/notFound.error";
 import { ValidationError } from "../../utils/errors/validation.error";
 import MessageServiceInterface from "./message.service.interface";
 
@@ -166,6 +167,16 @@ class MessageServiceImpl implements MessageServiceInterface {
     messageListDto.total = messagesCount;
 
     return messageListDto;
+  }
+
+
+  async getUnreadMessageCount(user: UserDto): Promise<number> {
+    if (user.id === undefined)
+      throw new NotFoundError();
+    const userEntity = await UserRepository.findUserByid(user.id);
+    if (userEntity === null)
+      throw new NotFoundError();
+    return UserChatEachOtherRepository.getUnreadMessageCount(userEntity);
   }
 }
 
