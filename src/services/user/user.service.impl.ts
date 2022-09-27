@@ -7,6 +7,9 @@ import { ValidationError } from "../../utils/errors/validation.error";
 import { NotFoundError } from "../../utils/errors/notFound.error";
 import UserServiceInterface from "./user.service.interface";
 import { InvalidTokenError } from "../../utils/errors/invalidToken.error";
+import { User } from "../../entities/UserEntity";
+import { Account } from "../../entities/Account";
+import { DuplicateError } from "../../utils/errors/duplicate.error";
 
 
 class UserServiceImpl implements UserServiceInterface {
@@ -40,6 +43,26 @@ class UserServiceImpl implements UserServiceInterface {
 			return credentialDto;
 		}
 		throw new NotFoundError();
+	}
+
+	async signup(user: User, account: Account){
+		const isOld = await AccountRepository.findByUserName(account.username);
+		if(isOld){
+			throw new DuplicateError();
+		}
+		try{
+			await User.save(user);
+			await Account.save(account);
+		}catch(err){
+			
+		}
+	}
+
+	async checkOldEmail(email: string): Promise<Boolean>{
+		const user = await AccountRepository.findUserByEmail(email);
+		if(user == null)
+			return false;
+		return true;
 	}
 }
 

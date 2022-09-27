@@ -1,4 +1,5 @@
 import { Account } from "../../entities/Account";
+import { User } from "../../entities/UserEntity";
 import AccountRepositoryInterface from "./account.repository.interface";
 
 class AccountRepositoryImpl implements AccountRepositoryInterface {
@@ -11,6 +12,15 @@ class AccountRepositoryImpl implements AccountRepositoryInterface {
             relations: ['user'] 
         });
         return account;
+    }
+
+    async findUserByEmail(email: string | undefined) : Promise<User | null> {
+        if (email === undefined)
+            return null;
+        const user = await User.findOne({
+            where: { email: email }
+        });
+        return user;
     }
 }
 
