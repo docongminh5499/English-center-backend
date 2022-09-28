@@ -4,6 +4,7 @@ import { Account } from "../entities/Account";
 import { Course } from "../entities/Course";
 import { Curriculum } from "../entities/Curriculum";
 import { Lecture } from "../entities/Lecture"
+import { UserEmployee } from "../entities/UserEmployee";
 import { User } from "../entities/UserEntity";
 import { UserStudent } from "../entities/UserStudent";
 import { UserTeacher } from "../entities/UserTeacher";
@@ -118,6 +119,42 @@ export async function initData() {
         role: AccountRole.TEACHER,
         user: userTeacher2,
     }));
+
+     // Create employee
+     var userEmployee1 = new User();
+
+     userEmployee1.id = 3000001;
+     userEmployee1.email = "employee@gmail.com";
+     userEmployee1.fullName = "Leonard";
+     userEmployee1.phone = "9999999999";
+     userEmployee1.dateOfBirth = new Date(1990, 4, 5);
+     userEmployee1.sex = Sex.MALE;
+     userEmployee1.address = "Đồng Nai";
+     userEmployee1.roles = UserRole.EMPLOYEE;
+     userEmployee1.avatar = "";
+ 
+     var workerEmployee1 = new Worker();
+     workerEmployee1.user = userEmployee1;
+     workerEmployee1.startDate = new Date(2021, 6, 1);
+     workerEmployee1.coefficients = 90;
+     workerEmployee1.nation = "Kinh";
+     workerEmployee1.passport = "333333333";
+     workerEmployee1.homeTown = "Tp. HCM";
+ 
+     var employee1 = new UserEmployee();
+     employee1.worker = workerEmployee1;
+ 
+     await User.save(userEmployee1);
+     await Worker.save(workerEmployee1);
+     await UserEmployee.save(employee1);
+     // //Create Account for User Employee
+     const hashEmployeePW1 = bcrypt.hashSync("minh3", 10);
+     await Account.save(Account.create({
+         username: "minh3",
+         password: hashEmployeePW1,
+         role: AccountRole.EMPLOYEE,
+         user: userEmployee1,
+     }));
 
     //Create Student 1
     var userSttudent1 = new User();

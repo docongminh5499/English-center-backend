@@ -14,6 +14,9 @@ import MessageListDto from "./responses/messageList.dto";
 import MessageResponseDto from "./responses/message.response.dto";
 import LatestMessageContactDto from "./responses/latestMessageContact.dto";
 import UserContactDto from "./responses/userContact.dto";
+import NotificationDto from "./responses/notification.dto";
+import NotificationListDto from "./responses/notificationList.dto";
+import NotificationResponseDto from "./responses/notification.response.dto";
 
 export {
     // Request DTO
@@ -33,4 +36,7 @@ export {
     MessageResponseDto,
     LatestMessageContactDto,
     UserContactDto,
+    NotificationDto,
+    NotificationListDto,
+    NotificationResponseDto,
 };

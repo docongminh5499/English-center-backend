@@ -1,7 +1,6 @@
 import * as express from "express";
 import { MessageService } from "../../../services/message";
-import { UserMapper } from "../mappers";
-import PageableMapper from "../mappers/pageable.mapper";
+import { PageableMapper, UserMapper } from "../mappers";
 
 const router = express.Router();
 

@@ -5,6 +5,7 @@ import { SigninRouter } from "./routers/signin.router";
 import { SignupRouter } from "./routers/signup.router";
 import { VerifyRouter } from "./routers/verify.router";
 import { MessageRouter } from "./routers/message.router";
+import { NotificationRouter } from "./routers/notification.router";
 
 const router = express.Router();
 
@@ -34,5 +35,14 @@ router.use("/message", guard([
   UserRole.TEACHER,
   UserRole.TUTOR,
 ]), MessageRouter);
+
+router.use("/notification", guard([
+  UserRole.ADMIN,
+  UserRole.EMPLOYEE,
+  UserRole.PARENT,
+  UserRole.STUDENT,
+  UserRole.TEACHER,
+  UserRole.TUTOR,
+]), NotificationRouter);
 
 export default router;

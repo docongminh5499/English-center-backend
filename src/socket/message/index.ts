@@ -44,34 +44,38 @@ export default function addMessageEventHandler(io: Server<DefaultEventsMap, Defa
         }
         );
       } catch (error) {
+        socket.emit("send_message_failed");
         console.log(error);
       }
     });
 
 
     socket.on("seen_message", async (json) => {
-      const senderUserDto = UserMapper.mapToDto(json.sender);
-      const socketDto = SocketMapper.mapToDto(socket);
-      const response = await MessageService.seen(senderUserDto, socketDto);
+      try {
+        const senderUserDto = UserMapper.mapToDto(json.sender);
+        const socketDto = SocketMapper.mapToDto(socket);
+        const response = await MessageService.seen(senderUserDto, socketDto);
 
-      if (response.addSuccess && response.senderSocketStatuses && response.senderSocketStatuses.length) {
-        response.senderSocketStatuses.forEach(socketStatus => {
+        if (response.addSuccess && response.senderSocketStatuses && response.senderSocketStatuses.length) {
+          response.senderSocketStatuses.forEach(socketStatus => {
+            if (socket.id === socketStatus.socketId) {
+              socket.emit("seen_message", { user: response.receiver })
+            } else {
+              socket.to(socketStatus.socketId).emit("seen_message", { user: response.receiver })
+            }
+          });
+        }
+
+        response.receiverSocketStatuses?.forEach(socketStatus => {
           if (socket.id === socketStatus.socketId) {
-            socket.emit("seen_message", { user: response.receiver })
+            socket.emit("own_seen_message", { user: response.sender })
           } else {
-            socket.to(socketStatus.socketId).emit("seen_message", { user: response.receiver })
+            socket.to(socketStatus.socketId).emit("own_seen_message", { user: response.sender })
           }
         });
+      } catch (error) {
+        console.log(error);
       }
-
-      response.receiverSocketStatuses?.forEach(socketStatus => {
-        if (socket.id === socketStatus.socketId) {
-          socket.emit("own_seen_message", { user: response.sender })
-        } else {
-          socket.to(socketStatus.socketId).emit("own_seen_message", { user: response.sender })
-        }
-      });
     });
-
   });
 }
