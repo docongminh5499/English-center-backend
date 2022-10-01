@@ -48,12 +48,8 @@ export class User extends MyBaseEntity{
     @IsNotEmpty()
     @IsEnum(UserRole)
     @Column({ type: "enum", enum: UserRole, nullable: false })
-<<<<<<< HEAD
     role: UserRole;
-=======
-    roles: UserRole;
 
     @OneToMany(()=>SocketStatus, socketStatus => socketStatus.user)
     socketStatuses: SocketStatus[];
->>>>>>> master
 }

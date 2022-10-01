@@ -38,14 +38,14 @@ class MessageServiceImpl implements MessageServiceInterface {
       response.sender = {
         userAvatar: foundSender.avatar,
         userFullName: foundSender.fullName,
-        userRole: foundSender.roles,
+        userRole: foundSender.role,
         userId: foundSender.id,
         isActive: foundSender.socketStatuses && foundSender.socketStatuses.length > 0,
       }
       response.receiver = {
         userAvatar: foundReceiver.avatar,
         userFullName: foundReceiver.fullName,
-        userRole: foundReceiver.roles,
+        userRole: foundReceiver.role,
         userId: foundReceiver.id,
         isActive: foundReceiver.socketStatuses && foundReceiver.socketStatuses.length > 0,
       }
@@ -74,14 +74,14 @@ class MessageServiceImpl implements MessageServiceInterface {
     response.sender = {
       userAvatar: foundSender.avatar,
       userFullName: foundSender.fullName,
-      userRole: foundSender.roles,
+      userRole: foundSender.role,
       userId: foundSender.id,
       isActive: foundSender.socketStatuses && foundSender.socketStatuses.length > 0,
     }
     response.receiver = {
       userAvatar: foundReceiver.avatar,
       userFullName: foundReceiver.fullName,
-      userRole: foundReceiver.roles,
+      userRole: foundReceiver.role,
       userId: foundReceiver.id,
       isActive: foundReceiver.socketStatuses && foundReceiver.socketStatuses.length > 0,
     };
@@ -104,7 +104,7 @@ class MessageServiceImpl implements MessageServiceInterface {
         user: {
           userAvatar: targetUser.avatar,
           userFullName: targetUser.fullName,
-          userRole: targetUser.roles,
+          userRole: targetUser.role,
           userId: targetUser.id,
           isActive: targetUser.socketStatuses.length > 0,
         },
@@ -133,7 +133,7 @@ class MessageServiceImpl implements MessageServiceInterface {
       user: {
         userAvatar: user.avatar,
         userFullName: user.fullName,
-        userRole: user.roles,
+        userRole: user.role,
         userId: user.id,
         isActive: user.socketStatuses.length > 0,
       },
