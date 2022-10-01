@@ -37,7 +37,8 @@ class UserServiceImpl implements UserServiceInterface {
 				fullName: account.user.fullName,
 				userId: account.user.id,
 				userName: account.username,
-				role: account.role
+				role: account.role,
+				avatar: account.user.avatar,
 			}, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
 			return credentialDto;
 		}

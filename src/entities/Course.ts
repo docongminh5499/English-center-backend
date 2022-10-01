@@ -61,12 +61,12 @@ export class Course extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", nullable: false })
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   openingDate: Date;
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", nullable: false })
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   closingDate: Date;
 
   @IsNotEmpty()

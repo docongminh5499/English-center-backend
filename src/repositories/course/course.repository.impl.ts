@@ -8,7 +8,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         let query = Course.createQueryBuilder();
         query = queryable.buildQuery(query);
         if (teacherId !== undefined)
-            query = query.where("teacherWorker = :id", { id: teacherId });
+            query = query.andWhere("teacherWorker = :id", { id: teacherId });
         return query.getCount()
     }
 
@@ -18,7 +18,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
         if (teacherId !== undefined)
-            query = query.where("teacherWorker = :id", { id: teacherId });
+            query = query.andWhere("teacherWorker = :id", { id: teacherId });
         query = sortable.buildQuery(query);
         query = pageable.buildQuery(query);
         return query.execute()

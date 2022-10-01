@@ -30,6 +30,7 @@ import { UserAttendStudySession } from "./UserAttendStudySession";
 import { MakeUpLession } from "./MakeUpLession";
 import { StudentDoExercise } from "./StudentDoExercise";
 import { Worker } from "./Worker";
+import { SocketStatus } from "./SocketStatus";
 
 module.exports = [
   Account,
@@ -64,4 +65,5 @@ module.exports = [
   UserAttendStudySession,
   MakeUpLession,
   StudentDoExercise,
+  SocketStatus
 ];

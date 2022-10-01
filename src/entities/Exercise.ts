@@ -16,11 +16,11 @@ export class Exercise extends MyBaseEntity {
   id: number;
 
   @IsDate()
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: "timestamp", precision: 6, nullable: true })
   openTime: Date;
 
   @IsDate()
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: "timestamp", precision: 6, nullable: true })
   endTime: Date;
 
   @IsNotEmpty()

@@ -13,14 +13,15 @@ const AppDataSource = new DataSource({
   extra:
     process.env.DEPLOY == "true"
       ? {
-          ssl: {
-            rejectUnauthorized: !process.env.DEPLOY,
-          },
-        }
+        ssl: {
+          rejectUnauthorized: !process.env.DEPLOY,
+        },
+      }
       : "",
   synchronize: process.env.DB_CONFIG_SYNC == "true",
   logging: false,
   entities: entities,
+  timezone: "Z",
 });
 
 export async function initializeDataSource() {

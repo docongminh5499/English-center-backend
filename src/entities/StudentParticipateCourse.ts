@@ -20,7 +20,7 @@ export class StudentParticipateCourse extends MyBaseEntity {
   course: Course;
 
   @IsDate()
-  @Column({type: "timestamp"})
+  @Column({type: "timestamp", precision: 6})
   billingDate: Date;
 
   @IsString()

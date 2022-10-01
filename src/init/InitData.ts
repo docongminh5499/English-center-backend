@@ -4,6 +4,7 @@ import { Account } from "../entities/Account";
 import { Course } from "../entities/Course";
 import { Curriculum } from "../entities/Curriculum";
 import { Lecture } from "../entities/Lecture"
+import { UserEmployee } from "../entities/UserEmployee";
 import { User } from "../entities/UserEntity";
 import { UserStudent } from "../entities/UserStudent";
 import { UserTeacher } from "../entities/UserTeacher";
@@ -12,7 +13,7 @@ import { AccountRole, UserRole } from "../utils/constants/role.constant";
 import { Sex } from "../utils/constants/sex.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 
-export async function initData(){
+export async function initData() {
 
     // //Create User role Teacher
     // const userMinh = await User.save(User.create({
@@ -46,23 +47,23 @@ export async function initData(){
 
     var userMinh = new User();
 
-    userMinh.id= 2000001;
-    userMinh.email= "meozzz123@gmail.com";
-    userMinh.fullName= "Do Cong Minh";
-    userMinh.phone= "9999999999";
-    userMinh.dateOfBirth= new Date(1990, 4, 5);
-    userMinh.sex= Sex.MALE;
-    userMinh.address= "Đồng Nai";
-    userMinh.role= UserRole.TEACHER;
-    userMinh.avatar= "http://localhost:5000/assets/images/avatar/teacher.jpg";
+    userMinh.id = 2000001;
+    userMinh.email = "meozzz123@gmail.com";
+    userMinh.fullName = "Do Cong Minh";
+    userMinh.phone = "9999999999";
+    userMinh.dateOfBirth = new Date(1990, 4, 5);
+    userMinh.sex = Sex.MALE;
+    userMinh.address = "Đồng Nai";
+    userMinh.role = UserRole.TEACHER;
+    userMinh.avatar = "/assets/images/avatar/teacher.jpg";
 
     var workerMinh = new Worker();
-    workerMinh.user= userMinh;
-    workerMinh.startDate= new Date(2021, 6, 1);
-    workerMinh.coefficients= 90;
-    workerMinh.nation= "Kinh";
-    workerMinh.passport= "11111111";
-    workerMinh.homeTown= "Tp. HCM";
+    workerMinh.user = userMinh;
+    workerMinh.startDate = new Date(2021, 6, 1);
+    workerMinh.coefficients = 90;
+    workerMinh.nation = "Kinh";
+    workerMinh.passport = "11111111";
+    workerMinh.homeTown = "Tp. HCM";
 
     var teacherMinh = new UserTeacher();
     teacherMinh.worker = workerMinh;
@@ -81,18 +82,92 @@ export async function initData(){
         user: userMinh,
     }));
 
+    // Create Teacher 2
+    var userTeacher2 = new User();
+
+    userTeacher2.id = 2000002;
+    userTeacher2.email = "teacher2@gmail.com";
+    userTeacher2.fullName = "Mike Do";
+    userTeacher2.phone = "9999999999";
+    userTeacher2.dateOfBirth = new Date(1990, 4, 5);
+    userTeacher2.sex = Sex.MALE;
+    userTeacher2.address = "Đồng Nai";
+    userTeacher2.role = UserRole.TEACHER;
+    userTeacher2.avatar = "/assets/images/avatar/teacher.jpg";
+
+    var workerTeacher2 = new Worker();
+    workerTeacher2.user = userTeacher2;
+    workerTeacher2.startDate = new Date(2021, 6, 1);
+    workerTeacher2.coefficients = 90;
+    workerTeacher2.nation = "Kinh";
+    workerTeacher2.passport = "22222222";
+    workerTeacher2.homeTown = "Tp. HCM";
+
+    var teacher2 = new UserTeacher();
+    teacher2.worker = workerTeacher2;
+    teacher2.experience = "experience";
+    teacher2.shortDesc = "shortDesc";
+
+    await User.save(userTeacher2);
+    await Worker.save(workerTeacher2);
+    await UserTeacher.save(teacher2);
+    // //Create Account for UserTeacher
+    const hashTeacherPW2 = bcrypt.hashSync("minh2", 10);
+    await Account.save(Account.create({
+        username: "minh2",
+        password: hashTeacherPW2,
+        role: AccountRole.TEACHER,
+        user: userTeacher2,
+    }));
+
+     // Create employee
+     var userEmployee1 = new User();
+
+     userEmployee1.id = 3000001;
+     userEmployee1.email = "employee@gmail.com";
+     userEmployee1.fullName = "Leonard";
+     userEmployee1.phone = "9999999999";
+     userEmployee1.dateOfBirth = new Date(1990, 4, 5);
+     userEmployee1.sex = Sex.MALE;
+     userEmployee1.address = "Đồng Nai";
+     userEmployee1.role = UserRole.EMPLOYEE;
+     userEmployee1.avatar = "";
+ 
+     var workerEmployee1 = new Worker();
+     workerEmployee1.user = userEmployee1;
+     workerEmployee1.startDate = new Date(2021, 6, 1);
+     workerEmployee1.coefficients = 90;
+     workerEmployee1.nation = "Kinh";
+     workerEmployee1.passport = "333333333";
+     workerEmployee1.homeTown = "Tp. HCM";
+ 
+     var employee1 = new UserEmployee();
+     employee1.worker = workerEmployee1;
+ 
+     await User.save(userEmployee1);
+     await Worker.save(workerEmployee1);
+     await UserEmployee.save(employee1);
+     // //Create Account for User Employee
+     const hashEmployeePW1 = bcrypt.hashSync("minh3", 10);
+     await Account.save(Account.create({
+         username: "minh3",
+         password: hashEmployeePW1,
+         role: AccountRole.EMPLOYEE,
+         user: userEmployee1,
+     }));
+
     //Create Student 1
     var userSttudent1 = new User();
 
-    userSttudent1.id= 1000001;
-    userSttudent1.email= "hocdoan1@gmail.com";
-    userSttudent1.fullName= "Doan Hoc";
-    userSttudent1.phone= "1111111111";
-    userSttudent1.dateOfBirth= new Date(1999, 6, 12);
-    userSttudent1.sex= Sex.MALE;
-    userSttudent1.address= "Đồng Nai";
-    userSttudent1.role= UserRole.STUDENT;
-    userSttudent1.avatar= "http://localhost:5000/assets/images/avatar/student1.jpg";
+    userSttudent1.id = 1000001;
+    userSttudent1.email = "hocdoan1@gmail.com";
+    userSttudent1.fullName = "Doan Hoc";
+    userSttudent1.phone = "1111111111";
+    userSttudent1.dateOfBirth = new Date(1999, 6, 12);
+    userSttudent1.sex = Sex.MALE;
+    userSttudent1.address = "Đồng Nai";
+    userSttudent1.role = UserRole.STUDENT;
+    userSttudent1.avatar = "/assets/images/avatar/student1.jpg";
 
     var student1 = new UserStudent();
     student1.user = userSttudent1;
@@ -110,15 +185,15 @@ export async function initData(){
     //Create Student 2
     var userSttudent2 = new User();
 
-    userSttudent2.id= 1000002;
-    userSttudent2.email= "hocdoan2@gmail.com";
-    userSttudent2.fullName= "Doan Thai Hoc";
-    userSttudent2.phone= "2222222222";
-    userSttudent2.dateOfBirth= new Date(1999, 12, 6);
-    userSttudent2.sex= Sex.MALE;
-    userSttudent2.address= "Đồng Nai";
-    userSttudent2.role= UserRole.STUDENT;
-    userSttudent2.avatar= "http://localhost:5000/assets/images/avatar/student2.jpg";
+    userSttudent2.id = 1000002;
+    userSttudent2.email = "hocdoan2@gmail.com";
+    userSttudent2.fullName = "Doan Thai Hoc";
+    userSttudent2.phone = "2222222222";
+    userSttudent2.dateOfBirth = new Date(1999, 12, 6);
+    userSttudent2.sex = Sex.MALE;
+    userSttudent2.address = "Đồng Nai";
+    userSttudent2.role = UserRole.STUDENT;
+    userSttudent2.avatar = "/assets/images/avatar/student2.jpg";
 
     var student2 = new UserStudent();
     student2.user = userSttudent2;
@@ -137,7 +212,7 @@ export async function initData(){
     const curriculumEnglish10 = await Curriculum.save(Curriculum.create({
         name: "Chương trình tiếng anh lớp 10",
         desc: "Khóa học Tiếng Anh 10 chương trình mới này bao gồm những bài học được sắp xếp một cách có hệ thống, logic thông qua những hoạt động đa dạng, những trò chơi thú vị để bạn học kiến thức, từ vựng một cách dễ dàng mà không cảm thấy nhàm chán. Chủ đề trong bài cũng vô cùng phong phú, ví dụ như về Đời sống gia đình, Âm nhạc, Những phát minh, Môi trường, Xã hội... bạn không chỉ được bổ sung về ngữ pháp mà còn được tích lũy thêm nhiều kiến thức ngoài xã hội nữa. Nhờ vậy, bạn sẽ nhanh chóng xây dựng được cho mình một nền tảng cơ bản để phát triển dần các kỹ năng ngôn ngữ.",
-        image: "Image",
+        image: "/assets/images/cirriculum/init_image.jpg",
     }));
 
     //Create Lectures of Curriculum
@@ -179,7 +254,7 @@ export async function initData(){
         price: 300000,
         openingDate: new Date(2022, 1, 1),
         closingDate: new Date(2022, 5, 31),
-        image: "Image",
+        image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumEnglish10,
         teacher: teacherMinh,
     }));
@@ -192,7 +267,7 @@ export async function initData(){
         price: 300000,
         openingDate: new Date(2022, 1, 1),
         closingDate: new Date(2022, 5, 31),
-        image: "Image",
+        image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumEnglish10,
         teacher: teacherMinh,
     }));
@@ -202,7 +277,7 @@ export async function initData(){
     const curriculumToeic550_650 = await Curriculum.save(Curriculum.create({
         name: "KHÓA HỌC TOEIC 550 - 650+",
         desc: "Lấy lại kiến thức căn bản tiếng Anh (Basic TOEIC) và 250 - 300 (Pre TOEIC), 350 - 400 (TOEIC A)",
-        image: "Image",
+        image: "/assets/images/cirriculum/init_image.jpg",
     }));
 
     //Create Lectures of Curriculum
@@ -238,7 +313,7 @@ export async function initData(){
         price: 1000000,
         openingDate: new Date(2021, 6, 1),
         closingDate: new Date(2022, 9, 30),
-        image: "Image",
+        image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumToeic550_650,
         teacher: teacherMinh,
     }));
@@ -251,7 +326,7 @@ export async function initData(){
         price: 1100000,
         openingDate: new Date(2022, 2, 15),
         closingDate: new Date(2022, 5, 15),
-        image: "Image",
+        image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumToeic550_650,
         teacher: teacherMinh,
     }));
