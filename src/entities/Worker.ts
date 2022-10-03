@@ -64,8 +64,9 @@ export class Worker extends MyBaseEntity {
   startDate: Date;
 
 
+  @IsNotEmpty()
   @ManyToOne(() => Branch, (branch) => branch.workers, {
-    nullable: true,
+    nullable: false,
     onDelete: "RESTRICT",
     onUpdate: "CASCADE",
   })

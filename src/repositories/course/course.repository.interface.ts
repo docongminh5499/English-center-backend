@@ -8,4 +8,6 @@ export default interface CourseRepository {
         selectable: Selectable, queryable: Queryable<Course>, teacherId?: number) => Promise<Course[]>;
 
     countCourseByTeacher: (queryable: Queryable<Course>, teacherId?: number) => Promise<number>;
+
+    findCourseByStudent: (studentId: number) => Promise<Course[]>;
 }

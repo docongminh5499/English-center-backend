@@ -7,16 +7,15 @@ import { UserStudent } from "./UserStudent";
 //Relation Student--N--Participate--N--Course
 @Entity()
 export class StudentParticipateCourse extends MyBaseEntity {
-
   
-  @PrimaryColumn({type: "int", name:"studentId", })
+  @PrimaryColumn({type: "int", name:"studentId" })
   @ManyToOne(() => UserStudent, {onDelete: "CASCADE", onUpdate: "CASCADE"})
-  @JoinColumn()
+  @JoinColumn({name:"studentId"})
   student: UserStudent;
 
   @PrimaryColumn({type: "int", name:"courseId"})
   @ManyToOne(() => Course, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
-  @JoinColumn()
+  @JoinColumn({name:"courseId"})
   course: Course;
 
   @IsDate()

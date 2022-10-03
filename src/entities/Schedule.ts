@@ -12,7 +12,7 @@ export class Schedule extends MyBaseEntity {
   id: number;
 
   @IsNotEmpty()
-  @ManyToOne(() => Course, {
+  @ManyToOne(() => Course, (course) => course.schedules, {
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",

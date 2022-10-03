@@ -11,8 +11,8 @@ export class Branch extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsString()
-  @Length(0, 11)
-  @Column({ length: 11, nullable: false })
+  @Length(0, 10)
+  @Column({ length: 10, nullable: false })
   phoneNumber: string;
 
   @IsNotEmpty()

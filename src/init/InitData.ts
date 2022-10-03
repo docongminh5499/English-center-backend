@@ -1,50 +1,67 @@
 import * as bcrypt from "bcryptjs";
 
 import { Account } from "../entities/Account";
+import { Branch } from "../entities/Branch";
+import { Classroom } from "../entities/Classroom";
 import { Course } from "../entities/Course";
 import { Curriculum } from "../entities/Curriculum";
 import { Lecture } from "../entities/Lecture"
+import { Schedule } from "../entities/Schedule";
+import { Shift } from "../entities/Shift";
+import { StudentParticipateCourse } from "../entities/StudentParticipateCourse";
 import { UserEmployee } from "../entities/UserEmployee";
 import { User } from "../entities/UserEntity";
 import { UserStudent } from "../entities/UserStudent";
 import { UserTeacher } from "../entities/UserTeacher";
+import { UserTutor } from "../entities/UserTutor";
 import { Worker } from "../entities/Worker";
+import ShiftRepository from "../repositories/shift/shift.repository.impl";
 import { AccountRole, UserRole } from "../utils/constants/role.constant";
 import { Sex } from "../utils/constants/sex.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
+import { cvtWeekDay2Num, Weekday } from "../utils/constants/weekday.constant";
 
 export async function initData() {
 
-    // //Create User role Teacher
-    // const userMinh = await User.save(User.create({
-    //     id: 2000001,
-    //     email: "meozzz123@gmail.com",
-    //     fullName: "Do Cong Minh",
-    //     phone: "9999999999",
-    //     dateOfBirth: new Date(1990, 4, 5),
-    //     sex: Sex.MALE,
-    //     address: "Đồng Nai",
-    //     roles: UserRole.TEACHER,
-    //     avatar: "Iamge",
-    // }));
-    // console.log(userMinh)
-    // //Create Worker for Teacher
-    // const workerMinh = await Worker.save(Worker.create({
-    //     user: userMinh,
-    //     startDate: new Date(2021, 6, 1),
-    //     coefficients: 100,
-    //     nation: "Kinh",
-    //     passport: "11111111",
-    //     homeTown: "Tp. HCM",
-    // }));
+    console.log("----------------------Starting init data----------------------");
 
-    // //Create UserTeacher
-    // const teacherMinh = await UserTeacher.save(UserTeacher.create({
-    //     worker: workerMinh,
-    //     experience: "experience",
-    //     shortDesc: "shortDesc",
-    // }));
+    // Create Branch
+    var branch1 = await Branch.save(Branch.create({
+        phoneNumber: "1111111111",
+        address: "Q1, TP. HCM",
+        name: "Trung tâm anh ngữ cơ sở 1",
+    }));
 
+    // Create Classroom
+    var classroomA = new Classroom();
+    classroomA.name = "A",
+    classroomA.branch = branch1;
+    classroomA.function = "Phòng học";
+    classroomA.capacity = 100
+    await Classroom.save(classroomA);
+
+    var classroomB = new Classroom();
+    classroomB.name = "B",
+    classroomB.branch = branch1;
+    classroomB.function = "Phòng học";
+    classroomB.capacity = 100
+    await Classroom.save(classroomB);
+
+    var classroomC = new Classroom();
+    classroomC.name = "C",
+    classroomC.branch = branch1;
+    classroomC.function = "Phòng học";
+    classroomC.capacity = 100
+    await Classroom.save(classroomC);
+
+    var classroomD = new Classroom();
+    classroomD.name = "D",
+    classroomD.branch = branch1;
+    classroomD.function = "Phòng học";
+    classroomD.capacity = 100
+    await Classroom.save(classroomD);
+
+    // Create Teacher
     var userMinh = new User();
 
     userMinh.id = 2000001;
@@ -64,6 +81,7 @@ export async function initData() {
     workerMinh.nation = "Kinh";
     workerMinh.passport = "11111111";
     workerMinh.homeTown = "Tp. HCM";
+    workerMinh.branch = branch1;
 
     var teacherMinh = new UserTeacher();
     teacherMinh.worker = workerMinh;
@@ -102,6 +120,7 @@ export async function initData() {
     workerTeacher2.nation = "Kinh";
     workerTeacher2.passport = "22222222";
     workerTeacher2.homeTown = "Tp. HCM";
+    workerTeacher2.branch = branch1;
 
     var teacher2 = new UserTeacher();
     teacher2.worker = workerTeacher2;
@@ -118,6 +137,43 @@ export async function initData() {
         password: hashTeacherPW2,
         role: AccountRole.TEACHER,
         user: userTeacher2,
+    }));
+
+    // Create Tutor
+    var userTutor1 = new User();
+
+    userTutor1.id = 2000001;
+    userTutor1.email = "meozzz@gmail.com";
+    userTutor1.fullName = "Do Cong Minh";
+    userTutor1.phone = "9999999999";
+    userTutor1.dateOfBirth = new Date(1990, 4, 5);
+    userTutor1.sex = Sex.MALE;
+    userTutor1.address = "Đồng Nai";
+    userTutor1.role = UserRole.TEACHER;
+    userTutor1.avatar = "/assets/images/avatar/teacher.jpg";
+
+    var workerTutor1 = new Worker();
+    workerTutor1.user = userTutor1;
+    workerTutor1.startDate = new Date(2021, 6, 1);
+    workerTutor1.coefficients = 90;
+    workerTutor1.nation = "Kinh";
+    workerTutor1.passport = "11111111";
+    workerTutor1.homeTown = "Tp. HCM";
+    workerTutor1.branch = branch1;
+
+    var tutor1 = new UserTutor();
+    tutor1.worker = workerTutor1;
+
+    await User.save(userTutor1);
+    await Worker.save(workerTutor1);
+    await UserTutor.save(tutor1);
+    // //Create Account for UserTeacher
+    const hashTutor = bcrypt.hashSync("doremon123", 10);
+    await Account.save(Account.create({
+        username: "minh5499",
+        password: hashTutor,
+        role: AccountRole.TUTOR,
+        user: userTutor1,
     }));
 
      // Create employee
@@ -140,6 +196,7 @@ export async function initData() {
      workerEmployee1.nation = "Kinh";
      workerEmployee1.passport = "333333333";
      workerEmployee1.homeTown = "Tp. HCM";
+     workerEmployee1.branch = branch1;
  
      var employee1 = new UserEmployee();
      employee1.worker = workerEmployee1;
@@ -147,7 +204,7 @@ export async function initData() {
      await User.save(userEmployee1);
      await Worker.save(workerEmployee1);
      await UserEmployee.save(employee1);
-     // //Create Account for User Employee
+     //Create Account for User Employee
      const hashEmployeePW1 = bcrypt.hashSync("minh3", 10);
      await Account.save(Account.create({
          username: "minh3",
@@ -207,7 +264,7 @@ export async function initData() {
         role: AccountRole.STUDENT,
         user: userSttudent2,
     }));
-
+    
     //Create Curriculum
     const curriculumEnglish10 = await Curriculum.save(Curriculum.create({
         name: "Chương trình tiếng anh lớp 10",
@@ -247,7 +304,7 @@ export async function initData() {
     }));
 
     //Create Course
-    await Course.save(Course.create({
+    const course1 = await Course.save(Course.create({
         name: "Khóa học tiếng anh lớp 10 mùa xuân",
         maxNumberOfStudent: 30,
         type: TermCourse.LongTerm,
@@ -260,7 +317,7 @@ export async function initData() {
     }));
 
     //Create Course
-    await Course.save(Course.create({
+    const course2 = await Course.save(Course.create({
         name: "Khóa học tiếng anh lớp 10",
         maxNumberOfStudent: 30,
         type: TermCourse.LongTerm,
@@ -306,7 +363,7 @@ export async function initData() {
     }));
 
     //Create Course
-    await Course.save(Course.create({
+    const course3 = await Course.save(Course.create({
         name: "KHÓA HỌC TOEIC 550 - 650+ mùa Hè 2021",
         maxNumberOfStudent: 40,
         type: TermCourse.ShortTerm,
@@ -319,7 +376,7 @@ export async function initData() {
     }));
 
     //Create Course
-    await Course.save(Course.create({
+    const course4 = await Course.save(Course.create({
         name: "KHÓA HỌC TOEIC 550 - 650+ mùa Xuân 2022",
         maxNumberOfStudent: 40,
         type: TermCourse.ShortTerm,
@@ -330,5 +387,226 @@ export async function initData() {
         curriculum: curriculumToeic550_650,
         teacher: teacherMinh,
     }));
+
+    // Create Shifts
+    await initShifts();
+
+    // TODO: Create Schedule
+    // Schedule for Course 1
+    const schedule1Course1 = new Schedule();
+    schedule1Course1.course = course1;
+    schedule1Course1.tutor = tutor1;
+    schedule1Course1.classroom = classroomA;
+    schedule1Course1.startShift = await ShiftRepository.findById(207);
+    schedule1Course1.endShift = await ShiftRepository.findById(210);
+
+    const schedule2Course1 = new Schedule();
+    schedule2Course1.course = course1;
+    schedule2Course1.tutor = tutor1;
+    schedule2Course1.classroom = classroomA;
+    schedule2Course1.startShift = await ShiftRepository.findById(307);
+    schedule2Course1.endShift = await ShiftRepository.findById(310);
+
+    const schedule3Course1 = new Schedule();
+    schedule3Course1.course = course1;
+    schedule3Course1.tutor = tutor1;
+    schedule3Course1.classroom = classroomA;
+    schedule3Course1.startShift = await ShiftRepository.findById(407);
+    schedule3Course1.endShift = await ShiftRepository.findById(410);
+
+    const schedule4Course1 = new Schedule();
+    schedule4Course1.course = course1;
+    schedule4Course1.tutor = tutor1;
+    schedule4Course1.classroom = classroomA;
+    schedule4Course1.startShift = await ShiftRepository.findById(507);
+    schedule4Course1.endShift = await ShiftRepository.findById(510);
+
+    const schedule5Course1 = new Schedule();
+    schedule5Course1.course = course1;
+    schedule5Course1.tutor = tutor1;
+    schedule5Course1.classroom = classroomA;
+    schedule5Course1.startShift = await ShiftRepository.findById(607);
+    schedule5Course1.endShift = await ShiftRepository.findById(610);
+
+    await Schedule.save(schedule1Course1);
+    await Schedule.save(schedule2Course1);
+    await Schedule.save(schedule3Course1);
+    await Schedule.save(schedule4Course1);
+    await Schedule.save(schedule5Course1);
+
+    course1.schedules = [
+        schedule1Course1, 
+        schedule2Course1,
+        schedule3Course1,
+        schedule4Course1,
+        schedule5Course1,
+    ]
+    await Course.save(course1);
+
+    // Schedule for Course 2
+    const schedule1Course2 = new Schedule();
+    schedule1Course2.course = course2;
+    schedule1Course2.tutor = tutor1;
+    schedule1Course2.classroom = classroomB;
+    schedule1Course2.startShift = await ShiftRepository.findById(313);
+    schedule1Course2.endShift = await ShiftRepository.findById(316);
+
+    const schedule2Course2 = new Schedule();
+    schedule2Course2.course = course2;
+    schedule2Course2.tutor = tutor1;
+    schedule2Course2.classroom = classroomB;
+    schedule2Course2.startShift = await ShiftRepository.findById(513);
+    schedule2Course2.endShift = await ShiftRepository.findById(516);
+
+    const schedule3Course2 = new Schedule();
+    schedule3Course2.course = course2;
+    schedule3Course2.tutor = tutor1;
+    schedule3Course2.classroom = classroomB;
+    schedule3Course2.startShift = await ShiftRepository.findById(713);
+    schedule3Course2.endShift = await ShiftRepository.findById(716);
+
+    await Schedule.save(schedule1Course2);
+    await Schedule.save(schedule2Course2);
+    await Schedule.save(schedule3Course2);
+
+    course2.schedules = [
+        schedule1Course2, 
+        schedule2Course2,
+        schedule3Course2,
+    ]
+    await Course.save(course2);
+
+    // Schedule for Course 3
+    const schedule1Course3 = new Schedule();
+    schedule1Course3.course = course3;
+    schedule1Course3.tutor = tutor1;
+    schedule1Course3.classroom = classroomA;
+    schedule1Course3.startShift = await ShiftRepository.findById(208);
+    schedule1Course3.endShift = await ShiftRepository.findById(211);
+
+    const schedule2Course3 = new Schedule();
+    schedule2Course3.course = course3;
+    schedule2Course3.tutor = tutor1;
+    schedule2Course3.classroom = classroomA;
+    schedule2Course3.startShift = await ShiftRepository.findById(308);
+    schedule2Course3.endShift = await ShiftRepository.findById(311);
+
+    const schedule3Course3 = new Schedule();
+    schedule3Course3.course = course3;
+    schedule3Course3.tutor = tutor1;
+    schedule3Course3.classroom = classroomC;
+    schedule3Course3.startShift = await ShiftRepository.findById(508);
+    schedule3Course3.endShift = await ShiftRepository.findById(511);
+
+    await Schedule.save(schedule1Course3);
+    await Schedule.save(schedule2Course3);
+    await Schedule.save(schedule3Course3);
+
+    course3.schedules = [
+        schedule1Course3, 
+        schedule2Course3,
+        schedule3Course3,
+    ]
+    await Course.save(course3);
+
+    // Schedule for Course 4
+    const schedule1Course4 = new Schedule();
+    schedule1Course4.course = course4;
+    schedule1Course4.tutor = tutor1;
+    schedule1Course4.classroom = classroomA;
+    schedule1Course4.startShift = await ShiftRepository.findById(208);
+    schedule1Course4.endShift = await ShiftRepository.findById(211);
+
+    const schedule2Course4 = new Schedule();
+    schedule2Course4.course = course4;
+    schedule2Course4.tutor = tutor1;
+    schedule2Course4.classroom = classroomA;
+    schedule2Course4.startShift = await ShiftRepository.findById(308);
+    schedule2Course4.endShift = await ShiftRepository.findById(311);
+
+    const schedule3Course4 = new Schedule();
+    schedule3Course4.course = course4;
+    schedule3Course4.tutor = tutor1;
+    schedule3Course4.classroom = classroomA;
+    schedule3Course4.startShift = await ShiftRepository.findById(408);
+    schedule3Course4.endShift = await ShiftRepository.findById(411);
+
+    const schedule4Course4 = new Schedule();
+    schedule4Course4.course = course4;
+    schedule4Course4.tutor = tutor1;
+    schedule4Course4.classroom = classroomB;
+    schedule4Course4.startShift = await ShiftRepository.findById(513);
+    schedule4Course4.endShift = await ShiftRepository.findById(516);
+
+    const schedule5Course4 = new Schedule();
+    schedule5Course4.course = course4;
+    schedule5Course4.tutor = tutor1;
+    schedule5Course4.classroom = classroomB;
+    schedule5Course4.startShift = await ShiftRepository.findById(613);
+    schedule5Course4.endShift = await ShiftRepository.findById(616);
+
+    await Schedule.save(schedule1Course4);
+    await Schedule.save(schedule2Course4);
+    await Schedule.save(schedule3Course4);
+    await Schedule.save(schedule4Course4);
+    await Schedule.save(schedule5Course4);
+
+    course4.schedules = [
+        schedule1Course4, 
+        schedule2Course4,
+        schedule3Course4,
+        schedule4Course4,
+        schedule5Course4,
+    ]
+    await Course.save(course4);
+
+    // Create Relation Student Participate Course
+    const studentAttendCourse1 = new StudentParticipateCourse();
+    studentAttendCourse1.student = student1;
+    studentAttendCourse1.course = course1;
+    await StudentParticipateCourse.save(studentAttendCourse1);
+
+    const studentAttendCourse2 = new StudentParticipateCourse();
+    studentAttendCourse2.student = student1;
+    studentAttendCourse2.course = course2;
+    await StudentParticipateCourse.save(studentAttendCourse2);
+
+    const studentAttendCourse3 = new StudentParticipateCourse();
+    studentAttendCourse3.student = student1;
+    studentAttendCourse3.course = course3;
+    await StudentParticipateCourse.save(studentAttendCourse3);
+
+    const studentAttendCourse4 = new StudentParticipateCourse();
+    studentAttendCourse4.student = student1;
+    studentAttendCourse4.course = course4;
+    await StudentParticipateCourse.save(studentAttendCourse4);
+
+    console.log("-----------------------Ending init data-----------------------")
 }
 
+
+async function initShifts(){
+
+    const weekDays = [
+        Weekday.Monday, 
+        Weekday.Tuesday, 
+        Weekday. Wednesday, 
+        Weekday.Thursday,
+        Weekday.Friday,
+        Weekday.Saturday,
+        Weekday.Sunday,
+    ];
+
+    const shiftInDay = 14;
+
+    for (const weekDay of weekDays){
+        for (var offset = 0; offset < shiftInDay; offset++){
+            var shift = new Shift();
+            shift.weekDay = weekDay;
+            shift.startTime = new Date(2000, 10, 10, 7 + offset, 0, 0, 0);
+            shift.endTime = new Date(2000, 10, 10, 7 + offset + 1, 0, 0, 0);
+            shift.id = parseInt(cvtWeekDay2Num(weekDay) + (shift.startTime.getHours() < 10 ? '0' : '') + shift.startTime.getHours());
+            await Shift.save(shift);
+        }
+    }
+}
