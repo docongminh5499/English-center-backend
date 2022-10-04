@@ -27,6 +27,7 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
 
   async saveNotification(user: User, content: string): Promise<Notification | null> {
     const notification = new Notification();
+    notification.read = false;
     notification.content = content;
     notification.user = user;
 

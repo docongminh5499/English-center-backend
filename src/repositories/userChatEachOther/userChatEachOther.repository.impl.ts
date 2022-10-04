@@ -94,6 +94,7 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
 
   async saveMessage(sender: User, receiver: User, messageContent: string): Promise<UserChatEachOther | null> {
     const message = new UserChatEachOther();
+    message.read = false;
     message.sender = sender;
     message.receiver = receiver;
     message.messageContent = messageContent;
