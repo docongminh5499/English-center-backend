@@ -1,4 +1,4 @@
-import { CreateDateColumn, UpdateDateColumn, Column, Entity, BaseEntity } from "typeorm";
+import { CreateDateColumn, UpdateDateColumn, Entity, BaseEntity, VersionColumn } from "typeorm";
 
 @Entity()
 export class MyBaseEntity extends BaseEntity {
@@ -8,6 +8,6 @@ export class MyBaseEntity extends BaseEntity {
   @UpdateDateColumn({ type: "timestamp" })
   updatedAt: Date;
 
-  @Column({ type: "text", nullable: true })
-  description: string;
+  @VersionColumn()
+  version: number
 }

@@ -34,6 +34,12 @@ export class Course extends MyBaseEntity {
   @IsNotEmpty()
   @IsString()
   @Length(0, 255)
+  @Column({ length: 255, nullable: false, unique: true })
+  slug: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Length(0, 255)
   @Column({ length: 255, nullable: false })
   name: string;
 

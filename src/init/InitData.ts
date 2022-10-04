@@ -84,6 +84,7 @@ export async function initData() {
     workerMinh.branch = branch1;
 
     var teacherMinh = new UserTeacher();
+    teacherMinh.slug='do-cong-minh';
     teacherMinh.worker = workerMinh;
     teacherMinh.experience = "experience";
     teacherMinh.shortDesc = "shortDesc";
@@ -123,6 +124,7 @@ export async function initData() {
     workerTeacher2.branch = branch1;
 
     var teacher2 = new UserTeacher();
+    teacher2.slug = 'mike-do';
     teacher2.worker = workerTeacher2;
     teacher2.experience = "experience";
     teacher2.shortDesc = "shortDesc";
@@ -144,12 +146,12 @@ export async function initData() {
 
     userTutor1.id = 2000001;
     userTutor1.email = "meozzz@gmail.com";
-    userTutor1.fullName = "Do Cong Minh";
+    userTutor1.fullName = "Do Cong Minh Tutor";
     userTutor1.phone = "9999999999";
     userTutor1.dateOfBirth = new Date(1990, 4, 5);
     userTutor1.sex = Sex.MALE;
     userTutor1.address = "Đồng Nai";
-    userTutor1.role = UserRole.TEACHER;
+    userTutor1.role = UserRole.TUTOR;
     userTutor1.avatar = "/assets/images/avatar/teacher.jpg";
 
     var workerTutor1 = new Worker();
@@ -162,17 +164,18 @@ export async function initData() {
     workerTutor1.branch = branch1;
 
     var tutor1 = new UserTutor();
+    tutor1.slug = 'do-cong-minh-tutor';
     tutor1.worker = workerTutor1;
 
     await User.save(userTutor1);
     await Worker.save(workerTutor1);
     await UserTutor.save(tutor1);
     // //Create Account for UserTeacher
-    const hashTutor = bcrypt.hashSync("doremon123", 10);
+    const hashTutor = bcrypt.hashSync("tutor1", 10);
     await Account.save(Account.create({
-        username: "minh5499",
+        username: "tutor1",
         password: hashTutor,
-        role: AccountRole.TEACHER,
+        role: AccountRole.TUTOR,
         user: userTutor1,
     }));
 
@@ -306,6 +309,7 @@ export async function initData() {
     //Create Course
     const course1 = await Course.save(Course.create({
         name: "Khóa học tiếng anh lớp 10 mùa xuân",
+        slug: "khoa-hoc-tieng-anh-lop-10-mua-xuan",
         maxNumberOfStudent: 30,
         type: TermCourse.LongTerm,
         price: 300000,
@@ -319,6 +323,7 @@ export async function initData() {
     //Create Course
     const course2 = await Course.save(Course.create({
         name: "Khóa học tiếng anh lớp 10",
+        slug: "khoa-hoc-tieng-anh-lop-10",
         maxNumberOfStudent: 30,
         type: TermCourse.LongTerm,
         price: 300000,
@@ -365,6 +370,7 @@ export async function initData() {
     //Create Course
     const course3 = await Course.save(Course.create({
         name: "KHÓA HỌC TOEIC 550 - 650+ mùa Hè 2021",
+        slug: "khoa-hoc-toeic-550-650+-mua-he-2021",
         maxNumberOfStudent: 40,
         type: TermCourse.ShortTerm,
         price: 1000000,
@@ -378,6 +384,7 @@ export async function initData() {
     //Create Course
     const course4 = await Course.save(Course.create({
         name: "KHÓA HỌC TOEIC 550 - 650+ mùa Xuân 2022",
+        slug: "khoa-hoc-toeic-550-650+-mua-xuan-2022",
         maxNumberOfStudent: 40,
         type: TermCourse.ShortTerm,
         price: 1100000,
