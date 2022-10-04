@@ -1,5 +1,7 @@
+import { validate } from "class-validator";
 import { Notification } from "../../entities/Notification";
 import { User } from "../../entities/UserEntity";
+import { ValidationError } from "../../utils/errors/validation.error";
 import Pageable from "../helpers/pageable";
 import Sortable from "../helpers/sortable";
 import NotificationRepositoryInterface from "./notification.repository.interface";
@@ -28,6 +30,9 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
     notification.content = content;
     notification.user = user;
 
+    const validateErrors = await validate(notification);
+    if (validateErrors.length)  throw new ValidationError(validateErrors);
+    
     const savedNotification = await notification.save();
     if (savedNotification.id === undefined) return null;
     return savedNotification;

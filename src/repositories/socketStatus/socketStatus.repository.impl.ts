@@ -1,6 +1,8 @@
+import { validate } from "class-validator";
 import { DeleteResult } from "typeorm";
 import { SocketStatus } from "../../entities/SocketStatus";
 import { User } from "../../entities/UserEntity";
+import { ValidationError } from "../../utils/errors/validation.error";
 import SocketStatusRepositoryInterface from "./socketStatus.repository.interface";
 
 class SocketStatusRepositoryImpl implements SocketStatusRepositoryInterface {
@@ -11,6 +13,9 @@ class SocketStatusRepositoryImpl implements SocketStatusRepositoryInterface {
     const socketStatus = new SocketStatus();
     socketStatus.socketId = socketId;
     socketStatus.user = user;
+    
+    const validateErrors = await validate(socketStatus);
+    if (validateErrors.length)  throw new ValidationError(validateErrors);
 
     const savedSocketStatus = await socketStatus.save();
     return savedSocketStatus.id !== undefined;

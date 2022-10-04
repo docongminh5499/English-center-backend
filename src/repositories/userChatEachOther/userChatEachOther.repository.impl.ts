@@ -1,6 +1,8 @@
+import { validate } from "class-validator";
 import moment = require("moment");
 import { User } from "../../entities/UserEntity";
 import { UserChatEachOther } from "../../entities/UsersChatEachOther";
+import { ValidationError } from "../../utils/errors/validation.error";
 import Pageable from "../helpers/pageable";
 import Sortable from "../helpers/sortable";
 import UserChatEachOtherRepositoryInterface from "./userChatEachOther.repository.interface";
@@ -96,6 +98,9 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
     message.receiver = receiver;
     message.messageContent = messageContent;
     message.sendingTime = moment().utc().toDate();
+
+    const validateErrors = await validate(message);
+    if (validateErrors.length)  throw new ValidationError(validateErrors);
 
     const savedMessage = await message.save();
     if (savedMessage.id === undefined) return null;
