@@ -172,7 +172,7 @@ export async function initData() {
     await Account.save(Account.create({
         username: "minh5499",
         password: hashTutor,
-        role: AccountRole.TUTOR,
+        role: AccountRole.TEACHER,
         user: userTutor1,
     }));
 

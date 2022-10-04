@@ -3,11 +3,14 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { MessageService } from "../../services/message";
 import { SocketMapper, UserMapper } from "../basic/mappers";
 import { MessageMapper } from "./mappers";
+import * as jwt from "jsonwebtoken";
 
 export default function addMessageEventHandler(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
   io.on("connection", (socket) => {
     socket.on("message", async (json) => {
       try {
+        jwt.verify(json.token, process.env.TOKEN_KEY || "");
+
         const messageDto = MessageMapper.mapToDto(json);
         const socketDto = SocketMapper.mapToDto(socket);
         if (messageDto.message === undefined || messageDto.message.trim() === "") return;
@@ -52,6 +55,8 @@ export default function addMessageEventHandler(io: Server<DefaultEventsMap, Defa
 
     socket.on("seen_message", async (json) => {
       try {
+        jwt.verify(json.token, process.env.TOKEN_KEY || "");
+        
         const senderUserDto = UserMapper.mapToDto(json.sender);
         const socketDto = SocketMapper.mapToDto(socket);
         const response = await MessageService.seen(senderUserDto, socketDto);

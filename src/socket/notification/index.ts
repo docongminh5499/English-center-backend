@@ -2,11 +2,14 @@ import { Server } from "socket.io";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { NotificationService } from "../../services/notification";
 import { NotificationMapper } from "./mappers";
+import * as jwt from "jsonwebtoken";
 
 export default function addNotificationEventHandler(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
   io.on("connection", (socket) => {
     socket.on("notification", async (json) => {
       try {
+        jwt.verify(json.token, process.env.TOKEN_KEY || "");
+
         const notificationDto = NotificationMapper.mapToDto(json);
         const result = await NotificationService.sendNotification(notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
@@ -24,6 +27,8 @@ export default function addNotificationEventHandler(io: Server<DefaultEventsMap,
 
     socket.on("read_notification", async (json) => {
       try {
+        jwt.verify(json.token, process.env.TOKEN_KEY || "");
+
         const notificationDto = NotificationMapper.mapToDto(json);
         const result = await NotificationService.readNotification(notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
