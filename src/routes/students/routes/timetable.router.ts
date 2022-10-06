@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.get("/", async (req: any, res: any, next: any) => {
     try{
-        const courses = await StudentService.getCoursesByUsername(req.query.username);
+        const courses = await StudentService.getCoursesForTimetableByUsername(req.query.username);
         return res.status(200).json(courses);
     }catch(err){
         console.log(err);

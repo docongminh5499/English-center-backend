@@ -25,9 +25,10 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         return query.execute()
     }
 
-    async findCourseByStudent(studentId: number): Promise<Course[]> {
+    async findCourseForTimetableByStudent(studentId: number): Promise<Course[]> {
         const studentPaticipateCourse = await StudentParticipateCourse
             .createQueryBuilder("student_participate_course")
+            .select("student_participate_course.course")
             .leftJoinAndSelect("student_participate_course.course", "course")
             .leftJoinAndSelect("course.schedules", "schedule")
             .leftJoinAndSelect("schedule.startShift", "startShift")
@@ -35,6 +36,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("schedule.classroom", "classroom")
             .where("studentId = :id", { id: studentId })
             .getMany();
+        console.log(studentPaticipateCourse);
         const courses: Course[] = [];
         studentPaticipateCourse.forEach(async value => {
             courses.push(value.course);
@@ -63,6 +65,29 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             })
             .getOne();
         return result;
+    }
+
+
+    async countCourseByStudent(queryable: Queryable<StudentParticipateCourse>, studentId?: number): Promise<number> {
+        console.log("Count Student Repo");
+        let query = StudentParticipateCourse.createQueryBuilder("student_participate_course");
+        query = queryable.buildQuery(query);
+        if (studentId !== undefined)
+            query = query.andWhere("studentId = :id", { id: studentId });
+        return query.getCount()
+    }
+
+    async findCourseByStudent(pageable: Pageable, sortable: Sortable,
+        selectable: Selectable, queryable: Queryable<StudentParticipateCourse>, studentId?: number): Promise<Course[]> {
+        console.log("Find Student Repo");
+        let query = StudentParticipateCourse.createQueryBuilder("student_participate_course");
+        query = selectable.buildQuery(query);
+        query = queryable.buildQuery(query);
+        if (studentId !== undefined)
+            query = query.andWhere("studentId = :id", { id: studentId });
+        query = sortable.buildQuery(query);
+        query = pageable.buildQuery(query);
+        return query.execute()
     }
 }
 
