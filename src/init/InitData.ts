@@ -91,7 +91,7 @@ export async function initData() {
     await User.save(userMinh);
     await Worker.save(workerMinh);
     await UserTeacher.save(teacherMinh);
-    // //Create Account for UserTeacher
+    //Create Account for UserTeacher
     const hashTeacherPW = bcrypt.hashSync("doremon123", 10);
     await Account.save(Account.create({
         username: "minh5499",
@@ -142,8 +142,8 @@ export async function initData() {
     // Create Tutor
     var userTutor1 = new User();
 
-    userTutor1.id = 2000001;
-    userTutor1.email = "meozzz@gmail.com";
+    userTutor1.id = 2000009;
+    userTutor1.email = "meozz@gmail.com";
     userTutor1.fullName = "Do Cong Minh";
     userTutor1.phone = "9999999999";
     userTutor1.dateOfBirth = new Date(1990, 4, 5);
@@ -157,7 +157,7 @@ export async function initData() {
     workerTutor1.startDate = new Date(2021, 6, 1);
     workerTutor1.coefficients = 90;
     workerTutor1.nation = "Kinh";
-    workerTutor1.passport = "11111111";
+    workerTutor1.passport = "12312344";
     workerTutor1.homeTown = "Tp. HCM";
     workerTutor1.branch = branch1;
 
@@ -167,10 +167,10 @@ export async function initData() {
     await User.save(userTutor1);
     await Worker.save(workerTutor1);
     await UserTutor.save(tutor1);
-    // //Create Account for UserTeacher
+    //Create Account for UserTeacher
     const hashTutor = bcrypt.hashSync("doremon123", 10);
     await Account.save(Account.create({
-        username: "minh5499",
+        username: "minhtutor",
         password: hashTutor,
         role: AccountRole.TUTOR,
         user: userTutor1,
