@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import * as bcrypt from "bcryptjs";
 
 import { Account } from "../entities/Account";
@@ -20,6 +21,10 @@ import { AccountRole, UserRole } from "../utils/constants/role.constant";
 import { Sex } from "../utils/constants/sex.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 import { cvtWeekDay2Num, Weekday } from "../utils/constants/weekday.constant";
+import { createDocumentCourse } from "./createDocumentCourse";
+import { createExercise } from "./createExerciseCourse";
+import { createStudentParticipateCourse } from "./createStudentParticipateCourse";
+import { createStudentUser } from "./createStudentUser";
 
 export async function initData() {
 
@@ -35,28 +40,28 @@ export async function initData() {
     // Create Classroom
     var classroomA = new Classroom();
     classroomA.name = "A",
-    classroomA.branch = branch1;
+        classroomA.branch = branch1;
     classroomA.function = "Phòng học";
     classroomA.capacity = 100
     await Classroom.save(classroomA);
 
     var classroomB = new Classroom();
     classroomB.name = "B",
-    classroomB.branch = branch1;
+        classroomB.branch = branch1;
     classroomB.function = "Phòng học";
     classroomB.capacity = 100
     await Classroom.save(classroomB);
 
     var classroomC = new Classroom();
     classroomC.name = "C",
-    classroomC.branch = branch1;
+        classroomC.branch = branch1;
     classroomC.function = "Phòng học";
     classroomC.capacity = 100
     await Classroom.save(classroomC);
 
     var classroomD = new Classroom();
     classroomD.name = "D",
-    classroomD.branch = branch1;
+        classroomD.branch = branch1;
     classroomD.function = "Phòng học";
     classroomD.capacity = 100
     await Classroom.save(classroomD);
@@ -84,7 +89,7 @@ export async function initData() {
     workerMinh.branch = branch1;
 
     var teacherMinh = new UserTeacher();
-    teacherMinh.slug='do-cong-minh';
+    teacherMinh.slug = 'do-cong-minh';
     teacherMinh.worker = workerMinh;
     teacherMinh.experience = "experience";
     teacherMinh.shortDesc = "shortDesc";
@@ -179,42 +184,42 @@ export async function initData() {
         user: userTutor1,
     }));
 
-     // Create employee
-     var userEmployee1 = new User();
+    // Create employee
+    var userEmployee1 = new User();
 
-     userEmployee1.id = 3000001;
-     userEmployee1.email = "employee@gmail.com";
-     userEmployee1.fullName = "Leonard";
-     userEmployee1.phone = "9999999999";
-     userEmployee1.dateOfBirth = new Date(1990, 4, 5);
-     userEmployee1.sex = Sex.MALE;
-     userEmployee1.address = "Đồng Nai";
-     userEmployee1.role = UserRole.EMPLOYEE;
-     userEmployee1.avatar = "";
- 
-     var workerEmployee1 = new Worker();
-     workerEmployee1.user = userEmployee1;
-     workerEmployee1.startDate = new Date(2021, 6, 1);
-     workerEmployee1.coefficients = 90;
-     workerEmployee1.nation = "Kinh";
-     workerEmployee1.passport = "333333333";
-     workerEmployee1.homeTown = "Tp. HCM";
-     workerEmployee1.branch = branch1;
- 
-     var employee1 = new UserEmployee();
-     employee1.worker = workerEmployee1;
- 
-     await User.save(userEmployee1);
-     await Worker.save(workerEmployee1);
-     await UserEmployee.save(employee1);
-     //Create Account for User Employee
-     const hashEmployeePW1 = bcrypt.hashSync("minh3", 10);
-     await Account.save(Account.create({
-         username: "minh3",
-         password: hashEmployeePW1,
-         role: AccountRole.EMPLOYEE,
-         user: userEmployee1,
-     }));
+    userEmployee1.id = 3000001;
+    userEmployee1.email = "employee@gmail.com";
+    userEmployee1.fullName = "Leonard";
+    userEmployee1.phone = "9999999999";
+    userEmployee1.dateOfBirth = new Date(1990, 4, 5);
+    userEmployee1.sex = Sex.MALE;
+    userEmployee1.address = "Đồng Nai";
+    userEmployee1.role = UserRole.EMPLOYEE;
+    userEmployee1.avatar = "";
+
+    var workerEmployee1 = new Worker();
+    workerEmployee1.user = userEmployee1;
+    workerEmployee1.startDate = new Date(2021, 6, 1);
+    workerEmployee1.coefficients = 90;
+    workerEmployee1.nation = "Kinh";
+    workerEmployee1.passport = "333333333";
+    workerEmployee1.homeTown = "Tp. HCM";
+    workerEmployee1.branch = branch1;
+
+    var employee1 = new UserEmployee();
+    employee1.worker = workerEmployee1;
+
+    await User.save(userEmployee1);
+    await Worker.save(workerEmployee1);
+    await UserEmployee.save(employee1);
+    //Create Account for User Employee
+    const hashEmployeePW1 = bcrypt.hashSync("minh3", 10);
+    await Account.save(Account.create({
+        username: "minh3",
+        password: hashEmployeePW1,
+        role: AccountRole.EMPLOYEE,
+        user: userEmployee1,
+    }));
 
     //Create Student 1
     var userSttudent1 = new User();
@@ -267,41 +272,52 @@ export async function initData() {
         role: AccountRole.STUDENT,
         user: userSttudent2,
     }));
-    
+
     //Create Curriculum
     const curriculumEnglish10 = await Curriculum.save(Curriculum.create({
         name: "Chương trình tiếng anh lớp 10",
         desc: "Khóa học Tiếng Anh 10 chương trình mới này bao gồm những bài học được sắp xếp một cách có hệ thống, logic thông qua những hoạt động đa dạng, những trò chơi thú vị để bạn học kiến thức, từ vựng một cách dễ dàng mà không cảm thấy nhàm chán. Chủ đề trong bài cũng vô cùng phong phú, ví dụ như về Đời sống gia đình, Âm nhạc, Những phát minh, Môi trường, Xã hội... bạn không chỉ được bổ sung về ngữ pháp mà còn được tích lũy thêm nhiều kiến thức ngoài xã hội nữa. Nhờ vậy, bạn sẽ nhanh chóng xây dựng được cho mình một nền tảng cơ bản để phát triển dần các kỹ năng ngôn ngữ.",
         image: "/assets/images/cirriculum/init_image.jpg",
+        type: TermCourse.LongTerm,
     }));
 
     //Create Lectures of Curriculum
     await Lecture.save(Lecture.create({
+        order: 1,
         name: "Unit 1: A day in the life of - Một ngày trong đời:",
+        detail: "Chi tiết unit 1",
         desc: "Bài giảng Unit 1 A day in the life of mở đầu môn Tiếng Anh lớp 10 sau đây gồm các phần Reading, Speaking, Listening, Language Focus và Vocabulary được HOC247 biên soạn đầy đủ và bám sát với nội dung SGK nhằm giúp các em ôn tập, chuẩn bị bài thật tốt. Hệ thống các câu hỏi trắc nghiệm, hỏi đáp theo chủ đề về Một ngày trong đời giúp các em có thể phát triển thêm ý, từ vựng và giải quyết nhiều câu hỏi khó một cách nhanh chóng ",
         curriculum: curriculumEnglish10,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 2,
         name: "Unit 2: School Talks - Nói chuyện về trường học",
+        detail: "Chi tiết unit 2",
         desc: "Bài giảng tiếp theo của môn Tiếng Anh lớp 10 mà các em sẽ được tìm hiểu là Unit 2 School Talks gồm các phần Reading, Speaking, Listening, Language Focus và Vocabulary liên quan đến trường học. Bên cạnh giúp các em nắm vững lý thuyết, HOC247 còn cung cấp thêm các câu hỏi trắc nghiệm cùng hệ thống hỏi đáp về chủ đề Nói chuyện về trường học nhằm giúp các em ôn tập, phát triển thêm từ vựng và giải quyết các câu hỏi khó một cách nhanh chóng ",
         curriculum: curriculumEnglish10,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 3,
         name: "Unit 3: People's Background - Tiểu sử",
+        detail: "Chi tiết unit 3",
         desc: "Tiểu sử là nội dung mà các em sẽ được tìm hiểu ở Unit 3 People's Background​ của môn Tiếng Anh lớp 10. Bài giảng gồm các phần Reading, Speaking, Listening, Language Focus và Vocabulary cùng hệ thống các câu hỏi trắc nghiệm, hỏi đáp đi kèm sẽ giúp các em ôn tập, chuẩn bị bài thật tốt cũng như có thể phát triển thêm vốn từ cho mình. Ngoài ra bên cạnh đó phần hỏi đáp sẽ giúp các em trao đổi các dạng câu hỏi khó, thắc mắc liên quan đến bài học, chia sẻ đề cùng nhau tiến bộ hơn. Mời các em cùng theo dõi nội dung chi tiết bên dưới.",
         curriculum: curriculumEnglish10,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 4,
         name: "Unit 4: Special Education - Giáo dục đặc biệt",
+        detail: "Chi tiết unit 4",
         desc: "Giáo dục đặc biệt là nội dung mà các em sẽ được tìm hiểu ở Unit 4 Special Education của môn Tiếng Anh lớp 10. Bài giảng gồm các phần Reading, Speaking, Listening, Language Focus và Vocabulary cùng hệ thống các câu hỏi trắc nghiệm, hỏi đáp đi kèm sẽ giúp các em ôn tập, chuẩn bị bài thật tốt cũng như có thể phát triển thêm vốn từ cho mình. Ngoài ra bên cạnh đó phần hỏi đáp sẽ giúp các em trao đổi các dạng câu hỏi khó, thắc mắc liên quan đến bài học, chi sẻ đề cùng nhau tiến bộ hơn. Mời các em cùng theo dõi nội dung chi tiết bên dưới.",
         curriculum: curriculumEnglish10,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 5,
         name: "Unit 5: Technology and You - Công nghệ và bạn",
+        detail: "Chi tiết unit 5",
         desc: "Nội dung bài giảng Unit 5 Technology and You của môn Tiếng Anh lớp 10 sau đây sẽ giúp các em tìm hiểu các nội dung về Lựa chọn ngành nghề qua 7 phần cơ bản Reading, Speaking, Listening, Language Focus và Vocabulary. Để ôn tập và chuẩn bị bài thật tốt các em có luyện tập thêm các câu hỏi trắc nghiệm. Hệ thống hỏi đáp về chủ đề Công nghệ và bạn sẽ giúp các em phát triển vốn từ vựng và giải quyết nhiều câu hỏi khó một cách nhanh chóng. ",
         curriculum: curriculumEnglish10,
     }));
@@ -311,9 +327,9 @@ export async function initData() {
         name: "Khóa học tiếng anh lớp 10 mùa xuân",
         slug: "khoa-hoc-tieng-anh-lop-10-mua-xuan",
         maxNumberOfStudent: 30,
-        type: TermCourse.LongTerm,
         price: 300000,
         openingDate: new Date(2022, 1, 1),
+        expectedClosingDate: new Date(2022, 1, 1),
         closingDate: new Date(2022, 5, 31),
         image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumEnglish10,
@@ -325,10 +341,10 @@ export async function initData() {
         name: "Khóa học tiếng anh lớp 10",
         slug: "khoa-hoc-tieng-anh-lop-10",
         maxNumberOfStudent: 30,
-        type: TermCourse.LongTerm,
         price: 300000,
         openingDate: new Date(2022, 1, 1),
         closingDate: new Date(2022, 5, 31),
+        expectedClosingDate: new Date(2022, 5, 31),
         image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumEnglish10,
         teacher: teacherMinh,
@@ -340,29 +356,38 @@ export async function initData() {
         name: "KHÓA HỌC TOEIC 550 - 650+",
         desc: "Lấy lại kiến thức căn bản tiếng Anh (Basic TOEIC) và 250 - 300 (Pre TOEIC), 350 - 400 (TOEIC A)",
         image: "/assets/images/cirriculum/init_image.jpg",
+        type: TermCourse.ShortTerm,
     }));
 
     //Create Lectures of Curriculum
     await Lecture.save(Lecture.create({
+        order: 1,
         name: "Giai đoạn 1: BASIC TOEIC",
+        detail: "Chi tiết giai đoạn 1",
         desc: "Lấy lại kiến thức căn bản tiếng Anh, hệ thống lại nền tảng kiến thức. Học Listening và điền từ",
         curriculum: curriculumToeic550_650,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 2,
         name: "Giai đoạn 2: PRE TOEIC",
+        detail: "Chi tiết giai đoạn 2",
         desc: "Lấy lại kiến thức căn bản tiếng Anh. Chia làm 2 phần; 11 buổi Listening, 11 buổi Reading, 01 buổi Mid Term và 01 buổi final Term.",
         curriculum: curriculumToeic550_650,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 3,
         name: "Giai đoạn 3: TOEIC A",
+        detail: "Chi tiết giai đoạn 3",
         desc: "450-500+ điểm TOEIC. Chia làm 2 phần; 11 buổi Listening, 11 buổi Reading, 01 buổi Mid Term và 01 buổi final Term.",
         curriculum: curriculumToeic550_650,
     }));
 
     await Lecture.save(Lecture.create({
+        order: 4,
         name: "Giai đoạn 4: TOEIC B",
+        detail: "Chi tiết giai đoạn 4",
         desc: "550-650+ điểm TOEIC. Chia làm 2 phần; 11 buổi Listening, 11 buổi Reading, 01 buổi Mid Term và 01 buổi final Term.",
         curriculum: curriculumToeic550_650,
     }));
@@ -372,10 +397,9 @@ export async function initData() {
         name: "KHÓA HỌC TOEIC 550 - 650+ mùa Hè 2021",
         slug: "khoa-hoc-toeic-550-650+-mua-he-2021",
         maxNumberOfStudent: 40,
-        type: TermCourse.ShortTerm,
         price: 1000000,
         openingDate: new Date(2021, 6, 1),
-        closingDate: new Date(2022, 9, 30),
+        expectedClosingDate: new Date(2022, 9, 30),
         image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumToeic550_650,
         teacher: teacherMinh,
@@ -386,14 +410,28 @@ export async function initData() {
         name: "KHÓA HỌC TOEIC 550 - 650+ mùa Xuân 2022",
         slug: "khoa-hoc-toeic-550-650+-mua-xuan-2022",
         maxNumberOfStudent: 40,
-        type: TermCourse.ShortTerm,
         price: 1100000,
         openingDate: new Date(2022, 2, 15),
         closingDate: new Date(2022, 5, 15),
+        expectedClosingDate: new Date(2022, 5, 15),
         image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumToeic550_650,
         teacher: teacherMinh,
     }));
+
+    //Create Course
+    const course5 = await Course.save(Course.create({
+        name: "KHÓA HỌC TOEIC 550 - 650+ mùa Xuân 2023",
+        slug: "khoa-hoc-toeic-550-650+-mua-xuan-2023",
+        maxNumberOfStudent: 40,
+        price: 1100000,
+        openingDate: new Date(2023, 2, 15),
+        expectedClosingDate: new Date(2023, 5, 15),
+        image: "/assets/images/course/init_course.jpg",
+        curriculum: curriculumToeic550_650,
+        teacher: teacherMinh,
+    }));
+
 
     // Create Shifts
     await initShifts();
@@ -442,7 +480,7 @@ export async function initData() {
     await Schedule.save(schedule5Course1);
 
     course1.schedules = [
-        schedule1Course1, 
+        schedule1Course1,
         schedule2Course1,
         schedule3Course1,
         schedule4Course1,
@@ -477,7 +515,7 @@ export async function initData() {
     await Schedule.save(schedule3Course2);
 
     course2.schedules = [
-        schedule1Course2, 
+        schedule1Course2,
         schedule2Course2,
         schedule3Course2,
     ]
@@ -510,7 +548,7 @@ export async function initData() {
     await Schedule.save(schedule3Course3);
 
     course3.schedules = [
-        schedule1Course3, 
+        schedule1Course3,
         schedule2Course3,
         schedule3Course3,
     ]
@@ -559,7 +597,7 @@ export async function initData() {
     await Schedule.save(schedule5Course4);
 
     course4.schedules = [
-        schedule1Course4, 
+        schedule1Course4,
         schedule2Course4,
         schedule3Course4,
         schedule4Course4,
@@ -588,16 +626,37 @@ export async function initData() {
     studentAttendCourse4.course = course4;
     await StudentParticipateCourse.save(studentAttendCourse4);
 
+
+
+    const students = await createStudentUser();
+    await createStudentParticipateCourse(course1, faker.helpers.arrayElements(students, 15));
+    await createStudentParticipateCourse(course2, faker.helpers.arrayElements(students, 15));
+    await createStudentParticipateCourse(course3, faker.helpers.arrayElements(students, 15));
+    await createStudentParticipateCourse(course4, faker.helpers.arrayElements(students, 15));
+    await createStudentParticipateCourse(course5, faker.helpers.arrayElements(students, 15));
+
+    await createExercise(course1);
+    await createExercise(course2);
+    await createExercise(course3);
+    await createExercise(course4);
+    await createExercise(course5);
+
+    await createDocumentCourse(course1);
+    await createDocumentCourse(course2);
+    await createDocumentCourse(course3);
+    await createDocumentCourse(course4);
+    await createDocumentCourse(course5);
+
     console.log("-----------------------Ending init data-----------------------")
 }
 
 
-async function initShifts(){
+async function initShifts() {
 
     const weekDays = [
-        Weekday.Monday, 
-        Weekday.Tuesday, 
-        Weekday. Wednesday, 
+        Weekday.Monday,
+        Weekday.Tuesday,
+        Weekday.Wednesday,
         Weekday.Thursday,
         Weekday.Friday,
         Weekday.Saturday,
@@ -606,8 +665,8 @@ async function initShifts(){
 
     const shiftInDay = 14;
 
-    for (const weekDay of weekDays){
-        for (var offset = 0; offset < shiftInDay; offset++){
+    for (const weekDay of weekDays) {
+        for (var offset = 0; offset < shiftInDay; offset++) {
             var shift = new Shift();
             shift.weekDay = weekDay;
             shift.startTime = new Date(2000, 10, 10, 7 + offset, 0, 0, 0);

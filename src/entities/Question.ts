@@ -21,13 +21,13 @@ export class Question extends MyBaseEntity {
 
   @IsString()
   @Length(0, 255)
-  @Column({ length: 255, nullable: true })
-  imgSrc: string;
+  @Column({type:'varchar', length: 255, nullable: true })
+  imgSrc: string | null;
 
   @IsString()
   @Length(0, 255)
-  @Column({ length: 255, nullable: true })
-  audioSrc: string;
+  @Column({type:'varchar', length: 255, nullable: true })
+  audioSrc: string | null;
 
   @ManyToMany(() => Tag, (tag) => tag.questions, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinTable({ name: "question_belong_tag" })

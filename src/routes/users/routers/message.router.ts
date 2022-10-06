@@ -4,7 +4,7 @@ import { PageableMapper, UserMapper } from "../mappers";
 
 const router = express.Router();
 
-router.post("/get-contacts", async (req: any, res: any, next: any) => {
+router.get("/get-contacts", async (req: any, res: any, next: any) => {
   try {
     const contacts = await MessageService.getContacts(req.user.userId);
     return res.status(200).json(contacts);
@@ -40,7 +40,7 @@ router.post("/get-messages", async (req: any, res: any, next: any) => {
 }
 );
 
-router.post("/get-unread-messages-count", async (req: any, res: any, next: any) => {
+router.get("/get-unread-messages-count", async (req: any, res: any, next: any) => {
   try {
     const userDto = UserMapper.mapToDto({ id: req.user.userId });
     const count = await MessageService.getUnreadMessageCount(userDto);

@@ -19,7 +19,7 @@ router.post("/get-notification", async (req: any, res: any, next: any) => {
 
 
 
-router.post("/get-unread-notification-count", async (req: any, res: any, next: any) => {
+router.get("/get-unread-notification-count", async (req: any, res: any, next: any) => {
   try {
     const userDto = UserMapper.mapToDto({ id: req.user.userId });
     const result = await NotificationService.getUnreadNotificationCount(userDto);

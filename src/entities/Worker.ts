@@ -56,7 +56,7 @@ export class Worker extends MyBaseEntity {
   //Ngày mới nhất tính lương
   @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: true })
-  salaryDate: Date;
+  salaryDate: Date | null;
 
   @IsNotEmpty()
   @IsDate()

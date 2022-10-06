@@ -38,7 +38,7 @@ export class Fee extends MyBaseEntity {
     onUpdate: "CASCADE",
     onDelete: "CASCADE",
   })
-  @JoinColumn({name: "studentId"})
+  @JoinColumn({ name: "studentId" })
   userStudent: UserStudent;
 
   @IsNotEmpty()
@@ -54,10 +54,10 @@ export class Fee extends MyBaseEntity {
     onUpdate: "CASCADE",
     onDelete: "NO ACTION",
   })
-  @JoinColumn({name: "employeeId"})
+  @JoinColumn({ name: "employeeId" })
   userEmployee: UserEmployee;
-  
+
   @IsDate()
-  @Column({type: "timestamp", precision: 6})
-  payDate: Date;
+  @Column({ type: "timestamp", precision: 6, nullable: true })
+  payDate: Date | null;
 }

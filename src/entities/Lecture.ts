@@ -5,7 +5,7 @@ import {
   OneToMany,
   ManyToOne,
 } from "typeorm";
-import { IsNotEmpty, IsString, Length } from "class-validator";
+import { IsNotEmpty, IsNumber, IsString, Length, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { StudySession } from "./StudySession";
 import { Curriculum } from "./Curriculum";
@@ -16,16 +16,26 @@ export class Lecture extends MyBaseEntity {
   id: number;
 
   @IsNotEmpty()
+  @IsNumber()
+  @Min(1)
+  @Column({ type: "int", nullable: false })
+  order: number;
+
+  @IsNotEmpty()
   @IsString()
   @Length(0, 255)
   @Column({ length: 255, nullable: false })
   name: string;
 
   //Description
+  @IsString()
+  @Column({ type: "text", nullable: true })
+  desc: string | null;
+
   @IsNotEmpty()
   @IsString()
   @Column({ type: "text", nullable: false })
-  desc: string;
+  detail: string;
 
   //Relation StudySession==N==<has>--1--Lecture
   @OneToMany(() => StudySession, (studySession) => studySession.lecture)

@@ -8,25 +8,25 @@ import { StudySession } from "./StudySession";
 @Entity()
 export class UserAttendStudySession extends MyBaseEntity {
 
-  
-  @PrimaryColumn({type: "int", name:"studentId"})
-  @ManyToOne(() => UserStudent, {onDelete: "CASCADE", onUpdate: "CASCADE"})
+
+  @PrimaryColumn({ type: "int", name: "studentId" })
+  @ManyToOne(() => UserStudent, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinColumn()
   student: UserStudent;
 
-  @PrimaryColumn({type: "int", name:"studySessionId"})
-  @ManyToOne(() => StudySession, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
+  @PrimaryColumn({ type: "int", name: "studySessionId" })
+  @ManyToOne(() => StudySession, { onDelete: "RESTRICT", onUpdate: "CASCADE" })
   @JoinColumn()
   studySession: StudySession;
-  
+
   @IsNotEmpty()
   @IsBoolean()
-  @Column({type: "boolean", nullable: false})
+  @Column({ type: "boolean", nullable: false })
   isAttend: boolean;
 
   @IsNotEmpty()
   @IsString()
   @Column({ type: "text", nullable: false })
   commentOfTeacher: string;
-  
+
 }

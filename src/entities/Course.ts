@@ -3,14 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  ManyToMany,
-  JoinTable,
   JoinColumn,
   ManyToOne,
 } from "typeorm";
 import {
   IsDate,
-  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsPositive,
@@ -18,13 +15,13 @@ import {
   Length,
 } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
-import { TermCourse } from "../utils/constants/termCuorse.constant";
 import { Document } from "./Document";
 import { StudySession } from "./StudySession";
 import { Exercise } from "./Exercise";
 import { UserTeacher } from "./UserTeacher";
 import { Curriculum } from "./Curriculum";
 import { Schedule } from "./Schedule";
+import { StudentParticipateCourse } from "./StudentParticipateCourse";
 
 @Entity()
 export class Course extends MyBaseEntity {
@@ -50,19 +47,9 @@ export class Course extends MyBaseEntity {
   maxNumberOfStudent: number;
 
   @IsNotEmpty()
-  @IsEnum(TermCourse)
-  @Column({
-    type: "enum",
-    enum: TermCourse,
-    nullable: false,
-    default: TermCourse.ShortTerm,
-  })
-  type: TermCourse;
-
-  @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column({type: "decimal", nullable: false })
+  @Column({ type: "decimal", nullable: false })
   price: number;
 
   @IsNotEmpty()
@@ -72,8 +59,13 @@ export class Course extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
+  @Column({ type: "timestamp", precision: 6, nullable: true })
+  closingDate: Date | null;
+
+  @IsNotEmpty()
+  @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: false })
-  closingDate: Date;
+  expectedClosingDate: Date;
 
   @IsNotEmpty()
   @IsString()
@@ -89,8 +81,11 @@ export class Course extends MyBaseEntity {
   @OneToMany(() => StudySession, (studySession) => studySession.course)
   studySessions: StudySession[];
 
-  @ManyToMany(() => Exercise, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
-  @JoinTable({ name: "course_contain_exercise" })
+  @OneToMany(() => Exercise, (exercise) => exercise.course, {
+    nullable: false,
+    onUpdate: "CASCADE",
+    onDelete: "RESTRICT",
+  })
   exercises: Exercise[];
 
   @IsNotEmpty()
@@ -114,4 +109,7 @@ export class Course extends MyBaseEntity {
   @OneToMany(() => Schedule, (schedule) => schedule.course)
   //@JoinColumn()
   schedules: Schedule[];
+
+  @OneToMany(() => StudentParticipateCourse, (studentPaticipateCourse) => studentPaticipateCourse.course)
+  studentPaticipateCourses: StudentParticipateCourse[];
 }

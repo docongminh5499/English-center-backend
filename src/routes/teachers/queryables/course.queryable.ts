@@ -33,14 +33,16 @@ export default class CourseQueryable implements QueryableInterface<Course> {
 
 
     buildQuery(query: SelectQueryBuilder<Course>): SelectQueryBuilder<Course> {
-        query = query.where("Course.type IN (:...type)", { type: this.type });
+        query = query.leftJoinAndSelect("Course.curriculum", "curriculum")
+
+        query = query.where("curriculum.type IN (:...type)", { type: this.type });
         if (this.name && this.name.length > 0)
             query = query.andWhere("Course.name LIKE :name", { name: '%' + this.name + '%' });
 
         if (this.status == "Open")
-            query = query.andWhere("Course.closingDate > :date", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+            query = query.andWhere("Course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
         else if (this.status == "Closed")
-            query = query.andWhere("Course.closingDate < :date", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+            query = query.andWhere("Course.closingDate IS NOT NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
         return query;
     }
 }

@@ -22,18 +22,18 @@ export class Document extends MyBaseEntity {
 
   @IsString()
   @Length(0, 255)
-  @Column({ length: 255, nullable: true })
-  author: string;
+  @Column({type:'varchar', length: 255, nullable: true })
+  author: string | null;
 
   @IsNumber()
   @IsPositive()
   @Column({ type: "integer", nullable: true })
-  pubYear: number;
+  pubYear: number | null;
 
   @IsString()
   @Length(0, 255)
-  @Column({ length: 255, nullable: true })
-  src: string;
+  @Column({ type:'varchar', length: 255, nullable: true })
+  src: string | null;
 
   //Relation Cuorse--1--<has>==N==Document
   @ManyToOne(() => Course, (course) => course.documents, {onDelete: "CASCADE", onUpdate:"CASCADE"})

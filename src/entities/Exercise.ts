@@ -4,35 +4,42 @@ import {
   Column,
   ManyToMany,
   JoinTable,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
-import { IsDate, IsEnum, IsNotEmpty, IsNumber } from "class-validator";
+import { IsDate, IsNotEmpty, IsNumber, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
-import { ExerciseStatus } from "../utils/constants/exercise.constant";
 import { Question } from "./Question";
+import { Course } from "./Course";
 
 @Entity()
 export class Exercise extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: true })
-  openTime: Date;
-
-  @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: true })
-  endTime: Date;
-
   @IsNotEmpty()
-  @IsEnum(ExerciseStatus)
-  @Column({ type: "enum", enum: ExerciseStatus, nullable: false })
-  status: ExerciseStatus;
+  @IsString()
+  @Length(0, 255)
+  @Column({ length: 255, nullable: false })
+  name: string;
+
+  @IsDate()
+  @Column({ type: "timestamp", precision: 6, nullable: true })
+  openTime: Date | null;
+
+  @IsDate()
+  @Column({ type: "timestamp", precision: 6, nullable: true })
+  endTime: Date | null;
 
   @IsNumber()
-  @Column({ type: "integer", default: 3 })
-  maxTime: number;
+  @Column({ type: "integer", nullable: true, default: 3 })
+  maxTime: number | null;
 
-  @ManyToMany(() => Question, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
+  @ManyToMany(() => Question, { onDelete: "RESTRICT", onUpdate: "CASCADE" })
   @JoinTable({ name: "exercise_contain_question" })
   questions: Question[];
+
+  @ManyToOne(() => Course, (course) => course.exercises, { onDelete: "CASCADE", onUpdate: "CASCADE" })
+  @JoinColumn({ name: "courseId" })
+  course: Course;
 }

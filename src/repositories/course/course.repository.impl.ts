@@ -25,7 +25,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         return query.execute()
     }
 
-    async findCourseByStudent(studentId: number) : Promise<Course[]>{
+    async findCourseByStudent(studentId: number): Promise<Course[]> {
         const studentPaticipateCourse = await StudentParticipateCourse
             .createQueryBuilder("student_participate_course")
             .leftJoinAndSelect("student_participate_course.course", "course")
@@ -33,13 +33,36 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("schedule.startShift", "startShift")
             .leftJoinAndSelect("schedule.endShift", "endShift")
             .leftJoinAndSelect("schedule.classroom", "classroom")
-            .where("studentId = :id", {id: studentId})
+            .where("studentId = :id", { id: studentId })
             .getMany();
         const courses: Course[] = [];
         studentPaticipateCourse.forEach(async value => {
             courses.push(value.course);
         });
         return courses;
+    }
+
+    async findCourseBySlug(courseSlug: string): Promise<Course | null> {
+        let result = Course.createQueryBuilder("course")
+            .leftJoinAndSelect("course.documents", "documents")
+            .leftJoinAndSelect("course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            .leftJoinAndSelect("course.studySessions", "studySessions")
+            .leftJoinAndSelect("course.exercises", "exercises")
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .leftJoinAndSelect("curriculum.lectures", "lectures")
+            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+            .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+            .leftJoinAndSelect("student.user", "userStudent")
+            .where("course.slug = :courseSlug", { courseSlug })
+            .orderBy({
+                "lectures.order": "ASC",
+                "-exercises.openTime": "ASC",
+                "studentPaticipateCourses.commentDate": "DESC",
+            })
+            .getOne();
+        return result;
     }
 }
 

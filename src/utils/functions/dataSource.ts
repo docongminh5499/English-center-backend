@@ -13,11 +13,12 @@ const AppDataSource = new DataSource({
   extra:
     process.env.DEPLOY == "true"
       ? {
+        decimalNumbers: true,
         ssl: {
           rejectUnauthorized: !process.env.DEPLOY,
         },
       }
-      : "",
+      : { decimalNumbers: true },
   synchronize: process.env.DB_CONFIG_SYNC == "true",
   logging: false,
   entities: entities,
