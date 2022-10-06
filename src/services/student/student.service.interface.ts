@@ -8,4 +8,8 @@ export default interface StudentService {
     getCoursesForTimetableByUsername: (username: string) => Promise<Course[]>;
 
     getCoursesByStudent: (studentId: number, pageableDto: PageableDto, queryable: Queryable<Course>) => Promise<CourseListDto>;
+
+    getCourseDetail: (studentId: number, courseSlug: string) => Promise<Partial<Course> | null>;
+
+    assessCourse: (studentId: number, courseId: number, content: any) => Promise<boolean>;
 }

@@ -1,6 +1,6 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
-// import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
+import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { CourseRepository, Pageable, Selectable, Sortable, UserRepository } from "../../repositories";
 import Queryable from "../../utils/common/queryable.interface";
 import StudentServiceInterface from "./student.service.interface";
@@ -42,6 +42,39 @@ class StudentServiceImpl implements StudentServiceInterface {
         courseListDto.total = courseCount;
 
         return courseListDto;
+    }
+
+    async getCourseDetail(studentId: number, courseSlug: string): Promise<Partial<Course> | null> {
+        const course = await CourseRepository.findCourseBySlug(courseSlug);
+        // console.log(course?.studentPaticipateCourses)
+        course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
+        if (course?.studentPaticipateCourses.filter(value => value.student.user.id === studentId).length === 0) 
+            return null;
+        return course;
+    }
+
+    async assessCourse(studentId: number, courseId: number, content: any): Promise<boolean>{
+        console.log("ASSESS COURSE SERVICE");
+        const studentParticipateCourse = await StudentParticipateCourse.createQueryBuilder()
+                                                                       .select()
+                                                                       .where("studentId = :studentId", {studentId: studentId})
+                                                                       .andWhere("courseId = :courseId", {courseId: courseId})
+                                                                       .getOne();
+        if (studentParticipateCourse == null)
+            return false;
+        studentParticipateCourse!.starPoint = content.starPoint;
+        studentParticipateCourse!.comment = content.comment;
+        studentParticipateCourse!.isIncognito = content.isIncognito;
+        studentParticipateCourse!.commentDate = new Date();
+        console.log(studentParticipateCourse);
+        await StudentParticipateCourse.createQueryBuilder()
+                                      .update()
+                                      .set(studentParticipateCourse)
+                                      .where("studentId = :studentId", {studentId: studentId})
+                                      .andWhere("courseId = :courseId", {courseId: courseId})
+                                      .execute();
+        
+        return true;
     }
 }
 
