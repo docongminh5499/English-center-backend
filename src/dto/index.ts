@@ -3,6 +3,7 @@ import PageableDto from "./requests/pageable.dto";
 import UserDto from "./requests/user.dto";
 import SocketDto from "./requests/socket.dto";
 import MessageDto from "./requests/message.dto";
+import DocumentDto from "./requests/document.dto";
 
 import CredentialDto from "./responses/credential.dto";
 import CourseListDto from "./responses/courseList.dto";
@@ -25,6 +26,7 @@ export {
     UserDto,
     SocketDto,
     MessageDto,
+    DocumentDto,
     // Response DTO
     CredentialDto,
     CourseListDto,

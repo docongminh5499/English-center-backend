@@ -1,5 +1,6 @@
-import { CourseListDto, PageableDto } from "../../dto";
+import { CourseListDto, DocumentDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
+import { Document } from "../../entities/Document";
 import Queryable from "../../utils/common/queryable.interface";
 
 export default interface TeacherService {
@@ -8,4 +9,8 @@ export default interface TeacherService {
     getCourseDetail: (teacherId: number, courseSlug: string) => Promise<Partial<Course> | null>;
 
     deleteExercise: (teacherId: number, exerciseId: number) => Promise<boolean>;
+
+    deleteDocument: (teacherId: number, documentId: number) => Promise<boolean>;
+
+    createDocument: (documentDto: DocumentDto) => Promise<Document | null>;
 }
