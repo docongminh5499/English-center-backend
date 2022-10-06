@@ -68,23 +68,23 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
     }
 
 
-    async countCourseByStudent(queryable: Queryable<StudentParticipateCourse>, studentId?: number): Promise<number> {
+    async countCourseByStudent(queryable: Queryable<Course>, studentId?: number): Promise<number> {
         console.log("Count Student Repo");
-        let query = StudentParticipateCourse.createQueryBuilder("student_participate_course");
+        let query = Course.createQueryBuilder();
         query = queryable.buildQuery(query);
         if (studentId !== undefined)
-            query = query.andWhere("studentId = :id", { id: studentId });
+            query = query.andWhere("student_participate_course.studentId = :id", { id: studentId });
         return query.getCount()
     }
 
     async findCourseByStudent(pageable: Pageable, sortable: Sortable,
-        selectable: Selectable, queryable: Queryable<StudentParticipateCourse>, studentId?: number): Promise<Course[]> {
+        selectable: Selectable, queryable: Queryable<Course>, studentId?: number): Promise<Course[]> {
         console.log("Find Student Repo");
-        let query = StudentParticipateCourse.createQueryBuilder("student_participate_course");
+        let query = Course.createQueryBuilder();
         query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
         if (studentId !== undefined)
-            query = query.andWhere("studentId = :id", { id: studentId });
+            query = query.andWhere("student_participate_course.studentId = :id", { id: studentId });
         query = sortable.buildQuery(query);
         query = pageable.buildQuery(query);
         return query.execute()

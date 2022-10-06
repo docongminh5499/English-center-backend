@@ -1,16 +1,16 @@
 import moment = require("moment");
 import { SelectQueryBuilder } from "typeorm";
-// import { Course } from "../../../entities/Course";
-import { StudentParticipateCourse } from "../../../entities/StudentParticipateCourse";
+import { Course } from "../../../entities/Course";
+// import { StudentParticipateCourse } from "../../../entities/StudentParticipateCourse";
 import QueryableInterface from "../../../utils/common/queryable.interface";
 import { TermCourse } from "../../../utils/constants/termCuorse.constant";
 
-export default class CourseQueryable implements QueryableInterface<StudentParticipateCourse> {
+export default class CourseQueryable implements QueryableInterface<Course> {
     name: string;
     type: TermCourse[] = [];
     status: "Open" | "Closed" | "All";
 
-    map(requestBody: any): QueryableInterface<StudentParticipateCourse> {
+    map(requestBody: any): QueryableInterface<Course> {
         this.name = requestBody.name === undefined ? "" : requestBody.name.toString().trim().toLowerCase();
 
         // Determine Course Type
@@ -33,9 +33,10 @@ export default class CourseQueryable implements QueryableInterface<StudentPartic
     }
 
 
-    buildQuery(query: SelectQueryBuilder<StudentParticipateCourse>): SelectQueryBuilder<StudentParticipateCourse> {
-        query = query.leftJoinAndSelect("student_participate_course.course", "Course");
-        query = query.where("Course.type IN (:...type)", { type: this.type });
+    buildQuery(query: SelectQueryBuilder<Course>): SelectQueryBuilder<Course> {
+        query = query.leftJoinAndSelect("Course.studentPaticipateCourses", "student_participate_course")
+                     .leftJoinAndSelect("Course.curriculum", "curriculum");
+        query = query.where("curriculum.type IN (:...type)", { type: this.type });
         if (this.name && this.name.length > 0)
             query = query.andWhere("Course.name LIKE :name", { name: '%' + this.name + '%' });
 
