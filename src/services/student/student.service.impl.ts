@@ -1,6 +1,6 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
-import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
+// import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { CourseRepository, Pageable, Selectable, Sortable, UserRepository } from "../../repositories";
 import Queryable from "../../utils/common/queryable.interface";
 import StudentServiceInterface from "./student.service.interface";
@@ -12,14 +12,16 @@ class StudentServiceImpl implements StudentServiceInterface {
         return studentCourse;
     }
 
-    async getCoursesByStudent(studentId: number, pageableDto: PageableDto, queryable: Queryable<StudentParticipateCourse>): Promise<CourseListDto> {
+    async getCoursesByStudent(studentId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
         console.log("STUDENT SERVICE");
         const selectable = new Selectable()
-            .add("id", "id")
-            .add("image", "image")
-            .add("closingDate", "closingDate")
-            .add("name", "name")
-            .add("openingDate", "openingDate");
+            .add("Course.id", "id")
+            .add("Course.image", "image")
+            .add("Course.closingDate", "closingDate")
+            .add("Course.name", "name")
+            .add("Course.openingDate", "openingDate")
+            .add("Course.expectedClosingDate", "expectedClosingDate")
+            .add("slug", "slug");
         const sortable = new Sortable()
             .add("openingDate", "DESC")
             .add("name", "ASC");

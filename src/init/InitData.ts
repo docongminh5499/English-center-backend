@@ -394,11 +394,11 @@ export async function initData() {
 
     //Create Course
     const course3 = await Course.save(Course.create({
-        name: "KHÓA HỌC TOEIC 550 - 650+ mùa Hè 2021",
-        slug: "khoa-hoc-toeic-550-650+-mua-he-2021",
+        name: "KHÓA HỌC TOEIC 550 - 650+ mùa Hè 2022",
+        slug: "khoa-hoc-toeic-550-650+-mua-he-2022",
         maxNumberOfStudent: 40,
         price: 1000000,
-        openingDate: new Date(2021, 6, 1),
+        openingDate: new Date(2022, 6, 1),
         expectedClosingDate: new Date(2022, 9, 30),
         image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumToeic550_650,
