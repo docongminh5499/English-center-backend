@@ -62,6 +62,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
                 "lectures.order": "ASC",
                 "-exercises.openTime": "ASC",
                 "studentPaticipateCourses.commentDate": "DESC",
+                "documents.name": "ASC",
             })
             .getOne();
         return result;
