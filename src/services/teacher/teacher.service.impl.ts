@@ -69,7 +69,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     let documentSrc = "";
     if (documentDto.documentType === "link" && documentDto.documentLink)
       documentSrc = documentDto.documentLink;
-    else if (documentDto.documentType === "file")
+    else if (documentDto.documentType === "file" && documentDto.documentFile && documentDto.documentFile.fieldname)
       documentSrc = DOCUMENT_DESTINATION_SRC + documentDto.documentFile.filename;
     else throw new ValidationError([]);
 

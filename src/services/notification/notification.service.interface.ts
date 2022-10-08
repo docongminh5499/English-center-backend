@@ -1,4 +1,4 @@
-import { NotificationDto, NotificationListDto, NotificationResponseDto, PageableDto, UserDto } from "../../dto";
+import { CourseNotificationDto, NotificationDto, NotificationListDto, NotificationResponseDto, PageableDto, UserDto } from "../../dto";
 
 export default interface NotificationService {
     getNotification: (user: UserDto, pageableDto: PageableDto) => Promise<NotificationListDto>;
@@ -8,4 +8,6 @@ export default interface NotificationService {
     readNotification: (notificationDto: NotificationDto) => Promise<NotificationResponseDto>;
 
     getUnreadNotificationCount: (user: UserDto) => Promise<number>;
+
+    sendCourseNotification: (courseNotificationDto: CourseNotificationDto) => Promise<NotificationResponseDto[]>;
 }

@@ -90,6 +90,21 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         query = pageable.buildQuery(query);
         return query.execute()
     }
+
+
+    async findCourseById(courseId: number) : Promise<Course | null> {
+        let result = Course.createQueryBuilder("course")
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+        .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+        .leftJoinAndSelect("student.user", "userStudent")
+        .leftJoinAndSelect("userStudent.socketStatuses", "socketStatuses")
+        .where("course.id = :courseId", { courseId })
+        .getOne();
+    return result;
+    }
 }
 
 const CourseRepository = new CourseRepositoryImpl();

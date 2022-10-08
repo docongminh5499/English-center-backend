@@ -18,4 +18,6 @@ export default interface CourseRepository {
     countCourseByStudent: (queryable: Queryable<Course>, teacherId?: number) => Promise<number>;
 
     findCourseBySlug: (courseSlug: string) => Promise<Course | null>;
+
+    findCourseById: (courseId: number) => Promise<Course | null>;
 }

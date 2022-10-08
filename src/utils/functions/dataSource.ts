@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import * as entities from "../../entities";
 
-const AppDataSource = new DataSource({
+export const AppDataSource = new DataSource({
   host: process.env.DB_CONFIG_HOST,
   type: "mysql",
   port: Number(process.env.DB_CONFIG_PORT) || 3305,

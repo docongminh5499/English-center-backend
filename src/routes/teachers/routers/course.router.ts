@@ -66,10 +66,16 @@ router.post("/create-document", upload.single('documentFile'), async (req: any, 
   try {
     const documentDto = DocumentMapper.mapToDto({ ...req.body, documentFile: req.file })
     const result = await TeacherService.createDocument(documentDto);
+    if (result === null && req.file && req.file.filename) {
+      const filePath = path.join(process.cwd(), DOCUMENT_DESTINATION, req.file.filename);
+      fs.unlinkSync(filePath);
+    }
     return res.status(200).json({ document: result })
   } catch (err) {
-    const filePath = path.join(process.cwd(), DOCUMENT_DESTINATION, req.file.filename);
-    fs.unlinkSync(filePath);
+    if (req.file && req.file.filename) {
+      const filePath = path.join(process.cwd(), DOCUMENT_DESTINATION, req.file.filename);
+      fs.unlinkSync(filePath);
+    }
     console.log(err);
     next(err);
   }
