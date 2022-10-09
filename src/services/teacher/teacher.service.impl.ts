@@ -8,6 +8,9 @@ import TeacherServiceInterface from "./teacher.service.interface";
 import { Document } from "../../entities/Document";
 import { ValidationError } from "../../utils/errors/validation.error";
 import { DOCUMENT_DESTINATION_SRC } from "../../utils/constants/document.constant";
+import { UserTeacher } from "../../entities/UserTeacher";
+import { NotFoundError } from "../../utils/errors/notFound.error";
+import UserTeacherRepository from "../../repositories/userTeacher/userTeachere.repository.impl";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -112,6 +115,15 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     );
   }
 
+
+  async getPersonalInformation(userId: number) : Promise<UserTeacher> {
+    if (userId === undefined)
+      throw new NotFoundError();
+    const userTeacher = await UserTeacherRepository.findUserTeacherByid(userId);
+    if (userTeacher === null)
+      throw new NotFoundError();
+    return userTeacher;
+  }
 }
 
 const TeacherService = new TeacherServiceImpl();

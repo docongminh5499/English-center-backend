@@ -1,6 +1,7 @@
 import { CourseDetailDto, CourseListDto, DocumentDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { Document } from "../../entities/Document";
+import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
 
 export default interface TeacherService {
@@ -13,4 +14,6 @@ export default interface TeacherService {
     deleteDocument: (teacherId: number, documentId: number) => Promise<boolean>;
 
     createDocument: (documentDto: DocumentDto) => Promise<Document | null>;
+
+    getPersonalInformation: (userId: number) => Promise<UserTeacher>;
 }
