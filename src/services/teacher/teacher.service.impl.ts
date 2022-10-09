@@ -1,4 +1,4 @@
-import { PageableDto, CourseListDto, DocumentDto } from "../../dto";
+import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
@@ -38,11 +38,41 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
 
-  async getCourseDetail(teacherId: number, courseSlug: string): Promise<Partial<Course> | null> {
+  async getCourseDetail(teacherId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== teacherId)
       return null;
-    return course;
+    const courseDetail = new CourseDetailDto();
+    courseDetail.version = course.version;
+    courseDetail.id = course.id;
+    courseDetail.slug = course.slug;
+    courseDetail.name = course.name;
+    courseDetail.maxNumberOfStudent = course.maxNumberOfStudent;
+    courseDetail.price = course.price;
+    courseDetail.openingDate = course.openingDate;
+    courseDetail.closingDate = course.closingDate;
+    courseDetail.expectedClosingDate = course.expectedClosingDate;
+    courseDetail.image = course.image;
+    courseDetail.documents = course.documents;
+    courseDetail.studySessions = course.studySessions;
+    courseDetail.exercises = course.exercises;
+    courseDetail.curriculum = course.curriculum;
+    courseDetail.studentPaticipateCourses = course.studentPaticipateCourses.map(participation => ({
+      student: participation.student,
+      course: participation.course,
+      billingDate: participation.billingDate,
+    }));
+    courseDetail.maskedComments = course.studentPaticipateCourses
+      .filter(participation =>
+        participation.starPoint !== null &&
+        participation.starPoint !== undefined)
+      .map(participation => ({
+        comment: participation.comment,
+        starPoint: participation.starPoint,
+        userFullName: participation.isIncognito ? "Người dùng đã ẩn danh" : participation.student.user.fullName,
+        commentDate: participation.commentDate
+      }));
+    return courseDetail;
   }
 
 
