@@ -1,4 +1,4 @@
-import { CourseDetailDto, CourseListDto, DocumentDto, PageableDto } from "../../dto";
+import { CourseDetailDto, CourseListDto, CredentialDto, DocumentDto, FileDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { Document } from "../../entities/Document";
 import { UserTeacher } from "../../entities/UserTeacher";
@@ -16,4 +16,6 @@ export default interface TeacherService {
     createDocument: (documentDto: DocumentDto) => Promise<Document | null>;
 
     getPersonalInformation: (userId: number) => Promise<UserTeacher>;
+
+    modifyPersonalInformation: (userId: number, userTeacher: UserTeacher, avatarFile?: FileDto | null) => Promise<CredentialDto | null>;
 }

@@ -5,4 +5,6 @@ export default interface AccountRepository {
     findByUserName: (username: string | undefined) => Promise<Account | null>;
 
     findUserByEmail: (email: string | undefined) => Promise<User | null>;
+
+    findByUserId: (userId: number) => Promise<Account | null>;
 }

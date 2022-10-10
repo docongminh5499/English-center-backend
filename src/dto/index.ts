@@ -5,7 +5,7 @@ import SocketDto from "./requests/socket.dto";
 import MessageDto from "./requests/message.dto";
 import DocumentDto from "./requests/document.dto";
 import CourseNotificationDto from "./requests/courseNotification.dto";
-
+import FileDto from "./requests/file.dto";
 
 import CredentialDto from "./responses/credential.dto";
 import CourseListDto from "./responses/courseList.dto";
@@ -31,6 +31,7 @@ export {
     MessageDto,
     DocumentDto,
     CourseNotificationDto,
+    FileDto,
     // Response DTO
     CredentialDto,
     CourseListDto,

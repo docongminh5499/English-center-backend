@@ -1,6 +1,6 @@
-import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto } from "../../dto";
+import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto, FileDto, CredentialDto } from "../../dto";
 import { Course } from "../../entities/Course";
-import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
 import DocumentRepository from "../../repositories/document/document.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
@@ -11,6 +11,13 @@ import { DOCUMENT_DESTINATION_SRC } from "../../utils/constants/document.constan
 import { UserTeacher } from "../../entities/UserTeacher";
 import { NotFoundError } from "../../utils/errors/notFound.error";
 import UserTeacherRepository from "../../repositories/userTeacher/userTeachere.repository.impl";
+import moment = require("moment");
+import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
+import * as path from "path";
+import * as fs from "fs";
+import * as jwt from "jsonwebtoken";
+import { AppDataSource } from "../../utils/functions/dataSource";
+import { InvalidVersionColumnError } from "../../utils/errors/invalidVersionColumn.error";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -116,13 +123,85 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
 
-  async getPersonalInformation(userId: number) : Promise<UserTeacher> {
+  async getPersonalInformation(userId: number): Promise<UserTeacher> {
     if (userId === undefined)
       throw new NotFoundError();
     const userTeacher = await UserTeacherRepository.findUserTeacherByid(userId);
     if (userTeacher === null)
       throw new NotFoundError();
     return userTeacher;
+  }
+
+
+  async modifyPersonalInformation(userId: number, userTeacher: UserTeacher, avatarFile?: FileDto | null): Promise<CredentialDto | null> {
+    const persistenceUserTeacher = await UserTeacherRepository.findUserTeacherByid(userId);
+    if (persistenceUserTeacher === null) return null;
+    const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
+
+    persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
+    persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).utc().toDate();
+    persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
+    persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
+    persistenceUserTeacher.worker.nation = userTeacher.worker.nation;
+    persistenceUserTeacher.worker.homeTown = userTeacher.worker.homeTown;
+    persistenceUserTeacher.worker.user.address = userTeacher.worker.user.address;
+    persistenceUserTeacher.worker.user.email = userTeacher.worker.user.email;
+    persistenceUserTeacher.worker.user.phone = userTeacher.worker.user.phone;
+    persistenceUserTeacher.shortDesc = userTeacher.shortDesc;
+    persistenceUserTeacher.experience = userTeacher.experience;
+    if (avatarFile && avatarFile.filename)
+      persistenceUserTeacher.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      if (persistenceUserTeacher.version !== userTeacher.version)
+        throw new InvalidVersionColumnError();
+      if (persistenceUserTeacher.worker.version !== userTeacher.worker.version)
+        throw new InvalidVersionColumnError();
+      if (persistenceUserTeacher.worker.user.version !== userTeacher.worker.user.version)
+        throw new InvalidVersionColumnError();
+
+      const savedUser = await queryRunner.manager.save(persistenceUserTeacher.worker.user);
+      const savedWorker = await queryRunner.manager.save(persistenceUserTeacher.worker);
+      await queryRunner.manager.upsert(UserTeacher, persistenceUserTeacher, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+      await persistenceUserTeacher.reload();
+
+      if (persistenceUserTeacher.version !== userTeacher.version + 1
+        && persistenceUserTeacher.version !== userTeacher.version)
+        throw new InvalidVersionColumnError();
+      if (savedWorker.version !== userTeacher.worker.version + 1
+        && savedWorker.version !== userTeacher.worker.version)
+        throw new InvalidVersionColumnError();
+      if (savedUser.version !== userTeacher.worker.user.version + 1
+        && savedUser.version !== userTeacher.worker.user.version)
+        throw new InvalidVersionColumnError();
+
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
+        const filePath = path.join(process.cwd(), "public", oldAvatarSrc);
+        fs.unlinkSync(filePath);
+      }
+
+      const account = await AccountRepository.findByUserId(savedUser.id);
+      const credentialDto = new CredentialDto();
+      credentialDto.token = jwt.sign({
+        fullName: account?.user.fullName,
+        userId: account?.user.id,
+        userName: account?.username,
+        role: account?.role,
+        avatar: account?.user.avatar,
+      }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
+      return credentialDto;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
   }
 }
 
