@@ -18,6 +18,12 @@ import * as fs from "fs";
 import * as jwt from "jsonwebtoken";
 import { AppDataSource } from "../../utils/functions/dataSource";
 import { InvalidVersionColumnError } from "../../utils/errors/invalidVersionColumn.error";
+import { Curriculum } from "../../entities/Curriculum";
+import { AccountRole } from "../../utils/constants/role.constant";
+import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
+import CurriculumDto from "../../dto/requests/curriculum.dto";
+import { CURRICULUM_DESTINATION_SRC } from "../../utils/constants/curriculum.constant";
+import { Lecture } from "../../entities/Lecture";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -201,6 +207,164 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
       return null;
+    }
+  }
+
+
+  async getCurriculumList(userId?: number): Promise<Curriculum[]> {
+    if (userId === undefined) return [];
+
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return [];
+    if (account.role !== AccountRole.TEACHER) return [];
+    return await CurriculumRepository.getCurriculumList();
+  }
+
+
+
+  async getCurriculum(userId?: number, curriculumId?: number): Promise<Curriculum | null> {
+    if (curriculumId === undefined) return null;
+    if (userId === undefined) return null;
+
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return null;
+    if (account.role !== AccountRole.TEACHER) return null;
+    return await CurriculumRepository.getCurriculumById(curriculumId);
+  }
+
+
+
+  async modifyCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
+    if (userId === undefined) return null;
+
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return null;
+    if (account.role !== AccountRole.TEACHER) return null;
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      if (curriculumDto == undefined || curriculumDto.curriculum.id == undefined)
+        throw new NotFoundError();
+      const foundCurriculum = await CurriculumRepository.getCurriculumById(curriculumDto.curriculum.id);
+      if (foundCurriculum === null)
+        throw new NotFoundError();
+      if (curriculumDto.curriculum.version !== foundCurriculum?.version)
+        throw new InvalidVersionColumnError();
+
+      const newCurriculum = new Curriculum();
+      newCurriculum.name = curriculumDto.curriculum.name;
+      newCurriculum.desc = curriculumDto.curriculum.desc;
+      newCurriculum.type = curriculumDto.curriculum.type;
+      newCurriculum.latest = true;
+      if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
+        newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
+      } else {
+        const fileType = foundCurriculum.image.split('.').pop();
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+        const imgName = "curriculum" + '-' + uniqueSuffix + "." + fileType;
+        fs.copyFileSync(path.join(
+          process.cwd(), "public", foundCurriculum.image),
+          path.join(process.cwd(), "public", CURRICULUM_DESTINATION_SRC, imgName)
+        );
+        newCurriculum.image = path.join(CURRICULUM_DESTINATION_SRC, imgName);
+      }
+
+      foundCurriculum.latest = false;
+
+      await queryRunner.manager.save(foundCurriculum);
+      const savedCurriculum = await queryRunner.manager.save(newCurriculum);
+      if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
+      for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
+        const lecture = curriculumDto.curriculum.lectures[index];
+        const newLecture = new Lecture();
+        newLecture.order = lecture.order;
+        newLecture.name = lecture.name;
+        newLecture.desc = lecture.desc;
+        newLecture.detail = lecture.detail;
+        newLecture.curriculum = savedCurriculum;
+        const savedLecture = await queryRunner.manager.save(newLecture);
+        if (savedLecture.id === null || savedLecture.id === undefined) throw new Error();
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return savedCurriculum;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
+  }
+
+
+
+  async createCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
+    if (userId === undefined) return null;
+
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return null;
+    if (account.role !== AccountRole.TEACHER) return null;
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      if (curriculumDto == undefined)
+        throw new NotFoundError();
+
+      const newCurriculum = new Curriculum();
+      newCurriculum.name = curriculumDto.curriculum.name;
+      newCurriculum.desc = curriculumDto.curriculum.desc;
+      newCurriculum.type = curriculumDto.curriculum.type;
+      newCurriculum.latest = true;
+      if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
+        newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
+      }
+      
+      const savedCurriculum = await queryRunner.manager.save(newCurriculum);
+      if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
+      for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
+        const lecture = curriculumDto.curriculum.lectures[index];
+        const newLecture = new Lecture();
+        newLecture.order = lecture.order;
+        newLecture.name = lecture.name;
+        newLecture.desc = lecture.desc;
+        newLecture.detail = lecture.detail;
+        newLecture.curriculum = savedCurriculum;
+        const savedLecture = await queryRunner.manager.save(newLecture);
+        if (savedLecture.id === null || savedLecture.id === undefined) throw new Error();
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return savedCurriculum;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
+  }
+
+
+
+
+  async deleteCurriculum(curriculumId?: number): Promise<boolean> {
+    if (curriculumId === undefined) return false;
+    const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
+    if (curriculum === null) return false;
+    const count = await CourseRepository.countByCurriculumId(curriculumId);
+    if (count === 0) {
+      if (curriculum && curriculum.image) {
+        const filePath = path.join(process.cwd(), "public", curriculum.image);
+        fs.unlinkSync(filePath);
+      }
+      return await CurriculumRepository.deleteCurriculumById(curriculumId);
+    } else {
+      return await CurriculumRepository.setNullCurriculumById(curriculumId);
     }
   }
 }

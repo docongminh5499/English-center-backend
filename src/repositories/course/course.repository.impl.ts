@@ -105,6 +105,14 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         .getOne();
     return result;
     }
+
+
+    async countByCurriculumId(curriculumId: number) : Promise<number> {
+        return await Course.createQueryBuilder("course")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("curriculum.id = :curriculumId", {curriculumId})
+        .getCount();
+    }
 }
 
 const CourseRepository = new CourseRepositoryImpl();

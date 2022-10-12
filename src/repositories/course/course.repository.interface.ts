@@ -20,4 +20,6 @@ export default interface CourseRepository {
     findCourseBySlug: (courseSlug: string) => Promise<Course | null>;
 
     findCourseById: (courseId: number) => Promise<Course | null>;
+
+    countByCurriculumId: (curriculumId: number) => Promise<number>;
 }

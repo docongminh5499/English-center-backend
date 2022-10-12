@@ -1,5 +1,7 @@
 import { CourseDetailDto, CourseListDto, CredentialDto, DocumentDto, FileDto, PageableDto } from "../../dto";
+import CurriculumDto from "../../dto/requests/curriculum.dto";
 import { Course } from "../../entities/Course";
+import { Curriculum } from "../../entities/Curriculum";
 import { Document } from "../../entities/Document";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
@@ -18,4 +20,14 @@ export default interface TeacherService {
     getPersonalInformation: (userId: number) => Promise<UserTeacher>;
 
     modifyPersonalInformation: (userId: number, userTeacher: UserTeacher, avatarFile?: FileDto | null) => Promise<CredentialDto | null>;
+
+    getCurriculumList: (userId?: number) => Promise<Curriculum[]>;
+
+    getCurriculum: (userId?: number, curriculumId? : number) => Promise<Curriculum | null>;
+
+    modifyCurriculum: (userId?: number, curriculum?: CurriculumDto) => Promise<Curriculum | null>;
+
+    createCurriculum: (userId?: number, curriculumDto?: CurriculumDto) => Promise<Curriculum | null>;
+
+    deleteCurriculum: (curriculumId?: number) => Promise<boolean>;
 }
