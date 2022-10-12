@@ -36,7 +36,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("schedule.classroom", "classroom")
             .where("studentId = :id", { id: studentId })
             .getMany();
-        console.log(studentPaticipateCourse);
+        // console.log(studentPaticipateCourse);
         const courses: Course[] = [];
         studentPaticipateCourse.forEach(async value => {
             courses.push(value.course);
@@ -64,6 +64,24 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
                 "studentPaticipateCourses.commentDate": "DESC",
                 "documents.name": "ASC",
             })
+            .getOne();
+        return result;
+    }
+
+    async findBriefCourseBySlug(courseSlug: string): Promise<Course | null> {
+        let result = Course.createQueryBuilder("course")
+            .leftJoinAndSelect("course.documents", "documents")
+            .leftJoinAndSelect("course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            // .leftJoinAndSelect("course.studySessions", "studySessions")
+            .leftJoinAndSelect("course.exercises", "exercises")
+            // .leftJoinAndSelect("course.curriculum", "curriculum")
+            // .leftJoinAndSelect("curriculum.lectures", "lectures")
+            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+            .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+            .leftJoinAndSelect("student.user", "userStudent")
+            .where("course.slug = :courseSlug", { courseSlug })
             .getOne();
         return result;
     }

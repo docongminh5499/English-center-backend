@@ -23,8 +23,10 @@ import { TermCourse } from "../utils/constants/termCuorse.constant";
 import { cvtWeekDay2Num, Weekday } from "../utils/constants/weekday.constant";
 import { createDocumentCourse } from "./createDocumentCourse";
 import { createExercise } from "./createExerciseCourse";
+import { createStudentAttendStudySession } from "./createStudentAttendStudySession";
 import { createStudentParticipateCourse } from "./createStudentParticipateCourse";
 import { createStudentUser } from "./createStudentUser";
+import { createStudySession } from "./createStudySession";
 
 export async function initData() {
 
@@ -282,7 +284,7 @@ export async function initData() {
     }));
 
     //Create Lectures of Curriculum
-    await Lecture.save(Lecture.create({
+    const lecture1 = await Lecture.save(Lecture.create({
         order: 1,
         name: "Unit 1: A day in the life of - Một ngày trong đời:",
         detail: "Chi tiết unit 1",
@@ -290,7 +292,7 @@ export async function initData() {
         curriculum: curriculumEnglish10,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture2 = await Lecture.save(Lecture.create({
         order: 2,
         name: "Unit 2: School Talks - Nói chuyện về trường học",
         detail: "Chi tiết unit 2",
@@ -298,7 +300,7 @@ export async function initData() {
         curriculum: curriculumEnglish10,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture3 = await Lecture.save(Lecture.create({
         order: 3,
         name: "Unit 3: People's Background - Tiểu sử",
         detail: "Chi tiết unit 3",
@@ -306,7 +308,7 @@ export async function initData() {
         curriculum: curriculumEnglish10,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture4 = await Lecture.save(Lecture.create({
         order: 4,
         name: "Unit 4: Special Education - Giáo dục đặc biệt",
         detail: "Chi tiết unit 4",
@@ -314,13 +316,15 @@ export async function initData() {
         curriculum: curriculumEnglish10,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture5 = await Lecture.save(Lecture.create({
         order: 5,
         name: "Unit 5: Technology and You - Công nghệ và bạn",
         detail: "Chi tiết unit 5",
         desc: "Nội dung bài giảng Unit 5 Technology and You của môn Tiếng Anh lớp 10 sau đây sẽ giúp các em tìm hiểu các nội dung về Lựa chọn ngành nghề qua 7 phần cơ bản Reading, Speaking, Listening, Language Focus và Vocabulary. Để ôn tập và chuẩn bị bài thật tốt các em có luyện tập thêm các câu hỏi trắc nghiệm. Hệ thống hỏi đáp về chủ đề Công nghệ và bạn sẽ giúp các em phát triển vốn từ vựng và giải quyết nhiều câu hỏi khó một cách nhanh chóng. ",
         curriculum: curriculumEnglish10,
     }));
+    curriculumEnglish10.lectures = [lecture1, lecture2, lecture3, lecture4, lecture5];
+    await Curriculum.save(curriculumEnglish10);
 
     //Create Course
     const course1 = await Course.save(Course.create({
@@ -329,8 +333,8 @@ export async function initData() {
         maxNumberOfStudent: 30,
         price: 300000,
         openingDate: new Date(2022, 1, 1),
-        expectedClosingDate: new Date(2022, 1, 1),
-        closingDate: new Date(2022, 5, 31),
+        expectedClosingDate: new Date(2022, 5, 20),
+        closingDate: new Date(2022, 5, 30),
         image: "/assets/images/course/init_course.jpg",
         curriculum: curriculumEnglish10,
         teacher: teacherMinh,
@@ -360,7 +364,7 @@ export async function initData() {
     }));
 
     //Create Lectures of Curriculum
-    await Lecture.save(Lecture.create({
+    const lecture6 = await Lecture.save(Lecture.create({
         order: 1,
         name: "Giai đoạn 1: BASIC TOEIC",
         detail: "Chi tiết giai đoạn 1",
@@ -368,7 +372,7 @@ export async function initData() {
         curriculum: curriculumToeic550_650,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture7 = await Lecture.save(Lecture.create({
         order: 2,
         name: "Giai đoạn 2: PRE TOEIC",
         detail: "Chi tiết giai đoạn 2",
@@ -376,7 +380,7 @@ export async function initData() {
         curriculum: curriculumToeic550_650,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture8 = await Lecture.save(Lecture.create({
         order: 3,
         name: "Giai đoạn 3: TOEIC A",
         detail: "Chi tiết giai đoạn 3",
@@ -384,13 +388,16 @@ export async function initData() {
         curriculum: curriculumToeic550_650,
     }));
 
-    await Lecture.save(Lecture.create({
+    const lecture9 = await Lecture.save(Lecture.create({
         order: 4,
         name: "Giai đoạn 4: TOEIC B",
         detail: "Chi tiết giai đoạn 4",
         desc: "550-650+ điểm TOEIC. Chia làm 2 phần; 11 buổi Listening, 11 buổi Reading, 01 buổi Mid Term và 01 buổi final Term.",
         curriculum: curriculumToeic550_650,
     }));
+
+    curriculumToeic550_650.lectures = [lecture6, lecture7, lecture8, lecture9];
+    await Curriculum.save(curriculumToeic550_650);
 
     //Create Course
     const course3 = await Course.save(Course.create({
@@ -605,26 +612,77 @@ export async function initData() {
     ]
     await Course.save(course4);
 
+    // Schedule for Course 5
+    const schedule1Course5 = new Schedule();
+    schedule1Course5.course = course5;
+    schedule1Course5.tutor = tutor1;
+    schedule1Course5.classroom = classroomA;
+    schedule1Course5.startShift = await ShiftRepository.findById(208);
+    schedule1Course5.endShift = await ShiftRepository.findById(211);
+
+    const schedule2Course5 = new Schedule();
+    schedule2Course5.course = course5;
+    schedule2Course5.tutor = tutor1;
+    schedule2Course5.classroom = classroomA;
+    schedule2Course5.startShift = await ShiftRepository.findById(308);
+    schedule2Course5.endShift = await ShiftRepository.findById(311);
+
+    const schedule3Course5 = new Schedule();
+    schedule3Course5.course = course5;
+    schedule3Course5.tutor = tutor1;
+    schedule3Course5.classroom = classroomA;
+    schedule3Course5.startShift = await ShiftRepository.findById(408);
+    schedule3Course5.endShift = await ShiftRepository.findById(411);
+
+    const schedule4Course5 = new Schedule();
+    schedule4Course5.course = course5;
+    schedule4Course5.tutor = tutor1;
+    schedule4Course5.classroom = classroomB;
+    schedule4Course5.startShift = await ShiftRepository.findById(513);
+    schedule4Course5.endShift = await ShiftRepository.findById(516);
+
+    const schedule5Course5 = new Schedule();
+    schedule5Course5.course = course5;
+    schedule5Course5.tutor = tutor1;
+    schedule5Course5.classroom = classroomB;
+    schedule5Course5.startShift = await ShiftRepository.findById(613);
+    schedule5Course5.endShift = await ShiftRepository.findById(616);
+
+    await Schedule.save(schedule1Course5);
+    await Schedule.save(schedule2Course5);
+    await Schedule.save(schedule3Course5);
+    await Schedule.save(schedule4Course5);
+    await Schedule.save(schedule5Course5);
+
+    course5.schedules = [
+        schedule1Course5,
+        schedule2Course5,
+        schedule3Course5,
+        schedule4Course5,
+        schedule5Course5,
+    ]
+    await Course.save(course5);
+
     // Create Relation Student Participate Course
-    const studentAttendCourse1 = new StudentParticipateCourse();
+    let studentAttendCourse1 = new StudentParticipateCourse();
     studentAttendCourse1.student = student1;
     studentAttendCourse1.course = course1;
-    await StudentParticipateCourse.save(studentAttendCourse1);
+    studentAttendCourse1 = await StudentParticipateCourse.save(studentAttendCourse1);
 
-    const studentAttendCourse2 = new StudentParticipateCourse();
+    let studentAttendCourse2 = new StudentParticipateCourse();
     studentAttendCourse2.student = student1;
     studentAttendCourse2.course = course2;
-    await StudentParticipateCourse.save(studentAttendCourse2);
+    studentAttendCourse2 = await StudentParticipateCourse.save(studentAttendCourse2);
 
-    const studentAttendCourse3 = new StudentParticipateCourse();
+    let studentAttendCourse3 = new StudentParticipateCourse();
     studentAttendCourse3.student = student1;
     studentAttendCourse3.course = course3;
-    await StudentParticipateCourse.save(studentAttendCourse3);
+    studentAttendCourse3 = await StudentParticipateCourse.save(studentAttendCourse3);
 
-    const studentAttendCourse4 = new StudentParticipateCourse();
+    let studentAttendCourse4 = new StudentParticipateCourse();
     studentAttendCourse4.student = student1;
     studentAttendCourse4.course = course4;
-    await StudentParticipateCourse.save(studentAttendCourse4);
+    studentAttendCourse4 = await StudentParticipateCourse.save(studentAttendCourse4);
 
 
 
@@ -647,6 +705,16 @@ export async function initData() {
     await createDocumentCourse(course4);
     await createDocumentCourse(course5);
 
+    await createStudySession(course1, tutor1);
+    await createStudySession(course2, tutor1);
+    await createStudySession(course3, tutor1);
+    await createStudySession(course4, tutor1);
+    await createStudySession(course5, tutor1);
+
+    await createStudentAttendStudySession(studentAttendCourse1);
+    await createStudentAttendStudySession(studentAttendCourse2);
+    await createStudentAttendStudySession(studentAttendCourse3);
+    await createStudentAttendStudySession(studentAttendCourse4);
     console.log("-----------------------Ending init data-----------------------")
 }
 
