@@ -25,7 +25,16 @@ export class StudentDoExercise extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
-  @Column({ type: "decimal", precision: 3, scale: 1, nullable: false })
+  @Column({
+    type: "decimal",
+    precision: 3,
+    scale: 1,
+    nullable: false,
+    transformer: {
+      to(value) { return value; },
+      from(value) { return parseFloat(value); },
+    },
+  })
   score: number;
 
   @IsNotEmpty()

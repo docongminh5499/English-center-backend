@@ -6,6 +6,7 @@ class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
     return await UserTeacher.createQueryBuilder("teacher")
       .leftJoinAndSelect("teacher.worker", "worker")
       .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
       .where("user.id = :userId", { userId })
       .getOne();
   }

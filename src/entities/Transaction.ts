@@ -27,14 +27,23 @@ export class Transaction extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column({ type: "decimal", precision: 9, scale: 0, nullable: false })
+  @Column({
+    type: "decimal",
+    precision: 9,
+    scale: 0,
+    nullable: false,
+    transformer: {
+      to(value) { return value; },
+      from(value) { return parseFloat(value); },
+    },
+  })
   amount: number;
 
   @IsNotEmpty()
   @IsEnum(TransactionType)
   @Column({ type: "enum", enum: TransactionType, nullable: false })
-  type: TransactionType; 
+  type: TransactionType;
 
-  @ManyToOne(() => Branch, {onDelete: "CASCADE", onUpdate: "CASCADE", nullable: false})
+  @ManyToOne(() => Branch, { onDelete: "CASCADE", onUpdate: "CASCADE", nullable: false })
   branch: Branch;
 }

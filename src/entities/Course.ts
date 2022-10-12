@@ -49,7 +49,14 @@ export class Course extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column({ type: "decimal", nullable: false })
+  @Column({
+    type: "decimal",
+    nullable: false,
+    transformer: {
+      to(value) { return value; },
+      from(value) { return parseFloat(value); },
+    },
+  })
   price: number;
 
   @IsNotEmpty()

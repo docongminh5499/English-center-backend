@@ -24,6 +24,7 @@ import CurriculumRepository from "../../repositories/curriculum/curriculum.repos
 import CurriculumDto from "../../dto/requests/curriculum.dto";
 import { CURRICULUM_DESTINATION_SRC } from "../../utils/constants/curriculum.constant";
 import { Lecture } from "../../entities/Lecture";
+import { validate } from "class-validator";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -170,6 +171,13 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (persistenceUserTeacher.worker.user.version !== userTeacher.worker.user.version)
         throw new InvalidVersionColumnError();
 
+      const userValidateErrors = await validate(persistenceUserTeacher.worker.user);
+      if (userValidateErrors.length) throw new ValidationError(userValidateErrors);
+      const workerValidateErrors = await validate(persistenceUserTeacher.worker);
+      if (workerValidateErrors.length) throw new ValidationError(workerValidateErrors);
+      const teacherValidateErrors = await validate(persistenceUserTeacher);
+      if (teacherValidateErrors.length) throw new ValidationError(teacherValidateErrors);
+
       const savedUser = await queryRunner.manager.save(persistenceUserTeacher.worker.user);
       const savedWorker = await queryRunner.manager.save(persistenceUserTeacher.worker);
       await queryRunner.manager.upsert(UserTeacher, persistenceUserTeacher, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
@@ -271,8 +279,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         );
         newCurriculum.image = path.join(CURRICULUM_DESTINATION_SRC, imgName);
       }
-
       foundCurriculum.latest = false;
+
+      const oldCurriculumValidateErrors = await validate(foundCurriculum);
+      if (oldCurriculumValidateErrors.length) throw new ValidationError(oldCurriculumValidateErrors);
+      const newCurriculumValidateErrors = await validate(newCurriculum);
+      if (newCurriculumValidateErrors.length) throw new ValidationError(newCurriculumValidateErrors);
 
       await queryRunner.manager.save(foundCurriculum);
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
@@ -285,6 +297,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         newLecture.desc = lecture.desc;
         newLecture.detail = lecture.detail;
         newLecture.curriculum = savedCurriculum;
+
+        const lectureValidateErrors = await validate(newLecture);
+        if (lectureValidateErrors.length) throw new ValidationError(lectureValidateErrors);
         const savedLecture = await queryRunner.manager.save(newLecture);
         if (savedLecture.id === null || savedLecture.id === undefined) throw new Error();
       }
@@ -324,7 +339,10 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
         newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
       }
-      
+
+      const curriculumValidateErrors = await validate(newCurriculum);
+      if (curriculumValidateErrors.length) throw new ValidationError(curriculumValidateErrors);
+
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
       if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
       for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
@@ -335,6 +353,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         newLecture.desc = lecture.desc;
         newLecture.detail = lecture.detail;
         newLecture.curriculum = savedCurriculum;
+
+        const lectureValidateErrors = await validate(newLecture);
+        if (lectureValidateErrors.length) throw new ValidationError(lectureValidateErrors);
         const savedLecture = await queryRunner.manager.save(newLecture);
         if (savedLecture.id === null || savedLecture.id === undefined) throw new Error();
       }

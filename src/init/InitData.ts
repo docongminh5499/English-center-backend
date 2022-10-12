@@ -84,6 +84,7 @@ export async function initData() {
     var workerMinh = new Worker();
     workerMinh.user = userMinh;
     workerMinh.startDate = new Date(2021, 6, 1);
+    workerMinh.salaryDate = new Date(2021, 6, 1);
     workerMinh.coefficients = 90;
     workerMinh.nation = "Kinh";
     workerMinh.passport = "11111111";
@@ -124,6 +125,7 @@ export async function initData() {
     var workerTeacher2 = new Worker();
     workerTeacher2.user = userTeacher2;
     workerTeacher2.startDate = new Date(2021, 6, 1);
+    workerTeacher2.salaryDate = new Date(2021, 6, 1);
     workerTeacher2.coefficients = 90;
     workerTeacher2.nation = "Kinh";
     workerTeacher2.passport = "22222222";
@@ -164,6 +166,7 @@ export async function initData() {
     var workerTutor1 = new Worker();
     workerTutor1.user = userTutor1;
     workerTutor1.startDate = new Date(2021, 6, 1);
+    workerTutor1.salaryDate = new Date(2021, 6, 1);
     workerTutor1.coefficients = 90;
     workerTutor1.nation = "Kinh";
     workerTutor1.passport = "12312344";
@@ -202,6 +205,7 @@ export async function initData() {
     var workerEmployee1 = new Worker();
     workerEmployee1.user = userEmployee1;
     workerEmployee1.startDate = new Date(2021, 6, 1);
+    workerEmployee1.salaryDate = new Date(2021, 6, 1);
     workerEmployee1.coefficients = 90;
     workerEmployee1.nation = "Kinh";
     workerEmployee1.passport = "333333333";

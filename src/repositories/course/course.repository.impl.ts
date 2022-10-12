@@ -50,7 +50,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
-            .leftJoinAndSelect("course.studySessions", "studySessions")
+            // .leftJoinAndSelect("course.studySessions", "studySessions")
             .leftJoinAndSelect("course.exercises", "exercises")
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .leftJoinAndSelect("curriculum.lectures", "lectures")
@@ -110,26 +110,26 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
     }
 
 
-    async findCourseById(courseId: number) : Promise<Course | null> {
+    async findCourseById(courseId: number): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
-        .leftJoinAndSelect("course.teacher", "teacher")
-        .leftJoinAndSelect("teacher.worker", "worker")
-        .leftJoinAndSelect("worker.user", "userTeacher")
-        .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
-        .leftJoinAndSelect("studentPaticipateCourses.student", "student")
-        .leftJoinAndSelect("student.user", "userStudent")
-        .leftJoinAndSelect("userStudent.socketStatuses", "socketStatuses")
-        .where("course.id = :courseId", { courseId })
-        .getOne();
-    return result;
+            .leftJoinAndSelect("course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+            .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+            .leftJoinAndSelect("student.user", "userStudent")
+            .leftJoinAndSelect("userStudent.socketStatuses", "socketStatuses")
+            .where("course.id = :courseId", { courseId })
+            .getOne();
+        return result;
     }
 
 
-    async countByCurriculumId(curriculumId: number) : Promise<number> {
+    async countByCurriculumId(curriculumId: number): Promise<number> {
         return await Course.createQueryBuilder("course")
-        .leftJoinAndSelect("course.curriculum", "curriculum")
-        .where("curriculum.id = :curriculumId", {curriculumId})
-        .getCount();
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .where("curriculum.id = :curriculumId", { curriculumId })
+            .getCount();
     }
 }
 
