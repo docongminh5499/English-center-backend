@@ -1,5 +1,6 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
+import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 // import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import Queryable from "../../utils/common/queryable.interface";
 
@@ -12,4 +13,6 @@ export default interface StudentService {
     getCourseDetail: (studentId: number, courseSlug: string) => Promise<Partial<Course> | null>;
 
     assessCourse: (studentId: number, courseId: number, content: any) => Promise<boolean>;
+
+    getAttendance: (studentId: number, courseSlug: string) => Promise<UserAttendStudySession[]>;
 }

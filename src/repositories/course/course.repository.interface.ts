@@ -1,7 +1,6 @@
 
 import { Pageable, Selectable, Sortable } from "..";
 import { Course } from "../../entities/Course";
-// import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import Queryable from "../../utils/common/queryable.interface";
 
 export default interface CourseRepository {
@@ -22,4 +21,6 @@ export default interface CourseRepository {
     findCourseById: (courseId: number) => Promise<Course | null>;
 
     countByCurriculumId: (curriculumId: number) => Promise<number>;
+    
+    findBriefCourseBySlug: (courseSlug: string) => Promise<Course | null>
 }

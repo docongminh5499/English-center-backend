@@ -1,7 +1,9 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
+import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { CourseRepository, Pageable, Selectable, Sortable, UserRepository } from "../../repositories";
+import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
 import StudentServiceInterface from "./student.service.interface";
 
@@ -32,8 +34,8 @@ class StudentServiceImpl implements StudentServiceInterface {
             CourseRepository.findCourseByStudent(pageable, sortable, selectable, queryable, studentId)
         ]);
         
-        console.log(courseCount);
-        console.log(courseList);
+        // console.log(courseCount);
+        // console.log(courseList);
         
         const courseListDto = new CourseListDto();
         courseListDto.courses = courseList;
@@ -45,8 +47,7 @@ class StudentServiceImpl implements StudentServiceInterface {
     }
 
     async getCourseDetail(studentId: number, courseSlug: string): Promise<Partial<Course> | null> {
-        const course = await CourseRepository.findCourseBySlug(courseSlug);
-        // console.log(course?.studentPaticipateCourses)
+        const course = await CourseRepository.findBriefCourseBySlug(courseSlug);
         course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
         if (course?.studentPaticipateCourses.filter(value => value.student.user.id === studentId).length === 0) 
             return null;
@@ -66,7 +67,7 @@ class StudentServiceImpl implements StudentServiceInterface {
         studentParticipateCourse!.comment = content.comment;
         studentParticipateCourse!.isIncognito = content.isIncognito;
         studentParticipateCourse!.commentDate = new Date();
-        console.log(studentParticipateCourse);
+        // console.log(studentParticipateCourse);
         await StudentParticipateCourse.createQueryBuilder()
                                       .update()
                                       .set(studentParticipateCourse)
@@ -75,6 +76,13 @@ class StudentServiceImpl implements StudentServiceInterface {
                                       .execute();
         
         return true;
+    }
+
+    async getAttendance(studentId: number, courseSlug: string): Promise<UserAttendStudySession[]>{
+        console.log("STUDENT ATTENDANCE SERVICE");
+        const attendance = await StudySessionRepository.findStudySessionByStudent(studentId, courseSlug);
+        // console.log(attendance);
+        return attendance!;
     }
 }
 
