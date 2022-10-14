@@ -9,7 +9,7 @@ export class StudentDoExercise extends MyBaseEntity {
   @PrimaryColumn({ type: "int", name: 'studentId' })
   @ManyToOne(() => UserStudent, {
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
   @JoinColumn()
   student: UserStudent;
@@ -17,7 +17,7 @@ export class StudentDoExercise extends MyBaseEntity {
   @PrimaryColumn({ type: "int", name: 'exerciseId' })
   @ManyToOne(() => Exercise, {
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
   @JoinColumn()
   exercise: Exercise;
