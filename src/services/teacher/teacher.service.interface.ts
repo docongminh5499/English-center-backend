@@ -24,7 +24,7 @@ export default interface TeacherService {
 
     deleteDocument: (teacherId: number, documentId: number) => Promise<boolean>;
 
-    createDocument: (documentDto: DocumentDto) => Promise<Document | null>;
+    createDocument: (userId: number, documentDto: DocumentDto) => Promise<Document | null>;
 
     getComment: (userId: number, courseSlug: string, pageableDto: PageableDto)
         => Promise<{ total: number, average: number, starTypeCount: object, comments: MaskedComment[] }>;

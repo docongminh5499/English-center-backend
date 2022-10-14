@@ -8,7 +8,12 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
     const exercise = await Exercise
       .findOne({
         where: { id: exerciseId },
-        relations: ["course"]
+        relations: [
+          "course",
+          "course.teacher",
+          "course.teacher.worker",
+          "course.teacher.worker.user"
+        ]
       });
     return exercise;
   }

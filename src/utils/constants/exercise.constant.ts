@@ -1,5 +1,5 @@
 export enum ExerciseStatus {
   NotOpen = "NotOpen",
-  Opend = "Opened",
+  Opened = "Opened",
   Closed = "Closed",
 }

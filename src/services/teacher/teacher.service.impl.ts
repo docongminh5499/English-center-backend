@@ -29,6 +29,8 @@ import { UserStudent } from "../../entities/UserStudent";
 import StudentParticipateCourseRepository from "../../repositories/studentParticipateCourse/studentParticipateCourse.repository.impl";
 import { Exercise } from "../../entities/Exercise";
 import MaskedComment from "../../dto/responses/maskedComment.dto";
+import { getExerciseStatus } from "../../utils/functions/getExerciseStatus";
+import { ExerciseStatus } from "../../utils/constants/exercise.constant";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -126,8 +128,18 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async deleteExercise(teacherId: number, exerciseId: number): Promise<boolean> {
-    // const exercise = await ExerciseRepository.findExerciseById(exerciseId);
-    // if (exercise)
+    if (teacherId === undefined) return false;
+    const account = await AccountRepository.findByUserId(teacherId);
+    if (account === null) return false;
+    if (account.role !== AccountRole.TEACHER) return false;
+
+    const exercise = await ExerciseRepository.findExerciseById(exerciseId);
+    if (exercise === null) return false;
+    if (exercise.course.teacher.worker.user.id !== teacherId) return false;
+    if (exercise.course.closingDate !== null && exercise.course.closingDate !== undefined)
+      return false;
+    if (getExerciseStatus(exercise.openTime, exercise.endTime) === ExerciseStatus.Opened)
+      return false;
     const result = await ExerciseRepository.deleteExercise(exerciseId);
     return result;
   }
@@ -153,16 +165,35 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async deleteDocument(teacherId: number, documentId: number): Promise<boolean> {
+    if (teacherId === undefined) return false;
+    const account = await AccountRepository.findByUserId(teacherId);
+    if (account === null) return false;
+    if (account.role !== AccountRole.TEACHER) return false;
+
+    const document = await DocumentRepository.findDocumentById(documentId);
+    if (document === null) return false;
+    if (document.course.teacher.worker.user.id !== teacherId) return false;
+    if (document.course.closingDate !== null && document.course.closingDate !== undefined)
+      return false;
     const result = await DocumentRepository.deleteDocument(documentId);
     return result;
   }
 
-  async createDocument(documentDto: DocumentDto): Promise<Document | null> {
+  async createDocument(userId: number, documentDto: DocumentDto): Promise<Document | null> {
+    if (userId === undefined) return null;
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return null;
+    if (account.role !== AccountRole.TEACHER) return null;
+
     if (documentDto.courseSlug === undefined)
       throw new ValidationError([]);
     const course = await CourseRepository.findCourseBySlug(documentDto.courseSlug);
     if (course === null)
       throw new ValidationError([]);
+
+    if (course.teacher.worker.user.id !== userId) return null;
+    if (course.closingDate !== null && course.closingDate !== undefined)
+      return null;
 
     let documentSrc = "";
     if (documentDto.documentType === "link" && documentDto.documentLink)
@@ -192,6 +223,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return result;
+    if (course.closingDate === null || course.closingDate === undefined) return result;
 
     const pageable = new Pageable(pageableDto);
     const [total, average, starTypeCount, comments] = await Promise.all([

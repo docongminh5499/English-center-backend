@@ -7,7 +7,19 @@ import Pageable from "../helpers/pageable";
 import DocumentRepositoryInterface from "./document.repository.interface";
 
 class DocumentRepositoryImpl implements DocumentRepositoryInterface {
-  findDocumentById: (documentId: number) => Promise<Document | null>;
+  async findDocumentById(documentId: number): Promise<Document | null> {
+    const document = await Document
+      .findOne({
+        where: { id: documentId },
+        relations: [
+          "course",
+          "course.teacher",
+          "course.teacher.worker",
+          "course.teacher.worker.user"
+        ]
+      });
+    return document;
+  }
 
 
   async findDocumentsByCourseSlug(courseSlug: string, pageable: Pageable): Promise<Document[]> {

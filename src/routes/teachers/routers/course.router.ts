@@ -117,7 +117,7 @@ router.delete("/delete-exercise/:exerciseId", async (req: any, res: any, next: a
 router.post("/create-document", upload.single('documentFile'), async (req: any, res: any, next: any) => {
   try {
     const documentDto = DocumentMapper.mapToDto({ ...req.body, documentFile: req.file })
-    const result = await TeacherService.createDocument(documentDto);
+    const result = await TeacherService.createDocument(req.user.userId, documentDto);
     if (result === null && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), DOCUMENT_DESTINATION, req.file.filename);
       fs.unlinkSync(filePath);
