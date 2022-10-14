@@ -2,8 +2,8 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  OneToOne,
   JoinColumn,
+  ManyToOne,
 } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -20,10 +20,10 @@ export class WrongAnswer extends MyBaseEntity {
   @Column({ length: 255, nullable: false })
   answer: string;
 
-  @OneToOne(() => Question, {
+  @ManyToOne(() => Question, {
     nullable: false,
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
   @JoinColumn()
   question: Question;

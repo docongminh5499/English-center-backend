@@ -27,6 +27,7 @@ import { createStudentAttendStudySession } from "./createStudentAttendStudySessi
 import { createStudentParticipateCourse } from "./createStudentParticipateCourse";
 import { createStudentUser } from "./createStudentUser";
 import { createStudySession } from "./createStudySession";
+import { createTag } from "./createTag";
 
 export async function initData() {
 
@@ -699,11 +700,13 @@ export async function initData() {
     await createStudentParticipateCourse(course4, faker.helpers.arrayElements(students, 15));
     await createStudentParticipateCourse(course5, faker.helpers.arrayElements(students, 15));
 
-    await createExercise(course1);
-    await createExercise(course2);
-    await createExercise(course3);
-    await createExercise(course4);
-    await createExercise(course5);
+    const tags = await createTag();
+
+    await createExercise(course1, faker.helpers.arrayElements(tags, 10));
+    await createExercise(course2, faker.helpers.arrayElements(tags, 10));
+    await createExercise(course3, faker.helpers.arrayElements(tags, 10));
+    await createExercise(course4, faker.helpers.arrayElements(tags, 10));
+    await createExercise(course5, faker.helpers.arrayElements(tags, 10));
 
     await createDocumentCourse(course1);
     await createDocumentCourse(course2);

@@ -35,7 +35,7 @@ export class Exercise extends MyBaseEntity {
   @Column({ type: "integer", nullable: true, default: 3 })
   maxTime: number | null;
 
-  @ManyToMany(() => Question, { onDelete: "RESTRICT", onUpdate: "CASCADE" })
+  @ManyToMany(() => Question, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinTable({ name: "exercise_contain_question" })
   questions: Question[];
 

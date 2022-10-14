@@ -1,8 +1,10 @@
 import { faker } from "@faker-js/faker";
 import { Course } from "../entities/Course";
 import { Exercise } from "../entities/Exercise";
+import { Tag } from "../entities/Tag";
+import { createQuestion } from "./createQuestion";
 
-export const createExercise = async (course: Course) => {
+export const createExercise = async (course: Course, tags: Tag[]) => {
     const numberOfExercise = faker.datatype.number({ min: 1, max: 10 });
     const exercises = [];
     for (let index = 0; index < numberOfExercise; index++) {
@@ -19,6 +21,9 @@ export const createExercise = async (course: Course) => {
         });
         exercise.openTime = openingDate;
         exercise.endTime = closingDate;
+        const questions = await createQuestion(faker.helpers.arrayElements(tags, 3));
+        exercise.questions = questions;
+
         await exercise.save();
         exercises.push(exercise);
     }

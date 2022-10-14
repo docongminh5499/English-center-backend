@@ -25,6 +25,10 @@ import CurriculumDto from "../../dto/requests/curriculum.dto";
 import { CURRICULUM_DESTINATION_SRC } from "../../utils/constants/curriculum.constant";
 import { Lecture } from "../../entities/Lecture";
 import { validate } from "class-validator";
+import { UserStudent } from "../../entities/UserStudent";
+import StudentParticipateCourseRepository from "../../repositories/studentParticipateCourse/studentParticipateCourse.repository.impl";
+import { Exercise } from "../../entities/Exercise";
+import MaskedComment from "../../dto/responses/maskedComment.dto";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -74,23 +78,51 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     courseDetail.studySessions = course.studySessions;
     courseDetail.exercises = course.exercises;
     courseDetail.curriculum = course.curriculum;
-    courseDetail.studentPaticipateCourses = course.studentPaticipateCourses.map(participation => ({
-      student: participation.student,
-      course: participation.course,
-      billingDate: participation.billingDate,
-    }));
-    courseDetail.maskedComments = course.studentPaticipateCourses
-      .filter(participation =>
-        participation.starPoint !== null &&
-        participation.starPoint !== undefined)
-      .map(participation => ({
-        comment: participation.comment,
-        starPoint: participation.starPoint,
-        userFullName: participation.isIncognito ? "Người dùng đã ẩn danh" : participation.student.user.fullName,
-        commentDate: participation.commentDate
-      }));
     return courseDetail;
   }
+
+
+
+  async getStudents(userId: number, courseSlug: string,
+    query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
+    if (userId === undefined) return { total: 0, students: [] };
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return { total: 0, students: [] };
+    if (account.role !== AccountRole.TEACHER) return { total: 0, students: [] };
+
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course?.teacher.worker.user.id !== userId) return { total: 0, students: [] };
+
+    const pageable = new Pageable(pageableDto);
+    const result = await StudentParticipateCourseRepository.findStudentsByCourseSlug(courseSlug, pageable, query);
+    const total = await StudentParticipateCourseRepository.countStudentsByCourseSlug(courseSlug, query);
+
+    return {
+      total: total,
+      students: result.map(r => r.student)
+    };
+  }
+
+
+
+  async getExercises(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, exercises: Exercise[] }> {
+    if (userId === undefined) return { total: 0, exercises: [] };
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return { total: 0, exercises: [] };
+    if (account.role !== AccountRole.TEACHER) return { total: 0, exercises: [] };
+
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course?.teacher.worker.user.id !== userId) return { total: 0, exercises: [] };
+
+    const pageable = new Pageable(pageableDto);
+    const result = await ExerciseRepository.findExercisesByCourseSlug(courseSlug, pageable);
+    const total = await ExerciseRepository.countExercisesByCourseSlug(courseSlug);
+    return {
+      total: total,
+      exercises: result
+    };
+  }
+
 
 
   async deleteExercise(teacherId: number, exerciseId: number): Promise<boolean> {
@@ -98,6 +130,25 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     // if (exercise)
     const result = await ExerciseRepository.deleteExercise(exerciseId);
     return result;
+  }
+
+
+  async getDocuments(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, documents: Document[] }> {
+    if (userId === undefined) return { total: 0, documents: [] };
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return { total: 0, documents: [] };
+    if (account.role !== AccountRole.TEACHER) return { total: 0, documents: [] };
+
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course?.teacher.worker.user.id !== userId) return { total: 0, documents: [] };
+
+    const pageable = new Pageable(pageableDto);
+    const result = await DocumentRepository.findDocumentsByCourseSlug(courseSlug, pageable);
+    const total = await DocumentRepository.countDocumentsByCourseSlug(courseSlug);
+    return {
+      total: total,
+      documents: result
+    };
   }
 
 
@@ -127,6 +178,37 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       documentDto.documentAuthor || null,
       documentDto.documentYear || null,
     );
+  }
+
+
+  async getComment(userId: number, courseSlug: string, pageableDto: PageableDto):
+    Promise<{ total: number, average: number, starTypeCount: object, comments: MaskedComment[] }> {
+    const result = { total: 0, average: 0, starTypeCount: {}, comments: [] };
+
+    if (userId === undefined) return result;
+    const account = await AccountRepository.findByUserId(userId);
+    if (account === null) return result;
+    if (account.role !== AccountRole.TEACHER) return result;
+
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course?.teacher.worker.user.id !== userId) return result;
+
+    const pageable = new Pageable(pageableDto);
+    const [total, average, starTypeCount, comments] = await Promise.all([
+      StudentParticipateCourseRepository.countCommentsByCourseSlug(courseSlug),
+      StudentParticipateCourseRepository.getAverageStarPointByCourseSlug(courseSlug),
+      StudentParticipateCourseRepository.countStarPointsTypeByCourseSlug(courseSlug),
+      StudentParticipateCourseRepository.getCommentsByCourseSlug(courseSlug, pageable)
+    ]);
+
+    const maskedComment = comments
+      .map(participation => ({
+        comment: participation.comment,
+        starPoint: participation.starPoint,
+        userFullName: participation.isIncognito ? "Người dùng đã ẩn danh" : participation.student.user.fullName,
+        commentDate: participation.commentDate
+      }));
+    return { total, average: average, starTypeCount, comments: maskedComment };
   }
 
 

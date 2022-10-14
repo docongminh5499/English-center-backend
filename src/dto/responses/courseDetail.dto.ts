@@ -4,6 +4,7 @@ import { StudySession } from "../../entities/StudySession";
 import { Document } from "../../entities/Document";
 import { UserStudent } from "../../entities/UserStudent";
 import { Course } from "../../entities/Course";
+import MaskedComment from "./maskedComment.dto";
 
 export default class CourseDetailDto {
     version: number;
@@ -25,10 +26,5 @@ export default class CourseDetailDto {
         course: Course;
         billingDate: Date | null;
     }[];
-    maskedComments: {
-        comment: string | null;
-        starPoint: number | null;
-        userFullName: string | null;
-        commentDate: Date | null;
-    }[];
+    maskedComments: MaskedComment[];
 }

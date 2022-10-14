@@ -50,6 +50,57 @@ router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
   }
 })
 
+
+router.post("/get-students/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getStudents(req.user.userId, req.body.courseSlug, req.body.query, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/get-exercises/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getExercises(req.user.userId, req.body.courseSlug, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+router.post("/get-documents/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getDocuments(req.user.userId, req.body.courseSlug, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+router.post("/get-comments/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getComment(req.user.userId, req.body.courseSlug, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
 router.delete("/delete-exercise/:exerciseId", async (req: any, res: any, next: any) => {
   try {
     return res.status(200).json({
@@ -61,6 +112,7 @@ router.delete("/delete-exercise/:exerciseId", async (req: any, res: any, next: a
     next(err);
   }
 })
+
 
 router.post("/create-document", upload.single('documentFile'), async (req: any, res: any, next: any) => {
   try {

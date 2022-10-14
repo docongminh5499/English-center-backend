@@ -45,7 +45,7 @@ export class Lecture extends MyBaseEntity {
   @ManyToOne(() => Curriculum, {
     nullable: false,
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
   curriculum: Curriculum;
 }

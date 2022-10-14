@@ -9,6 +9,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_CONFIG_USERNAME,
   password: process.env.DB_CONFIG_PASSWORD,
   database: process.env.DB_CONFIG_DATABASE,
+  maxQueryExecutionTime: 10000,
   ssl: process.env.DEPLOY == "false" ? false : true,
   extra:
     process.env.DEPLOY == "true"

@@ -46,24 +46,13 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseBySlug(courseSlug: string): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
-            .leftJoinAndSelect("course.documents", "documents")
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
-            // .leftJoinAndSelect("course.studySessions", "studySessions")
-            .leftJoinAndSelect("course.exercises", "exercises")
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .leftJoinAndSelect("curriculum.lectures", "lectures")
-            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
-            .leftJoinAndSelect("studentPaticipateCourses.student", "student")
-            .leftJoinAndSelect("student.user", "userStudent")
             .where("course.slug = :courseSlug", { courseSlug })
-            .orderBy({
-                "lectures.order": "ASC",
-                "-exercises.openTime": "ASC",
-                "studentPaticipateCourses.commentDate": "DESC",
-                "documents.name": "ASC",
-            })
+            .orderBy({ "lectures.order": "ASC" })
             .getOne();
         return result;
     }
