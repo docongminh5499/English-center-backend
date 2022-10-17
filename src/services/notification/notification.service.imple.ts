@@ -1,5 +1,4 @@
 import { validate } from "class-validator";
-import moment = require("moment");
 import { UserDto, PageableDto, NotificationListDto, NotificationDto, NotificationResponseDto, CourseNotificationDto } from "../../dto";
 import { Notification } from "../../entities/Notification";
 import { CourseRepository, Pageable, Sortable, UserRepository } from "../../repositories";
@@ -62,7 +61,7 @@ class NotificationServiceImpl implements NotificationServiceInterface {
         content: savedNotification.content,
         read: savedNotification.read,
         userId: savedNotification.user.id,
-        createdAt: moment(savedNotification.createdAt).toDate()
+        createdAt: savedNotification.createdAt
       };
     }
     return response;

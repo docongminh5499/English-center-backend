@@ -1,5 +1,4 @@
 import { validate } from "class-validator";
-import moment = require("moment");
 import { User } from "../../entities/UserEntity";
 import { UserChatEachOther } from "../../entities/UsersChatEachOther";
 import { ValidationError } from "../../utils/errors/validation.error";
@@ -98,7 +97,7 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
     message.sender = sender;
     message.receiver = receiver;
     message.messageContent = messageContent;
-    message.sendingTime = moment().toDate();
+    message.sendingTime = new Date();
 
     const validateErrors = await validate(message);
     if (validateErrors.length)  throw new ValidationError(validateErrors);

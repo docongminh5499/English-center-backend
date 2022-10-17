@@ -11,7 +11,6 @@ import { DOCUMENT_DESTINATION_SRC } from "../../utils/constants/document.constan
 import { UserTeacher } from "../../entities/UserTeacher";
 import { NotFoundError } from "../../utils/errors/notFound.error";
 import UserTeacherRepository from "../../repositories/userTeacher/userTeachere.repository.impl";
-import moment = require("moment");
 import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
 import * as path from "path";
 import * as fs from "fs";
@@ -260,7 +259,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
 
     persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
-    persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).toDate();
+    persistenceUserTeacher.worker.user.dateOfBirth = userTeacher.worker.user.dateOfBirth;
     persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
     persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
     persistenceUserTeacher.worker.nation = userTeacher.worker.nation;

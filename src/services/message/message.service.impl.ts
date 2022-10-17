@@ -1,4 +1,3 @@
-import moment = require("moment");
 import { ContactListDto, MessageDto, MessageListDto, MessageResponseDto, PageableDto, SocketDto, UserDto } from "../../dto";
 import { Pageable, SocketStatusRepository, Sortable, UserChatEachOtherRepository, UserRepository } from "../../repositories";
 import { InvalidTokenError } from "../../utils/errors/invalidToken.error";
@@ -32,7 +31,7 @@ class MessageServiceImpl implements MessageServiceInterface {
       response.latestMessage = {
         messageContent: savedMessage.messageContent,
         read: savedMessage.read,
-        sendingTime: moment(savedMessage.sendingTime).toDate(),
+        sendingTime: savedMessage.sendingTime,
         senderId: foundSender.id,
       }
       response.sender = {
