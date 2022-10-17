@@ -4,6 +4,8 @@ import UserDto from "./requests/user.dto";
 import SocketDto from "./requests/socket.dto";
 import MessageDto from "./requests/message.dto";
 import DocumentDto from "./requests/document.dto";
+import CourseNotificationDto from "./requests/courseNotification.dto";
+import FileDto from "./requests/file.dto";
 
 import CredentialDto from "./responses/credential.dto";
 import CourseListDto from "./responses/courseList.dto";
@@ -18,6 +20,7 @@ import UserContactDto from "./responses/userContact.dto";
 import NotificationDto from "./responses/notification.dto";
 import NotificationListDto from "./responses/notificationList.dto";
 import NotificationResponseDto from "./responses/notification.response.dto";
+import CourseDetailDto from "./responses/courseDetail.dto";
 
 export {
     // Request DTO
@@ -27,6 +30,8 @@ export {
     SocketDto,
     MessageDto,
     DocumentDto,
+    CourseNotificationDto,
+    FileDto,
     // Response DTO
     CredentialDto,
     CourseListDto,
@@ -41,4 +46,5 @@ export {
     NotificationDto,
     NotificationListDto,
     NotificationResponseDto,
+    CourseDetailDto
 };

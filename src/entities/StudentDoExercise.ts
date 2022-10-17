@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, JoinColumn, ManyToOne } from "typeorm";
+import { Entity, Column, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { IsDate, IsNotEmpty, IsNumber, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { UserStudent } from "./UserStudent";
@@ -6,26 +6,36 @@ import { Exercise } from "./Exercise";
 
 @Entity()
 export class StudentDoExercise extends MyBaseEntity {
-  @PrimaryColumn({ type: "int", name: 'studentId' })
+  @PrimaryGeneratedColumn()
+  id: number;
+
   @ManyToOne(() => UserStudent, {
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
-  @JoinColumn()
+  @JoinColumn({ name: 'studentId' })
   student: UserStudent;
 
-  @PrimaryColumn({ type: "int", name: 'exerciseId' })
   @ManyToOne(() => Exercise, {
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
-  @JoinColumn()
+  @JoinColumn({ name: 'exerciseId' })
   exercise: Exercise;
 
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
-  @Column({ type: "decimal", precision: 3, scale: 1, nullable: false })
+  @Column({
+    type: "decimal",
+    precision: 3,
+    scale: 1,
+    nullable: false,
+    transformer: {
+      to(value) { return value; },
+      from(value) { return parseFloat(value); },
+    },
+  })
   score: number;
 
   @IsNotEmpty()

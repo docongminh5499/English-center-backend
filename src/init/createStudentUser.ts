@@ -16,28 +16,29 @@ export const createStudentUser = async (): Promise<UserStudent[]> => {
         "/assets/images/avatar/student5.jpg",
     ];
 
-    for (let index = 0; index < 20; index++) {
-        const user = new User();
+    for (let index = 0; index < 50; index++) {
+        let user = new User();
         const gender: "male" | "female" = faker.helpers.arrayElement([Sex.FEMALE, Sex.MALE]);
-
-        user.id = faker.datatype.number();
         user.email = faker.internet.email();
         user.fullName = faker.name.firstName(gender) + " " + faker.name.lastName(gender);
         user.phone = faker.random.numeric(10);
-        user.dateOfBirth = faker.datatype.datetime({
-            min: (new Date(1980, 0, 1)).getTime(),
-            max: (new Date(2010, 0, 1)).getTime(),
-        });
+        user.dateOfBirth = new Date(
+            faker.datatype.number({ min: 1980, max: 2016 }),
+            faker.datatype.number({ min: 0, max: 11 }),
+            faker.datatype.number({ min: 1, max: 28 }),
+        )
         user.sex = gender as Sex;
         user.address = faker.address.state() + ", " + faker.address.country();
         user.role = UserRole.STUDENT;
         user.avatar = faker.helpers.arrayElement(avatars);
+        user = await User.save(user);
 
-        const student = new UserStudent();
+        let student = new UserStudent();
+        student.user = user;
+        student = await UserStudent.save(student);
         student.user = user;
 
-        await User.save(user);
-        await UserStudent.save(student);
+
         const hashPasswordStudent = bcrypt.hashSync("student" + (index + 1), 10);
         await Account.save(Account.create({
             username: "student" + (index + 1),
@@ -48,5 +49,6 @@ export const createStudentUser = async (): Promise<UserStudent[]> => {
 
         students.push(student);
     }
+    console.log(`Created ${students.length} students`);
     return students;
 }

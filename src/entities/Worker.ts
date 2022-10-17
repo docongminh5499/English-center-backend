@@ -50,7 +50,16 @@ export class Worker extends MyBaseEntity {
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()
-  @Column({ type: "decimal", precision: 4, scale: 2, nullable: false })
+  @Column({
+    type: "decimal",
+    precision: 4,
+    scale: 2,
+    nullable: false,
+    transformer: {
+      to(value) { return value; },
+      from(value) { return parseFloat(value); },
+    },
+  })
   coefficients: number;
 
   //Ngày mới nhất tính lương

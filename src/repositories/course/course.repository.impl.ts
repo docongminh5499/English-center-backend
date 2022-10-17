@@ -44,24 +44,13 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseBySlug(courseSlug: string): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
-            .leftJoinAndSelect("course.documents", "documents")
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
-            .leftJoinAndSelect("course.studySessions", "studySessions")
-            .leftJoinAndSelect("course.exercises", "exercises")
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .leftJoinAndSelect("curriculum.lectures", "lectures")
-            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
-            .leftJoinAndSelect("studentPaticipateCourses.student", "student")
-            .leftJoinAndSelect("student.user", "userStudent")
             .where("course.slug = :courseSlug", { courseSlug })
-            .orderBy({
-                "lectures.order": "ASC",
-                "-exercises.openTime": "ASC",
-                "studentPaticipateCourses.commentDate": "DESC",
-                "documents.name": "ASC",
-            })
+            .orderBy({ "lectures.order": "ASC" })
             .getOne();
         return result;
     }
@@ -105,6 +94,29 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         query = sortable.buildQuery(query);
         query = pageable.buildQuery(query);
         return query.execute()
+    }
+
+
+    async findCourseById(courseId: number): Promise<Course | null> {
+        let result = Course.createQueryBuilder("course")
+            .leftJoinAndSelect("course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+            .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+            .leftJoinAndSelect("student.user", "userStudent")
+            .leftJoinAndSelect("userStudent.socketStatuses", "socketStatuses")
+            .where("course.id = :courseId", { courseId })
+            .getOne();
+        return result;
+    }
+
+
+    async countByCurriculumId(curriculumId: number): Promise<number> {
+        return await Course.createQueryBuilder("course")
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .where("curriculum.id = :curriculumId", { curriculumId })
+            .getCount();
     }
 }
 

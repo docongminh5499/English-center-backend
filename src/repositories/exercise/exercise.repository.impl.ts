@@ -1,5 +1,6 @@
 import { DeleteResult } from "typeorm";
 import { Exercise } from "../../entities/Exercise";
+import Pageable from "../helpers/pageable";
 import ExerciseRepositoryInterface from "./exercise.repository.interface";
 
 class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
@@ -7,10 +8,35 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
     const exercise = await Exercise
       .findOne({
         where: { id: exerciseId },
-        relations: ["course"]
+        relations: [
+          "course",
+          "course.teacher",
+          "course.teacher.worker",
+          "course.teacher.worker.user"
+        ]
       });
     return exercise;
   }
+
+
+  async findExercisesByCourseSlug(courseSlug: string, pageable: Pageable): Promise<Exercise[]> {
+    let queryStmt = Exercise.createQueryBuilder('exercise')
+      .leftJoinAndSelect("exercise.course", "course")
+      .where("course.slug = :courseSlug", { courseSlug })
+      .orderBy({ "-openTime": "ASC" })
+    queryStmt = pageable.buildQuery(queryStmt);
+    return await queryStmt.getMany();
+  }
+
+
+
+  async countExercisesByCourseSlug(courseSlug: string): Promise<number> {
+    let queryStmt = Exercise.createQueryBuilder('exercise')
+      .leftJoinAndSelect("exercise.course", "course")
+      .where("course.slug = :courseSlug", { courseSlug })
+    return await queryStmt.getCount();
+  }
+
 
 
   async deleteExercise(exerciseId: number): Promise<boolean> {

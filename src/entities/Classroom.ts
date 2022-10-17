@@ -1,7 +1,8 @@
 import { Entity, Column, PrimaryColumn, JoinColumn, ManyToOne } from "typeorm";
-import { IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
+import { IsEnum, IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Branch } from "./Branch";
+import { ClassroomFunction } from "../utils/constants/classroom.constant";
 
 @Entity()
 export class Classroom extends MyBaseEntity {
@@ -22,10 +23,9 @@ export class Classroom extends MyBaseEntity {
   branch: Branch;
 
   @IsNotEmpty()
-  @IsString()
-  @Length(0, 255)
-  @Column({ length: 255, nullable: false })
-  function: string;
+  @IsEnum(ClassroomFunction)
+  @Column({ type: "enum", enum: ClassroomFunction, nullable: false })
+  function: ClassroomFunction;
 
   @IsNotEmpty()
   @IsNumber()

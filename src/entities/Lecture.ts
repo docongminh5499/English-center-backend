@@ -2,12 +2,10 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  OneToMany,
   ManyToOne,
 } from "typeorm";
 import { IsNotEmpty, IsNumber, IsString, Length, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
-import { StudySession } from "./StudySession";
 import { Curriculum } from "./Curriculum";
 
 @Entity()
@@ -37,15 +35,11 @@ export class Lecture extends MyBaseEntity {
   @Column({ type: "text", nullable: false })
   detail: string;
 
-  //Relation StudySession==N==<has>--1--Lecture
-  @OneToMany(() => StudySession, (studySession) => studySession.lecture)
-  studySessions: StudySession[];
-
   @IsNotEmpty()
   @ManyToOne(() => Curriculum, {
     nullable: false,
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
   curriculum: Curriculum;
 }

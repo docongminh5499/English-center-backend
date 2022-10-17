@@ -27,7 +27,7 @@ export class User extends MyBaseEntity {
 
     @IsNotEmpty()
     @IsDate()
-    @Column({ type: "timestamp", precision: 6, nullable: false })
+    @Column({ type: "date", nullable: false })
     dateOfBirth: Date
 
     @IsNotEmpty()

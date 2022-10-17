@@ -1,4 +1,3 @@
-import moment = require("moment");
 import { SelectQueryBuilder } from "typeorm";
 import { Course } from "../../../entities/Course";
 import QueryableInterface from "../../../utils/common/queryable.interface";
@@ -40,9 +39,9 @@ export default class CourseQueryable implements QueryableInterface<Course> {
             query = query.andWhere("Course.name LIKE :name", { name: '%' + this.name + '%' });
 
         if (this.status == "Open")
-            query = query.andWhere("Course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+            query = query.andWhere("Course.closingDate IS NULL", { date: new Date() })
         else if (this.status == "Closed")
-            query = query.andWhere("Course.closingDate IS NOT NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+            query = query.andWhere("Course.closingDate IS NOT NULL", { date: new Date() })
         return query;
     }
 }

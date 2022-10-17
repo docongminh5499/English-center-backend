@@ -1,11 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, JoinColumn } from "typeorm";
-import { IsBoolean, IsDate, IsNotEmpty, IsString, Length, IsEnum } from "class-validator";
+import { IsBoolean, IsDate, IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
-import { Lecture } from "./Lecture";
 import { Course } from "./Course";
 import { Shift } from "./Shift";
 import { UserTutor } from "./UserTutor";
-import { StudySessionState } from "../utils/constants/studySession.constant";
 import { Classroom } from "./Classroom";
 import { UserTeacher } from "./UserTeacher";
 
@@ -22,7 +20,7 @@ export class StudySession extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: false })
+  @Column({ type: "date", nullable: false })
   date: Date;
 
   @IsNotEmpty()
@@ -34,19 +32,9 @@ export class StudySession extends MyBaseEntity {
   @Column({ type: "text", nullable: true })
   notes: string | null;
 
-  @IsNotEmpty()
-  @IsEnum(StudySessionState)
-  @Column({ type: "enum", enum: StudySessionState, nullable: false })
-  state: StudySessionState;
-
   @IsBoolean()
-  @Column({ type: "boolean", default: true, nullable: true })
-  isSystemCreated: boolean | null;
-
-  //Relation StudySession==N==<has>--1--Lecture
-  @IsNotEmpty()
-  @ManyToOne(() => Lecture, (lecture) => lecture.studySessions, { nullable: false, onDelete: "RESTRICT", onUpdate: "CASCADE" })
-  lecture: Lecture;
+  @Column({ type: "boolean", nullable: true })
+  cancelled: boolean | null;
 
   //Relation Course--1--<include>==N==StudySession
   @IsNotEmpty()
