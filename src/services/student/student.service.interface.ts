@@ -6,7 +6,7 @@ import Queryable from "../../utils/common/queryable.interface";
 
 
 export default interface StudentService {
-    getCoursesForTimetableByUsername: (username: string) => Promise<Course[]>;
+    getCoursesForTimetableByStudent: (studentId: number) => Promise<Course[]>;
 
     getCoursesByStudent: (studentId: number, pageableDto: PageableDto, queryable: Queryable<Course>) => Promise<CourseListDto>;
 

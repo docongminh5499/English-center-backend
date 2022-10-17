@@ -2,15 +2,14 @@ import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
-import { CourseRepository, Pageable, Selectable, Sortable, UserRepository } from "../../repositories";
+import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
 import StudentServiceInterface from "./student.service.interface";
 
 class StudentServiceImpl implements StudentServiceInterface {
-    async getCoursesForTimetableByUsername(username: string) : Promise<Course[]>{
-        const user = await UserRepository.findUserByUsername(username);
-        const studentCourse = await CourseRepository.findCourseForTimetableByStudent(user.id);
+    async getCoursesForTimetableByStudent(studentId: number) : Promise<Course[]>{
+        const studentCourse = await CourseRepository.findCourseForTimetableByStudent(studentId);
         return studentCourse;
     }
 

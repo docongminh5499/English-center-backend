@@ -1,6 +1,6 @@
+import moment = require("moment");
 import { Pageable, Selectable, Sortable } from "..";
 import { Course } from "../../entities/Course";
-import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import Queryable from "../../utils/common/queryable.interface";
 import CourseRepositoryInterface from "./course.repository.interface";
 
@@ -26,22 +26,20 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
     }
 
     async findCourseForTimetableByStudent(studentId: number): Promise<Course[]> {
-        const studentPaticipateCourse = await StudentParticipateCourse
-            .createQueryBuilder("student_participate_course")
-            .select("student_participate_course.course")
-            .leftJoinAndSelect("student_participate_course.course", "course")
-            .leftJoinAndSelect("course.schedules", "schedule")
-            .leftJoinAndSelect("schedule.startShift", "startShift")
-            .leftJoinAndSelect("schedule.endShift", "endShift")
-            .leftJoinAndSelect("schedule.classroom", "classroom")
-            .where("studentId = :id", { id: studentId })
-            .getMany();
-        // console.log(studentPaticipateCourse);
-        const courses: Course[] = [];
-        studentPaticipateCourse.forEach(async value => {
-            courses.push(value.course);
-        });
-        return courses;
+        const studentCourses =  await Course.createQueryBuilder("course")
+                                            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+                                            .leftJoinAndSelect("studentPaticipateCourses.student", "userStudent")
+                                            .innerJoinAndSelect("userStudent.user", "user", "user.id = :studentId", {studentId: studentId})
+                                            .leftJoinAndSelect("course.studySessions", "studySessions")
+                                            .leftJoinAndSelect("studySessions.shifts", "shifts")
+                                            .leftJoinAndSelect("studySessions.classroom", "classroom")
+                                            .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+                                            .orderBy({
+                                                "course.openingDate": "ASC",
+                                            })
+                                            .getMany();
+        console.log(studentCourses);
+        return studentCourses;
     }
 
     async findCourseBySlug(courseSlug: string): Promise<Course | null> {
