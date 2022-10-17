@@ -23,10 +23,9 @@ export const AppDataSource = new DataSource({
   synchronize: process.env.DB_CONFIG_SYNC == "true",
   logging: false,
   entities: entities,
-  timezone: "Z",
 });
 
 export async function initializeDataSource() {
-  console.log("Initialize database...");
+  console.log("Connecting to database...");
   return AppDataSource.initialize();
 }

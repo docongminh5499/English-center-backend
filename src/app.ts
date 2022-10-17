@@ -4,6 +4,7 @@ import * as cors from "cors";
 import UserRouter from "./routes/users";
 import TeacherRouter from "./routes/teachers";
 import StudentRouter from "./routes/students";
+import EmployeeRouter from "./routes/employees";
 import { json, urlencoded } from "body-parser";
 import { NotFoundError } from "./utils/errors/notFound.error";
 import { handlerError } from "./middlewares/handlerError";
@@ -21,6 +22,7 @@ app.use(express.static('public'))
 app.use("/api/users", UserRouter);
 app.use("/api/teachers", TeacherRouter);
 app.use("/api/students", StudentRouter);
+app.use("/api/employees", EmployeeRouter);
 
 app.all("*", async (req: any, res: any, next: any) => {
   return next(new NotFoundError());

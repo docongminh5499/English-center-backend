@@ -29,7 +29,7 @@ export class Question extends MyBaseEntity {
   @Column({type:'varchar', length: 255, nullable: true })
   audioSrc: string | null;
 
-  @ManyToMany(() => Tag, (tag) => tag.questions, {onDelete: "CASCADE", onUpdate: "CASCADE"})
+  @ManyToMany(() => Tag, {onDelete: "CASCADE", onUpdate: "CASCADE"})
   @JoinTable({ name: "question_belong_tag" })
   tags: Tag[];
 }

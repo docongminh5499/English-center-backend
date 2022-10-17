@@ -32,7 +32,7 @@ class MessageServiceImpl implements MessageServiceInterface {
       response.latestMessage = {
         messageContent: savedMessage.messageContent,
         read: savedMessage.read,
-        sendingTime: moment(savedMessage.sendingTime).utc().toDate(),
+        sendingTime: moment(savedMessage.sendingTime).toDate(),
         senderId: foundSender.id,
       }
       response.sender = {

@@ -62,7 +62,7 @@ class NotificationServiceImpl implements NotificationServiceInterface {
         content: savedNotification.content,
         read: savedNotification.read,
         userId: savedNotification.user.id,
-        createdAt: moment(savedNotification.createdAt).utc().toDate()
+        createdAt: moment(savedNotification.createdAt).toDate()
       };
     }
     return response;

@@ -12,7 +12,6 @@ import { Transaction } from "./Transaction";
 import { Notification } from "./Notification";
 import { Question } from "./Question";
 import { Salary } from "./Salary";
-import { Schedule } from "./Schedule";
 import { Shift } from "./Shift";
 import { Tag } from "./Tag";
 import { WrongAnswer } from "./WrongAnswer";
@@ -59,7 +58,6 @@ module.exports = [
   Curriculum,
   Lecture,
   StudySession,
-  Schedule,
   StudentParticipateCourse,
   UserChatEachOther,
   UserAttendStudySession,

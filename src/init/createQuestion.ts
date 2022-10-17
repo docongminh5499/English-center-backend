@@ -6,17 +6,17 @@ import { WrongAnswer } from "../entities/WrongAnswer";
 export const createQuestion = async (tags: Tag[]) => {
     const questions = [];
     for (let index = 0; index < 3; index++) {
-        const question = new Question();
-        question.quesContent = faker.lorem.paragraph();
+        let question = new Question();
+        question.quesContent = faker.lorem.paragraphs();
         question.answer = faker.lorem.sentence();
         question.tags = tags;
-        await question.save();
+        question = await question.save();
 
         for (let j = 0; j < 3; j++) {
-            const wrongAnswer = new WrongAnswer();
+            let wrongAnswer = new WrongAnswer();
             wrongAnswer.answer = faker.lorem.sentence();
             wrongAnswer.question = question;
-            await wrongAnswer.save();
+            wrongAnswer = await wrongAnswer.save();
         }
 
         questions.push(question);

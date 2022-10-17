@@ -1,13 +1,15 @@
+import { faker } from "@faker-js/faker";
 import { User } from "../entities/UserEntity";
+import { UserParent } from "../entities/UserParent";
 import { UserStudent } from "../entities/UserStudent";
-import { faker } from '@faker-js/faker';
-import { Sex } from "../utils/constants/sex.constant";
 import { AccountRole, UserRole } from "../utils/constants/role.constant";
+import { Sex } from "../utils/constants/sex.constant";
 import * as bcrypt from "bcryptjs";
 import { Account } from "../entities/Account";
 
-export const createStudentUser = async (): Promise<UserStudent[]> => {
-    const students = [];
+
+export const createParents = async (students: UserStudent[]) => {
+    const parents = [];
     const avatars = [
         "/assets/images/avatar/student1.jpg",
         "/assets/images/avatar/student2.jpg",
@@ -16,39 +18,40 @@ export const createStudentUser = async (): Promise<UserStudent[]> => {
         "/assets/images/avatar/student5.jpg",
     ];
 
-    for (let index = 0; index < 50; index++) {
+    for (let index = 0; index < 10; index++) {
         let user = new User();
         const gender: "male" | "female" = faker.helpers.arrayElement([Sex.FEMALE, Sex.MALE]);
         user.email = faker.internet.email();
         user.fullName = faker.name.firstName(gender) + " " + faker.name.lastName(gender);
         user.phone = faker.random.numeric(10);
         user.dateOfBirth = new Date(
-            faker.datatype.number({ min: 1980, max: 2016 }),
+            faker.datatype.number({ min: 1950, max: 1970 }),
             faker.datatype.number({ min: 0, max: 11 }),
             faker.datatype.number({ min: 1, max: 28 }),
-        )
+          )
         user.sex = gender as Sex;
         user.address = faker.address.state() + ", " + faker.address.country();
-        user.role = UserRole.STUDENT;
+        user.role = UserRole.PARENT;
         user.avatar = faker.helpers.arrayElement(avatars);
         user = await User.save(user);
 
-        let student = new UserStudent();
-        student.user = user;
-        student = await UserStudent.save(student);
-        student.user = user;
+        let parent = new UserParent();
+        parent.user = user;
+        parent.userStudents = faker.helpers.arrayElements(students, faker.datatype.number({ min: 1, max: 3 }));
+        parent = await UserParent.save(parent);
+        parent.user = user;
+        
 
-
-        const hashPasswordStudent = bcrypt.hashSync("student" + (index + 1), 10);
+        const hashPasswordParent = bcrypt.hashSync("parent" + (index + 1), 10);
         await Account.save(Account.create({
-            username: "student" + (index + 1),
-            password: hashPasswordStudent,
-            role: AccountRole.STUDENT,
+            username: "parent" + (index + 1),
+            password: hashPasswordParent,
+            role: AccountRole.PARENT,
             user: user,
         }));
 
-        students.push(student);
+        parents.push(parent);
     }
-    console.log(`Created ${students.length} students`);
-    return students;
+    console.log(`Created ${parents.length} parents`);
+    return parents;
 }

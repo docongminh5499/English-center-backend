@@ -98,7 +98,7 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
     message.sender = sender;
     message.receiver = receiver;
     message.messageContent = messageContent;
-    message.sendingTime = moment().utc().toDate();
+    message.sendingTime = moment().toDate();
 
     const validateErrors = await validate(message);
     if (validateErrors.length)  throw new ValidationError(validateErrors);

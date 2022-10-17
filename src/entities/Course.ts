@@ -20,8 +20,8 @@ import { StudySession } from "./StudySession";
 import { Exercise } from "./Exercise";
 import { UserTeacher } from "./UserTeacher";
 import { Curriculum } from "./Curriculum";
-import { Schedule } from "./Schedule";
 import { StudentParticipateCourse } from "./StudentParticipateCourse";
+import { Branch } from "./Branch";
 
 @Entity()
 export class Course extends MyBaseEntity {
@@ -61,7 +61,7 @@ export class Course extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: false })
+  @Column({ type: "date", nullable: false })
   openingDate: Date;
 
   @IsNotEmpty()
@@ -71,7 +71,7 @@ export class Course extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: false })
+  @Column({ type: "date", nullable: false })
   expectedClosingDate: Date;
 
   @IsNotEmpty()
@@ -113,9 +113,14 @@ export class Course extends MyBaseEntity {
   @JoinColumn()
   curriculum: Curriculum;
 
-  @OneToMany(() => Schedule, (schedule) => schedule.course)
-  //@JoinColumn()
-  schedules: Schedule[];
+  @IsNotEmpty()
+  @ManyToOne(() => Branch, {
+    nullable: false,
+    onUpdate: "CASCADE",
+    onDelete: "CASCADE",
+  })
+  @JoinColumn()
+  branch: Branch;
 
   @OneToMany(() => StudentParticipateCourse, (studentPaticipateCourse) => studentPaticipateCourse.course)
   studentPaticipateCourses: StudentParticipateCourse[];

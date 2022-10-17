@@ -260,7 +260,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
 
     persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
-    persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).utc().toDate();
+    persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).toDate();
     persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
     persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
     persistenceUserTeacher.worker.nation = userTeacher.worker.nation;

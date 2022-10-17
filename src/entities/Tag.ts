@@ -1,7 +1,7 @@
-import { Entity, ManyToMany, PrimaryColumn } from "typeorm";
-import { IsNotEmpty, IsString, Length } from "class-validator";
+import { Column, Entity, PrimaryColumn } from "typeorm";
+import { IsEnum, IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
-import { Question } from "./Question";
+import { TagsType } from "../utils/constants/tags.constant";
 
 @Entity()
 export class Tag extends MyBaseEntity {
@@ -11,6 +11,8 @@ export class Tag extends MyBaseEntity {
   @PrimaryColumn({ length: 100 })
   name: string;
 
-  @ManyToMany(() => Question, (question) => question.tags, {onDelete: "CASCADE", onUpdate: "CASCADE"})
-  questions: Question[];
+  @IsNotEmpty()
+  @IsEnum(TagsType)
+  @Column({ type: "enum", enum: TagsType, nullable: false })
+  type: TagsType;
 }

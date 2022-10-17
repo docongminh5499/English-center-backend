@@ -1,0 +1,33 @@
+import { faker } from "@faker-js/faker";
+import { Course } from "../entities/Course";
+import { Exercise } from "../entities/Exercise";
+import { StudentDoExercise } from "../entities/StudentDoExercise";
+import { StudentParticipateCourse } from "../entities/StudentParticipateCourse";
+
+export async function createStudentDoExercise(course: Course, exercises: Exercise[], participations: StudentParticipateCourse[]) {
+  const doExercises = [];
+  for (const participation of participations) {
+    for (const exercise of exercises) {
+      if (exercise.openTime === null) continue;
+
+      let studentDoExercise = new StudentDoExercise();
+      studentDoExercise.student = participation.student;
+      studentDoExercise.exercise = exercise;
+      studentDoExercise.score = faker.datatype.float({ min: 5.0, max: 10.0, precision: 0.1 })
+
+      const endTime = exercise.endTime === null ? course.expectedClosingDate : exercise.endTime;
+      studentDoExercise.startTime = faker.datatype.datetime({
+        min: exercise.openTime.getTime(),
+        max: endTime.getTime(),
+      });
+      studentDoExercise.endTime = faker.datatype.datetime({
+        min: studentDoExercise.startTime.getTime(),
+        max: endTime.getTime(),
+      });
+      studentDoExercise = await StudentDoExercise.save(studentDoExercise);
+      doExercises.push(studentDoExercise);
+    }
+  }
+  console.log(`Created ${doExercises.length} student do exercises`);
+  return doExercises;
+}

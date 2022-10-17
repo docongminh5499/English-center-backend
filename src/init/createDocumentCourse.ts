@@ -7,12 +7,13 @@ export const createDocumentCourse = async (course: Course) => {
     const src = ["https://www.google.com", "/assets/images/avatar/student1.jpg"];
 
     for (let index = 0; index < numberOfDocuments; index++) {
-        const document = new Document();
+        let document = new Document();
         document.name = faker.random.words();
         document.author = faker.name.fullName();
         document.pubYear = faker.datatype.number({ min: 1900, max: 2010 });
         document.src = faker.helpers.arrayElement(src);
         document.course = course;
-        await document.save();
+        document = await document.save();
     }
+    console.log(`Created ${numberOfDocuments} documents for course with id = ${course.id}`);
 }
