@@ -10,6 +10,17 @@ class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
       .where("user.id = :userId", { userId })
       .getOne();
   }
+
+  async findUserTeacherByBranchAndPreferedCurriculum(branchId: number, curriculumId: number): Promise<UserTeacher[]> {
+    return await UserTeacher.createQueryBuilder("teacher")
+      .leftJoinAndSelect("teacher.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .innerJoinAndSelect("teacher.curriculums", "curriculums")
+      .where("branch.id = :branchId", { branchId })
+      .andWhere("curriculums.id = :curriculumId", { curriculumId })
+      .getMany();
+  }
 }
 
 const UserTeacherRepository = new UserTeacherRepositoryImpl();

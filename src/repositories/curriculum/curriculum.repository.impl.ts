@@ -5,6 +5,7 @@ import CurriculumRepositoryInterface from "./curriculum.repository.interface";
 class CurriculumRepositoryImpl implements CurriculumRepositoryInterface {
   async getCurriculumList(): Promise<Curriculum[]> {
     return await Curriculum.createQueryBuilder("curriculum")
+      .leftJoinAndSelect("curriculum.tags", "tags")
       .where("curriculum.latest = true")
       .getMany();
   }

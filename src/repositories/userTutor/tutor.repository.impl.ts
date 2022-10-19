@@ -3,7 +3,7 @@ import { UserTutor } from "../../entities/UserTutor";
 import TutorRepositoryInterface from "./tutor.repository.interface";
 
 class TutorRepositoryImpl implements TutorRepositoryInterface {
-  async findTutorsAvailable(beginingDate: Date, shiftIds: number[]): Promise<UserTutor[]> {
+  async findTutorsAvailable(beginingDate: Date, shiftIds: number[], branchId?: number): Promise<UserTutor[]> {
     const busyTutorIdsQuery = StudySession.createQueryBuilder("ss")
       .leftJoinAndSelect("ss.shifts", "shifts")
       .leftJoinAndSelect("ss.tutor", "tutor")
@@ -23,12 +23,16 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
       .having("count(tt.tutorId) = :numberOfShifts", { numberOfShifts: shiftIds.length })
 
 
-    const tutorQuery = UserTutor.createQueryBuilder("tt")
+    let tutorQuery = UserTutor.createQueryBuilder("tt")
       .leftJoinAndSelect("tt.worker", "worker")
       .leftJoinAndSelect("worker.user", "userTutor")
-      .where(`userTutor.id NOT IN (${busyTutorIdsQuery.getQuery()})`)
+    if (branchId !== undefined)
+      tutorQuery = tutorQuery.leftJoinAndSelect("worker.branch", "branch");
+    tutorQuery = tutorQuery.where(`userTutor.id NOT IN (${busyTutorIdsQuery.getQuery()})`)
       .andWhere(`userTutor.id IN (${freeTutorsIdQuery.getQuery()})`)
-      .setParameters({ ...busyTutorIdsQuery.getParameters(), ...freeTutorsIdQuery.getParameters() });
+    if (branchId !== undefined)
+      tutorQuery = tutorQuery.andWhere("branch.id = :branchId", { branchId })
+    tutorQuery = tutorQuery.setParameters({ ...busyTutorIdsQuery.getParameters(), ...freeTutorsIdQuery.getParameters() });
     return await tutorQuery.getMany();
   }
 }
