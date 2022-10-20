@@ -5,6 +5,7 @@ import { Course } from "../../entities/Course";
 import { Curriculum } from "../../entities/Curriculum";
 import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
+import { StudySession } from "../../entities/StudySession";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
@@ -28,6 +29,9 @@ export default interface TeacherService {
 
     getComment: (userId: number, courseSlug: string, pageableDto: PageableDto)
         => Promise<{ total: number, average: number, starTypeCount: object, comments: MaskedComment[] }>;
+
+    getStudySessions: (teacherId: number, courseSlug: string,
+        pageableDto: PageableDto) => Promise<{ total: number, studySessions: StudySession[] }>;
 
     getPersonalInformation: (userId: number) => Promise<UserTeacher>;
 

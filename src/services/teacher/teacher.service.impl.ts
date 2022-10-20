@@ -30,6 +30,8 @@ import { Exercise } from "../../entities/Exercise";
 import MaskedComment from "../../dto/responses/maskedComment.dto";
 import { getExerciseStatus } from "../../utils/functions/getExerciseStatus";
 import { ExerciseStatus } from "../../utils/constants/exercise.constant";
+import { StudySession } from "../../entities/StudySession";
+import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -241,6 +243,26 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       }));
     return { total, average: average, starTypeCount, comments: maskedComment };
   }
+
+
+
+  async getStudySessions(teacherId: number, courseSlug: string,
+    pageableDto: PageableDto): Promise<{ total: number, studySessions: StudySession[] }> {
+      if (teacherId === undefined) return { total: 0, studySessions: [] };
+      const account = await AccountRepository.findByUserId(teacherId);
+      if (account === null) return { total: 0, studySessions: [] };
+      if (account.role !== AccountRole.TEACHER) return { total: 0, studySessions: [] };
+      const course = await CourseRepository.findCourseBySlug(courseSlug);
+      if (course?.teacher.worker.user.id !== teacherId) return { total: 0, studySessions: [] };
+      const pageable = new Pageable(pageableDto);
+      const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable);
+      const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug);
+      return {
+        total: total,
+        studySessions: result,
+      };
+  }
+
 
 
   async getPersonalInformation(userId: number): Promise<UserTeacher> {

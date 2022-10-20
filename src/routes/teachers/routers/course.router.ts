@@ -101,6 +101,20 @@ router.post("/get-comments", async (req: any, res: any, next: any) => {
 })
 
 
+
+router.post("/get-study-sessions", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getStudySessions(req.user.userId, req.body.courseSlug, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
 router.delete("/delete-exercise/:exerciseId", async (req: any, res: any, next: any) => {
   try {
     return res.status(200).json({
