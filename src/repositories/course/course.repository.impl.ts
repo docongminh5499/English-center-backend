@@ -46,6 +46,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseBySlug(courseSlug: string): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
+            .leftJoinAndSelect("course.branch", "branch")
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
@@ -119,6 +120,32 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .where("curriculum.id = :curriculumId", { curriculumId })
             .getCount();
+    }
+
+
+    async findCourseByBranch(pageable: Pageable, sortable: Sortable,
+        selectable: Selectable, queryable: Queryable<Course>, branchId?: number): Promise<Course[]> {
+        let query = Course.createQueryBuilder();
+        query = selectable.buildQuery(query);
+        query = queryable.buildQuery(query);
+        if (branchId !== undefined)
+            query = query
+                .leftJoinAndSelect('Course.branch', 'branch')
+                .andWhere("branch.id = :id", { id: branchId });
+        query = sortable.buildQuery(query);
+        query = pageable.buildQuery(query);
+        return query.execute()
+    }
+
+
+    async countCourseByBranch(queryable: Queryable<Course>, branchId?: number): Promise<number> {
+        let query = Course.createQueryBuilder();
+        query = queryable.buildQuery(query);
+        if (branchId !== undefined)
+            query = query
+                .leftJoinAndSelect('Course.branch', 'branch')
+                .andWhere("branch.id = :id", { id: branchId });
+        return query.getCount()
     }
 }
 

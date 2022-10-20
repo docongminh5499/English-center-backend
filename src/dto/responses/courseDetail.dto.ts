@@ -5,6 +5,8 @@ import { Document } from "../../entities/Document";
 import { UserStudent } from "../../entities/UserStudent";
 import { Course } from "../../entities/Course";
 import MaskedComment from "./maskedComment.dto";
+import { Branch } from "../../entities/Branch";
+import { UserTeacher } from "../../entities/UserTeacher";
 
 export default class CourseDetailDto {
     version: number;
@@ -27,4 +29,6 @@ export default class CourseDetailDto {
         billingDate: Date | null;
     }[];
     maskedComments: MaskedComment[];
+    branch: Branch;
+    teacher: UserTeacher;
 }

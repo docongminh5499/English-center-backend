@@ -32,7 +32,7 @@ let weekDays = [
 
 export async function createStudySession(course: Course, teachers: UserTeacher[]) {
   const choseSchedule: ChoseSchedule = {
-    choseTeacher: faker.helpers.arrayElement(teachers),
+    choseTeacher: course.teacher,
     choseShifts: [],
     choseClassroom: [],
     choseTutor: [],

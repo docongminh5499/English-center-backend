@@ -51,7 +51,7 @@ router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
 })
 
 
-router.post("/get-students/:courseSlug", async (req: any, res: any, next: any) => {
+router.post("/get-students", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
     const result = await TeacherService.getStudents(req.user.userId, req.body.courseSlug, req.body.query, pageableDto);
@@ -63,7 +63,7 @@ router.post("/get-students/:courseSlug", async (req: any, res: any, next: any) =
 })
 
 
-router.post("/get-exercises/:courseSlug", async (req: any, res: any, next: any) => {
+router.post("/get-exercises", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
     const result = await TeacherService.getExercises(req.user.userId, req.body.courseSlug, pageableDto);
@@ -76,7 +76,7 @@ router.post("/get-exercises/:courseSlug", async (req: any, res: any, next: any) 
 
 
 
-router.post("/get-documents/:courseSlug", async (req: any, res: any, next: any) => {
+router.post("/get-documents", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
     const result = await TeacherService.getDocuments(req.user.userId, req.body.courseSlug, pageableDto);
@@ -89,7 +89,7 @@ router.post("/get-documents/:courseSlug", async (req: any, res: any, next: any) 
 
 
 
-router.post("/get-comments/:courseSlug", async (req: any, res: any, next: any) => {
+router.post("/get-comments", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
     const result = await TeacherService.getComment(req.user.userId, req.body.courseSlug, pageableDto);

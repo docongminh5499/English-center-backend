@@ -22,5 +22,10 @@ export default interface CourseRepository {
 
     countByCurriculumId: (curriculumId: number) => Promise<number>;
     
-    findBriefCourseBySlug: (courseSlug: string) => Promise<Course | null>
+    findBriefCourseBySlug: (courseSlug: string) => Promise<Course | null>;
+
+    findCourseByBranch: (pageable: Pageable, sortable: Sortable,
+        selectable: Selectable, queryable: Queryable<Course>, branchId?: number) => Promise<Course[]>;
+
+    countCourseByBranch: (queryable: Queryable<Course>, branchId?: number) => Promise<number>;
 }

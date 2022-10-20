@@ -5,6 +5,8 @@ import * as fs from "fs";
 import { EmployeeService } from "../../../services/employee";
 import { COURSE_DESTINATION } from "../../../utils/constants/course.constant";
 import CreateCourseDtoMapper from "../mappers/createCourse.mapper";
+import PageableMapper from "../mappers/pageable.mapper";
+import CourseQueryable from "../queryables/course.queryable";
 
 const router = express.Router();
 const storage = multer.diskStorage({
@@ -85,6 +87,41 @@ router.post("/get-teachers", async (req: any, res: any, next: any) => {
       req.body.branchId,
       req.body.curriculumId
     );
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.get("/get-course", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.query);
+    const queryable = new CourseQueryable().map(req.query);
+    const courseListDto = await EmployeeService.getCoursesByBranch(req.user.userId, pageableDto, queryable);
+    return res.status(200).json(courseListDto);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await EmployeeService.getCourseDetail(req.user.userId, req.params.courseSlug));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+router.post("/get-study-sessions", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await EmployeeService.getStudySessions(req.user.userId, req.body.courseSlug, pageableDto);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

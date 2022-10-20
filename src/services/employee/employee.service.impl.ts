@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { CreateCourseDto } from "../../dto";
+import { CourseDetailDto, CourseListDto, CreateCourseDto, PageableDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
@@ -9,14 +9,16 @@ import { StudySession } from "../../entities/StudySession";
 import { UserEmployee } from "../../entities/UserEmployee";
 import { UserTeacher } from "../../entities/UserTeacher";
 import { UserTutor } from "../../entities/UserTutor";
-import { AccountRepository } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import BranchRepository from "../../repositories/branch/branch.repository.impl";
 import ClassroomRepository from "../../repositories/classroom/classroom.repository.impl";
 import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
 import ShiftRepository from "../../repositories/shift/shift.repository.impl";
+import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
 import UserTeacherRepository from "../../repositories/userTeacher/userTeachere.repository.impl";
 import TutorRepository from "../../repositories/userTutor/tutor.repository.impl";
+import Queryable from "../../utils/common/queryable.interface";
 import { COURSE_DESTINATION_SRC } from "../../utils/constants/course.constant";
 import { AccountRole } from "../../utils/constants/role.constant";
 import { cvtWeekDay2Num } from "../../utils/constants/weekday.constant";
@@ -96,6 +98,91 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (account === null) return [];
     if (account.role !== AccountRole.EMPLOYEE) return [];
     return await ClassroomRepository.findClassroomAvailable(branchId, beginingDate, shiftIds);
+  }
+
+
+
+  async getCoursesByBranch(employeeId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
+    const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
+    if (employee === null) throw new NotFoundError();
+    const selectable = new Selectable()
+      .add("Course.id", "id")
+      .add("Course.image", "image")
+      .add("closingDate", "closingDate")
+      .add("Course.name", "name")
+      .add("openingDate", "openingDate")
+      .add("slug", "slug");
+    const sortable = new Sortable()
+      .add("openingDate", "DESC")
+      .add("name", "ASC");
+    const pageable = new Pageable(pageableDto);
+
+    const [courseCount, courseList] = await Promise.all([
+      CourseRepository.countCourseByBranch(queryable, employee.worker.branch.id),
+      CourseRepository.findCourseByBranch(pageable, sortable, selectable, queryable, employee.worker.branch.id)
+    ]);
+    const courseListDto = new CourseListDto();
+    courseListDto.courses = courseList;
+    courseListDto.limit = pageable.limit;
+    courseListDto.skip = pageable.offset;
+    courseListDto.total = courseCount;
+    return courseListDto;
+  }
+
+
+
+  async getCourseDetail(employeeId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
+    const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
+    if (employee === null) throw new NotFoundError();
+
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+    if (course.branch.id !== employee.worker.branch.id) throw new NotFoundError();
+
+    const courseDetail = new CourseDetailDto();
+    courseDetail.version = course.version;
+    courseDetail.id = course.id;
+    courseDetail.slug = course.slug;
+    courseDetail.name = course.name;
+    courseDetail.maxNumberOfStudent = course.maxNumberOfStudent;
+    courseDetail.price = course.price;
+    courseDetail.openingDate = course.openingDate;
+    courseDetail.closingDate = course.closingDate;
+    courseDetail.expectedClosingDate = course.expectedClosingDate;
+    courseDetail.image = course.image;
+    courseDetail.documents = course.documents;
+    courseDetail.studySessions = course.studySessions;
+    courseDetail.exercises = course.exercises;
+    courseDetail.curriculum = course.curriculum;
+    courseDetail.branch = course.branch;
+    courseDetail.teacher = course.teacher;
+    return courseDetail;
+  }
+
+
+
+  async getStudySessions(employeeId: number, courseSlug: string,
+    pageableDto: PageableDto): Promise<{ total: number, studySessions: StudySession[] }> {
+
+    if (employeeId === undefined) return { total: 0, studySessions: [] };
+    const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
+    if (employee === null) throw new NotFoundError();
+
+    const account = await AccountRepository.findByUserId(employeeId);
+    if (account === null) return { total: 0, studySessions: [] };
+    if (account.role !== AccountRole.EMPLOYEE) return { total: 0, studySessions: [] };
+
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course?.branch.id !== employee.worker.branch.id) return { total: 0, studySessions: [] };
+
+    const pageable = new Pageable(pageableDto);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug);
+
+    return {
+      total: total,
+      studySessions: result,
+    };
   }
 
 
@@ -190,10 +277,15 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           throw new ValidationError([]);
         else choseSchedule.choseTutor.push(foundTtutor);
       }
+      // Count course by slug
+      let slug = slugify(createCourseDto.name);
+      const existedCourseBySlug = await queryRunner.manager.countBy(Course, { slug });
+      if (existedCourseBySlug > 0) slug = slug + "-" + existedCourseBySlug;
+
       // Create course;
       let course = new Course();
       course.name = createCourseDto.name;
-      course.slug = slugify(createCourseDto.name) + "-" + faker.datatype.number();
+      course.slug = slug;
       course.maxNumberOfStudent = createCourseDto.maxNumberOfStudent;
       course.price = createCourseDto.price;
       course.openingDate = createCourseDto.openingDate;
@@ -274,7 +366,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         offset = offset <= 0 ? offset + 7 : offset;
         firstDayOfSession = new Date(firstDayOfSession.setDate(firstDayOfSession.getDate() + offset));
       }
-      savedCourse = await queryRunner.manager.save(course);
+      savedCourse = await queryRunner.manager.save(savedCourse);
       await queryRunner.commitTransaction();
       await queryRunner.release();
       return savedCourse;
