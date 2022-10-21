@@ -31,6 +31,15 @@ class ShiftRepositoryImpl implements ShiftRepositoryInterface {
       });
     return await availableShiftsQuery.getMany();
   }
+
+
+  async findShiftsByStudySession(studySessionId: number): Promise<Shift[]> {
+    return await Shift.createQueryBuilder('shift')
+      .leftJoinAndSelect("shift.studySessions", "studySessions")
+      .where(`studySessions.id = :studySessionId`, { studySessionId })
+      .orderBy({ "startTime": "ASC" })
+      .getMany();
+  }
 }
 
 const ShiftRepository = new ShiftRepositoryImpl();

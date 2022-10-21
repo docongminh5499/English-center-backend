@@ -1,7 +1,7 @@
-import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import Pageable from "../helpers/pageable";
+import ShiftRepository from "../shift/shift.repository.impl";
 import StudySessionRepositoryInterface from "./studySession.repository.interface";
 
 class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
@@ -34,12 +34,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
         const results = await queryStmt.getMany();
         for (let index = 0; index < results.length; index++) {
             const studySession = results[index];
-            let shifts = await Shift.createQueryBuilder('shift')
-                .leftJoinAndSelect("shift.studySessions", "studySessions")
-                .where(`studySessions.id = :studySessionId`, { studySessionId: studySession.id })
-                .orderBy({ "startTime": "ASC" })
-                .getMany();
-            studySession.shifts = shifts;
+            studySession.shifts = await ShiftRepository.findShiftsByStudySession(studySession.id);
         }
         return results;
     }

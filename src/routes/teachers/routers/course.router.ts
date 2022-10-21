@@ -63,6 +63,20 @@ router.post("/get-students", async (req: any, res: any, next: any) => {
 })
 
 
+
+router.post("/get-student-detail", async (req: any, res: any, next: any) => {
+  try {
+    const result = await TeacherService.getStudentDetailsInCourse(
+      req.user.userId, req.body.studentId, req.body.courseSlug);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
 router.post("/get-exercises", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);

@@ -5,7 +5,10 @@ import { Course } from "../../entities/Course";
 import { Curriculum } from "../../entities/Curriculum";
 import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
+import { MakeUpLession } from "../../entities/MakeUpLession";
+import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudySession } from "../../entities/StudySession";
+import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
@@ -16,6 +19,8 @@ export default interface TeacherService {
     getCourseDetail: (teacherId: number, courseSlug: string) => Promise<Partial<CourseDetailDto> | null>;
 
     getStudents: (userId: number, courseSlug: string, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
+
+    getStudentDetailsInCourse: (userId: number, studentId: number, courseSlug: string) => Promise<{ student: UserStudent, doExercises: StudentDoExercise[], attendences: UserAttendStudySession[], makeUpLessons: MakeUpLession[] }>;
 
     getExercises: (userId: number, courseSlug: string, pageableDto: PageableDto) => Promise<{ total: number, exercises: Exercise[] }>;
 

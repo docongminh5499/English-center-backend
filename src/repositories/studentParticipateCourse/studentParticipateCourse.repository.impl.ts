@@ -88,6 +88,19 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
     queryStmt = pageable.buildQuery(queryStmt);
     return await queryStmt.getMany();
   }
+
+
+
+  async checkStudentParticipateCourse(studentId: number, courseSlug: string): Promise<boolean> {
+    const count = await StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+      .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+      .where("course.slug = :courseSlug", { courseSlug })
+      .andWhere("userStudent.id = :studentId", { studentId })
+      .getCount();
+    return count > 0;
+  }
 }
 
 

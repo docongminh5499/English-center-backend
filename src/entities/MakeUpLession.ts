@@ -18,12 +18,12 @@ export class MakeUpLession extends MyBaseEntity {
   @PrimaryColumn({type: "int", name:"studySessionId"})
   @OneToOne(() => StudySession, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinColumn({name: "studySessionId"})
-  studySession: StudySession;
+  studySession: StudySession;           // Buổi được bù
   
   @PrimaryColumn({type: "int", name:"targetStudySessionId"})
   @OneToOne(() => StudySession, {onDelete: "RESTRICT", onUpdate: "CASCADE"})
   @JoinColumn({name: "targetStudySessionId"})
-  targetStudySession: StudySession;    // Buổi học nghỉ phải học bù
+  targetStudySession: StudySession;    // Buổi dùng để bù
 
   @IsNotEmpty()
   @IsBoolean()
