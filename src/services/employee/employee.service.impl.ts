@@ -317,7 +317,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySession.date = date;
         studySession.isTeacherAbsent = false;
         studySession.notes = faker.lorem.paragraphs();
-        studySession.cancelled = false;
         studySession.course = course;
         studySession.shifts = choseSchedule.choseShifts[sheduleIndex];
         studySession.tutor = choseSchedule.choseTutor[sheduleIndex];

@@ -32,10 +32,6 @@ export class StudySession extends MyBaseEntity {
   @Column({ type: "text", nullable: true })
   notes: string | null;
 
-  @IsBoolean()
-  @Column({ type: "boolean", nullable: true })
-  cancelled: boolean | null;
-
   //Relation Course--1--<include>==N==StudySession
   @IsNotEmpty()
   @ManyToOne(() => Course, (course) => course.studySessions, { nullable: false, onDelete: "RESTRICT", onUpdate: "CASCADE" })
