@@ -18,7 +18,6 @@ import * as jwt from "jsonwebtoken";
 import { AppDataSource } from "../../utils/functions/dataSource";
 import { InvalidVersionColumnError } from "../../utils/errors/invalidVersionColumn.error";
 import { Curriculum } from "../../entities/Curriculum";
-import { AccountRole } from "../../utils/constants/role.constant";
 import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
 import CurriculumDto from "../../dto/requests/curriculum.dto";
 import { CURRICULUM_DESTINATION_SRC } from "../../utils/constants/curriculum.constant";
@@ -96,13 +95,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getStudents(userId: number, courseSlug: string,
     query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
     if (userId === undefined) return { total: 0, students: [] };
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return { total: 0, students: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, students: [] };
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return { total: 0, students: [] };
-
     const pageable = new Pageable(pageableDto);
     const result = await StudentParticipateCourseRepository.findStudentsByCourseSlug(courseSlug, pageable, query);
     const total = await StudentParticipateCourseRepository.countStudentsByCourseSlug(courseSlug, query);
@@ -117,10 +111,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getStudentDetailsInCourse(userId: number, studentId: number,
     courseSlug: string): Promise<{ student: UserStudent, doExercises: StudentDoExercise[], attendences: UserAttendStudySession[], makeUpLessons: MakeUpLession[] }> {
     if (userId === undefined) throw new NotFoundError();
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) throw new NotFoundError();
-    if (account.role !== AccountRole.TEACHER) throw new ValidationError([]);
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) throw new ValidationError([]);
     if (!StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug))
@@ -139,10 +129,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getExercises(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, exercises: Exercise[] }> {
     if (userId === undefined) return { total: 0, exercises: [] };
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return { total: 0, exercises: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, exercises: [] };
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return { total: 0, exercises: [] };
 
@@ -159,10 +145,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async deleteExercise(teacherId: number, exerciseId: number): Promise<boolean> {
     if (teacherId === undefined) return false;
-    const account = await AccountRepository.findByUserId(teacherId);
-    if (account === null) return false;
-    if (account.role !== AccountRole.TEACHER) return false;
-
     const exercise = await ExerciseRepository.findExerciseById(exerciseId);
     if (exercise === null) return false;
     if (exercise.course.teacher.worker.user.id !== teacherId) return false;
@@ -177,10 +159,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getDocuments(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, documents: Document[] }> {
     if (userId === undefined) return { total: 0, documents: [] };
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return { total: 0, documents: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, documents: [] };
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return { total: 0, documents: [] };
 
@@ -196,9 +174,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async deleteDocument(teacherId: number, documentId: number): Promise<boolean> {
     if (teacherId === undefined) return false;
-    const account = await AccountRepository.findByUserId(teacherId);
-    if (account === null) return false;
-    if (account.role !== AccountRole.TEACHER) return false;
 
     const document = await DocumentRepository.findDocumentById(documentId);
     if (document === null) return false;
@@ -211,9 +186,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async createDocument(userId: number, documentDto: DocumentDto): Promise<Document | null> {
     if (userId === undefined) return null;
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
 
     if (documentDto.courseSlug === undefined)
       throw new ValidationError([]);
@@ -247,10 +219,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const result = { total: 0, average: 0, starTypeCount: {}, comments: [] };
 
     if (userId === undefined) return result;
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return result;
-    if (account.role !== AccountRole.TEACHER) return result;
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return result;
     if (course.closingDate === null || course.closingDate === undefined) return result;
@@ -278,9 +246,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getStudySessions(teacherId: number, courseSlug: string,
     pageableDto: PageableDto): Promise<{ total: number, studySessions: StudySession[] }> {
     if (teacherId === undefined) return { total: 0, studySessions: [] };
-    const account = await AccountRepository.findByUserId(teacherId);
-    if (account === null) return { total: 0, studySessions: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, studySessions: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== teacherId) return { total: 0, studySessions: [] };
     const pageable = new Pageable(pageableDto);
@@ -385,10 +350,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getCurriculumList(userId?: number): Promise<Curriculum[]> {
     if (userId === undefined) return [];
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.TEACHER) return [];
     return await CurriculumRepository.getCurriculumList();
   }
 
@@ -397,10 +358,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getCurriculum(userId?: number, curriculumId?: number): Promise<Curriculum | null> {
     if (curriculumId === undefined) return null;
     if (userId === undefined) return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
     return await CurriculumRepository.getCurriculumById(curriculumId);
   }
 
@@ -408,11 +365,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async modifyCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
     if (userId === undefined) return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
-
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
@@ -482,10 +434,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async createCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
     if (userId === undefined) return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()

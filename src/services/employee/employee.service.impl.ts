@@ -9,7 +9,7 @@ import { StudySession } from "../../entities/StudySession";
 import { UserEmployee } from "../../entities/UserEmployee";
 import { UserTeacher } from "../../entities/UserTeacher";
 import { UserTutor } from "../../entities/UserTutor";
-import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import BranchRepository from "../../repositories/branch/branch.repository.impl";
 import ClassroomRepository from "../../repositories/classroom/classroom.repository.impl";
 import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
@@ -20,7 +20,6 @@ import UserTeacherRepository from "../../repositories/userTeacher/userTeachere.r
 import TutorRepository from "../../repositories/userTutor/tutor.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
 import { COURSE_DESTINATION_SRC } from "../../utils/constants/course.constant";
-import { AccountRole } from "../../utils/constants/role.constant";
 import { cvtWeekDay2Num } from "../../utils/constants/weekday.constant";
 import { NotFoundError } from "../../utils/errors/notFound.error";
 import { ValidationError } from "../../utils/errors/validation.error";
@@ -42,10 +41,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async getCurriculumList(userId?: number): Promise<Curriculum[]> {
     if (userId === undefined) return [];
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.EMPLOYEE) return [];
     return await CurriculumRepository.getCurriculumList();
   }
 
@@ -53,20 +48,12 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async getBranches(userId?: number): Promise<Branch[]> {
     if (userId === undefined) return [];
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.EMPLOYEE) return [];
     return await BranchRepository.findBranch();
   }
 
 
   async getTeacherByBranchAndPreferedCurriculum(userId?: number, branchId?: number, curriculumId?: number): Promise<UserTeacher[]> {
     if (userId === undefined || branchId === undefined || curriculumId === undefined) return [];
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.EMPLOYEE) return [];
     return await UserTeacherRepository.findUserTeacherByBranchAndPreferedCurriculum(branchId, curriculumId);
   }
 
@@ -74,19 +61,12 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   async getTeacherFreeShifts(userId?: number, teacherId?: number, beginingDate?: Date): Promise<Shift[]> {
     if (userId === undefined || teacherId === undefined ||
       beginingDate === undefined || beginingDate === null) return [];
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.EMPLOYEE) return [];
     return await ShiftRepository.findAvailableShiftsOfTeacher(teacherId, beginingDate);
   }
 
 
   async getAvailableTutors(userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number): Promise<UserTutor[]> {
     if (userId === undefined || shiftIds === undefined || beginingDate === undefined || beginingDate === null) return [];
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.EMPLOYEE) return [];
     return await TutorRepository.findTutorsAvailable(beginingDate, shiftIds, branchId);
   }
 
@@ -94,9 +74,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   async getAvailableClassroom(userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number): Promise<Classroom[]> {
     if (userId === undefined || shiftIds === undefined ||
       beginingDate === undefined || beginingDate === null || branchId === undefined) return [];
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.EMPLOYEE) return [];
     return await ClassroomRepository.findClassroomAvailable(branchId, beginingDate, shiftIds);
   }
 
@@ -168,13 +145,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
     if (employee === null) throw new NotFoundError();
 
-    const account = await AccountRepository.findByUserId(employeeId);
-    if (account === null) return { total: 0, studySessions: [] };
-    if (account.role !== AccountRole.EMPLOYEE) return { total: 0, studySessions: [] };
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.branch.id !== employee.worker.branch.id) return { total: 0, studySessions: [] };
-
     const pageable = new Pageable(pageableDto);
     const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable);
     const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug);
@@ -198,10 +170,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       createCourseDto.teacher === undefined ||
       createCourseDto.branch === undefined)
       return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.EMPLOYEE) return null;
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
