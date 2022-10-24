@@ -9,6 +9,8 @@ import UserChatEachOtherRepositoryInterface from "./userChatEachOther.repository
 class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
   async getLastestMessagesByUserId(userId: number, sortable: Sortable): Promise<UserChatEachOther[]> {
     let query = UserChatEachOther.createQueryBuilder("chat")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("chat.sender", "sender")
       .leftJoinAndSelect("sender.socketStatuses", "senderSocketStatuses")
       .leftJoinAndSelect("chat.receiver", "receiver")
@@ -73,6 +75,8 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
   async getMessages(userId: number, targetUserId: number,
     pageable: Pageable, sortable: Sortable): Promise<UserChatEachOther[]> {
     let query = UserChatEachOther.createQueryBuilder('chat')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("chat.sender", "sender")
       .where('chat.senderId = :userSender AND chat.receiverId = :targetReceiver', { userSender: userId, targetReceiver: targetUserId })
       .orWhere('chat.senderId = :targetSender AND chat.receiverId = :userReceiver', { userReceiver: userId, targetSender: targetUserId })
@@ -84,6 +88,8 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
 
   async countMessages(userId: number, targetUserId: number, sortable: Sortable): Promise<number> {
     let query = UserChatEachOther.createQueryBuilder('chat')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .where('chat.senderId = :userSender AND chat.receiverId = :targetReceiver', { userSender: userId, targetReceiver: targetUserId })
       .orWhere('chat.senderId = :targetSender AND chat.receiverId = :userReceiver', { userReceiver: userId, targetSender: targetUserId })
     query = sortable.buildQuery(query);
@@ -100,7 +106,7 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
     message.sendingTime = new Date();
 
     const validateErrors = await validate(message);
-    if (validateErrors.length)  throw new ValidationError(validateErrors);
+    if (validateErrors.length) throw new ValidationError(validateErrors);
 
     const savedMessage = await message.save();
     if (savedMessage.id === undefined) return null;
@@ -109,6 +115,8 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
 
   async readMessage(sender: User, receiver: User): Promise<boolean> {
     const result = await UserChatEachOther.createQueryBuilder()
+      .setLock("pessimistic_write")
+      .useTransaction(true)
       .update()
       .set({ read: true })
       .where("senderId = :senderId AND receiverId = :receiverId", {
@@ -124,6 +132,8 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
 
   async getUnreadMessageCount(receiver: User): Promise<number> {
     const result = await UserChatEachOther.createQueryBuilder("chat")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .where("chat.receiverId = :receiverId", { receiverId: receiver.id })
       .andWhere("chat.read = 0")
       .getCount();

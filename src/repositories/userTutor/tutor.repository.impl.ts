@@ -5,6 +5,8 @@ import TutorRepositoryInterface from "./tutor.repository.interface";
 class TutorRepositoryImpl implements TutorRepositoryInterface {
   async findTutorsAvailable(beginingDate: Date, shiftIds: number[], branchId?: number): Promise<UserTutor[]> {
     const busyTutorIdsQuery = StudySession.createQueryBuilder("ss")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("ss.shifts", "shifts")
       .leftJoinAndSelect("ss.tutor", "tutor")
       .leftJoinAndSelect("tutor.worker", "worker")
@@ -15,6 +17,8 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
       .andWhere(`shifts.id IN (:...ids)`, { ids: shiftIds });
 
     const freeTutorsIdQuery = UserTutor.createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .innerJoinAndSelect("tt.shifts", "freeShifts")
       .select("tt.tutorId", "id")
       .distinct(true)
@@ -24,6 +28,8 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
 
 
     let tutorQuery = UserTutor.createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("tt.worker", "worker")
       .leftJoinAndSelect("worker.user", "userTutor")
     if (branchId !== undefined)

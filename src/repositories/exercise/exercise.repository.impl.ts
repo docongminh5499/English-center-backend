@@ -13,7 +13,9 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
           "course.teacher",
           "course.teacher.worker",
           "course.teacher.worker.user"
-        ]
+        ],
+        lock: { mode: "pessimistic_read" },
+        transaction: true
       });
     return exercise;
   }
@@ -21,6 +23,8 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
 
   async findExercisesByCourseSlug(courseSlug: string, pageable: Pageable): Promise<Exercise[]> {
     let queryStmt = Exercise.createQueryBuilder('exercise')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("exercise.course", "course")
       .where("course.slug = :courseSlug", { courseSlug })
       .orderBy({ "-openTime": "ASC" })
@@ -32,6 +36,8 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
 
   async countExercisesByCourseSlug(courseSlug: string): Promise<number> {
     let queryStmt = Exercise.createQueryBuilder('exercise')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("exercise.course", "course")
       .where("course.slug = :courseSlug", { courseSlug })
     return await queryStmt.getCount();
@@ -42,6 +48,8 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
   async deleteExercise(exerciseId: number): Promise<boolean> {
     const result: DeleteResult = await Exercise
       .createQueryBuilder()
+      .setLock("pessimistic_write")
+      .useTransaction(true)
       .delete()
       .where("id = :exerciseId", { exerciseId })
       .execute();

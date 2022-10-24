@@ -6,6 +6,8 @@ import ClassroomRepositoryInterface from "./classroom.repository.interface";
 class ClassroomRepositoryImpl implements ClassroomRepositoryInterface {
   async findClassroomAvailable(branchId: number, beginingDate: Date, shiftIds: number[]): Promise<Classroom[]> {
     const busyClassroomIdsOfClassroomQuery = StudySession.createQueryBuilder("ss")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("ss.shifts", "shifts")
       .leftJoinAndSelect("ss.classroom", "classroom")
       .leftJoinAndSelect("classroom.branch", "branch")
@@ -16,6 +18,8 @@ class ClassroomRepositoryImpl implements ClassroomRepositoryInterface {
       .andWhere(`shifts.id IN (:...ids)`, { ids: shiftIds });
 
     const classroomQuery = Classroom.createQueryBuilder("cr")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("cr.branch", "branch")
       .where("branch.id = :branchId", { branchId })
       .andWhere(`(cr.name, branch.id) NOT IN (${busyClassroomIdsOfClassroomQuery.getQuery()})`)

@@ -4,6 +4,8 @@ import UserTeacherRepositoryInterface from "./userTeacher.repository.interface";
 class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
   async findUserTeacherByid(userId: number): Promise<UserTeacher | null> {
     return await UserTeacher.createQueryBuilder("teacher")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("teacher.worker", "worker")
       .leftJoinAndSelect("worker.user", "user")
       .leftJoinAndSelect("worker.branch", "branch")
@@ -13,6 +15,8 @@ class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
 
   async findUserTeacherByBranchAndPreferedCurriculum(branchId: number, curriculumId: number): Promise<UserTeacher[]> {
     return await UserTeacher.createQueryBuilder("teacher")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("teacher.worker", "worker")
       .leftJoinAndSelect("worker.user", "user")
       .leftJoinAndSelect("worker.branch", "branch")

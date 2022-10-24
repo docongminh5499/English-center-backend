@@ -5,6 +5,8 @@ import StudentDoExerciseRepositoryInterface from "./studentDoExercise.repository
 class StudentDoExerciseRepositoryImpl implements StudentDoExerciseRepositoryInterface {
   async findMaxScoreDoExerciseByStudentAndCourse(studentId: number, courseSlug: string): Promise<StudentDoExercise[]> {
     const result = await StudentDoExercise.createQueryBuilder('sde')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoin(
         qb =>
           qb.from(StudentDoExercise, "inner")

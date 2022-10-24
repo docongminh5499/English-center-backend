@@ -16,7 +16,9 @@ class DocumentRepositoryImpl implements DocumentRepositoryInterface {
           "course.teacher",
           "course.teacher.worker",
           "course.teacher.worker.user"
-        ]
+        ],
+        lock: { mode: "pessimistic_read" },
+        transaction: true
       });
     return document;
   }
@@ -24,6 +26,8 @@ class DocumentRepositoryImpl implements DocumentRepositoryInterface {
 
   async findDocumentsByCourseSlug(courseSlug: string, pageable: Pageable): Promise<Document[]> {
     let queryStmt = Document.createQueryBuilder('document')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("document.course", "course")
       .where("course.slug = :courseSlug", { courseSlug })
       .orderBy({ "document.name": "ASC" })
@@ -34,6 +38,8 @@ class DocumentRepositoryImpl implements DocumentRepositoryInterface {
 
   async countDocumentsByCourseSlug(courseSlug: string): Promise<number> {
     let queryStmt = Document.createQueryBuilder('document')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("document.course", "course")
       .where("course.slug = :courseSlug", { courseSlug })
     return await queryStmt.getCount();
@@ -43,6 +49,8 @@ class DocumentRepositoryImpl implements DocumentRepositoryInterface {
   async deleteDocument(documentId: number): Promise<boolean> {
     const result: DeleteResult = await Document
       .createQueryBuilder()
+      .setLock("pessimistic_write")
+      .useTransaction(true)
       .delete()
       .where("id = :documentId", { documentId })
       .execute();

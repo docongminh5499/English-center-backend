@@ -5,6 +5,8 @@ import EmployeeRepositoryInferface from "./employee.repository.interface";
 class EmployeeRepositoryImpl implements EmployeeRepositoryInferface {
   async findUserEmployeeByid(userId: number): Promise<UserEmployee | null> {
     return await UserEmployee.createQueryBuilder("employee")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("employee.worker", "worker")
       .leftJoinAndSelect("worker.user", "user")
       .leftJoinAndSelect("worker.branch", "branch")

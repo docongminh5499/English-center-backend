@@ -10,6 +10,8 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
 
   async getNotificationCount(user: User): Promise<number> {
     let query = Notification.createQueryBuilder('notification')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .where('notification.userId = :userId', { userId: user.id })
     return (await query.getCount());
   }
@@ -17,6 +19,8 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
 
   async getNotification(user: User, pageable: Pageable, sortable: Sortable): Promise<Notification[]> {
     let query = Notification.createQueryBuilder('notification')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("notification.user", "user")
       .where('notification.userId = :userId', { userId: user.id });
     query = pageable.buildQuery(query);
@@ -32,8 +36,8 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
     notification.user = user;
 
     const validateErrors = await validate(notification);
-    if (validateErrors.length)  throw new ValidationError(validateErrors);
-    
+    if (validateErrors.length) throw new ValidationError(validateErrors);
+
     const savedNotification = await notification.save();
     if (savedNotification.id === undefined) return null;
     return savedNotification;
@@ -42,6 +46,8 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
 
   async readNotification(notificationId: number): Promise<boolean> {
     const result = await Notification.createQueryBuilder()
+      .setLock("pessimistic_write")
+      .useTransaction(true)
       .update()
       .set({ read: true })
       .where("id = :id", {
@@ -56,6 +62,8 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
 
   async getUnreadNotificationCount(user: User): Promise<number> {
     const result = await Notification.createQueryBuilder("notification")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .where("notification.userId = :userId", { userId: user.id })
       .andWhere("notification.read = 0")
       .getCount();

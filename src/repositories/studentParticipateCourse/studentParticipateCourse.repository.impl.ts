@@ -6,6 +6,8 @@ import StudentParticipateCourseRepositoryInterface from "./studentParticipateCou
 class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourseRepositoryInterface {
   async findStudentsByCourseSlug(courseSlug: string, pageable: Pageable, query?: string | undefined): Promise<StudentParticipateCourse[]> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("studentPaticipateCourses.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")
@@ -25,6 +27,8 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
   async countStudentsByCourseSlug(courseSlug: string, query?: string | undefined): Promise<number> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("studentPaticipateCourses.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")
@@ -42,6 +46,8 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
   async countCommentsByCourseSlug(courseSlug: string): Promise<number> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")
       .where("course.slug = :courseSlug", { courseSlug })
       .andWhere("starPoint is not null");
@@ -51,6 +57,8 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
   async countStarPointsTypeByCourseSlug(courseSlug: string): Promise<object> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .select("starPoint", "starPoint")
       .addSelect("count(starPoint)", "starPointTypeCount")
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")
@@ -69,6 +77,8 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
   async getAverageStarPointByCourseSlug(courseSlug: string): Promise<number> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .select("avg(starPoint)", "avgPoint")
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")
       .where("course.slug = :courseSlug", { courseSlug })
@@ -79,6 +89,8 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
   async getCommentsByCourseSlug(courseSlug: string, pageable: Pageable): Promise<StudentParticipateCourse[]> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("studentPaticipateCourses.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")
@@ -93,6 +105,8 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
   async checkStudentParticipateCourse(studentId: number, courseSlug: string): Promise<boolean> {
     const count = await StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("studentPaticipateCourses.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
       .leftJoinAndSelect("studentPaticipateCourses.course", "course")

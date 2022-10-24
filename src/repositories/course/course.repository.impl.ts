@@ -6,7 +6,9 @@ import CourseRepositoryInterface from "./course.repository.interface";
 
 class CourseRepositoryImpl implements CourseRepositoryInterface {
     async countCourseByTeacher(queryable: Queryable<Course>, teacherId?: number): Promise<number> {
-        let query = Course.createQueryBuilder();
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
         query = queryable.buildQuery(query);
         if (teacherId !== undefined)
             query = query.andWhere("teacherWorker = :id", { id: teacherId });
@@ -15,7 +17,9 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseByTeacher(pageable: Pageable, sortable: Sortable,
         selectable: Selectable, queryable: Queryable<Course>, teacherId?: number): Promise<Course[]> {
-        let query = Course.createQueryBuilder();
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
         query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
         if (teacherId !== undefined)
@@ -26,24 +30,28 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
     }
 
     async findCourseForTimetableByStudent(studentId: number): Promise<Course[]> {
-        const studentCourses =  await Course.createQueryBuilder("course")
-                                            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
-                                            .leftJoinAndSelect("studentPaticipateCourses.student", "userStudent")
-                                            .innerJoinAndSelect("userStudent.user", "user", "user.id = :studentId", {studentId: studentId})
-                                            .leftJoinAndSelect("course.studySessions", "studySessions")
-                                            .leftJoinAndSelect("studySessions.shifts", "shifts")
-                                            .leftJoinAndSelect("studySessions.classroom", "classroom")
-                                            .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
-                                            .orderBy({
-                                                "course.openingDate": "ASC",
-                                            })
-                                            .getMany();
+        const studentCourses = await Course.createQueryBuilder("course")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
+            .leftJoinAndSelect("studentPaticipateCourses.student", "userStudent")
+            .innerJoinAndSelect("userStudent.user", "user", "user.id = :studentId", { studentId: studentId })
+            .leftJoinAndSelect("course.studySessions", "studySessions")
+            .leftJoinAndSelect("studySessions.shifts", "shifts")
+            .leftJoinAndSelect("studySessions.classroom", "classroom")
+            .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+            .orderBy({
+                "course.openingDate": "ASC",
+            })
+            .getMany();
         console.log(studentCourses);
         return studentCourses;
     }
 
     async findCourseBySlug(courseSlug: string): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("course.branch", "branch")
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
@@ -58,6 +66,8 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findBriefCourseBySlug(courseSlug: string): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("course.documents", "documents")
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
@@ -77,7 +87,9 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async countCourseByStudent(queryable: Queryable<Course>, studentId?: number): Promise<number> {
         console.log("Count Student Repo");
-        let query = Course.createQueryBuilder();
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
         query = queryable.buildQuery(query);
         if (studentId !== undefined)
             query = query.andWhere("student_participate_course.studentId = :id", { id: studentId });
@@ -87,7 +99,9 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
     async findCourseByStudent(pageable: Pageable, sortable: Sortable,
         selectable: Selectable, queryable: Queryable<Course>, studentId?: number): Promise<Course[]> {
         console.log("Find Student Repo");
-        let query = Course.createQueryBuilder();
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
         query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
         if (studentId !== undefined)
@@ -100,6 +114,8 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseById(courseId: number): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
@@ -115,6 +131,8 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async countByCurriculumId(curriculumId: number): Promise<number> {
         return await Course.createQueryBuilder("course")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .where("curriculum.id = :curriculumId", { curriculumId })
             .getCount();
@@ -123,7 +141,9 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseByBranch(pageable: Pageable, sortable: Sortable,
         selectable: Selectable, queryable: Queryable<Course>, branchId?: number): Promise<Course[]> {
-        let query = Course.createQueryBuilder();
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
         query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
         if (branchId !== undefined)
@@ -137,7 +157,9 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
 
     async countCourseByBranch(queryable: Queryable<Course>, branchId?: number): Promise<number> {
-        let query = Course.createQueryBuilder();
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
         query = queryable.buildQuery(query);
         if (branchId !== undefined)
             query = query

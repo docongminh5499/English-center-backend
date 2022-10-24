@@ -5,6 +5,8 @@ import MakeUpLessionRepositoryInterface from "./makeUpLesson.repository.interfac
 class MakeUpLessionRepositoryImpl implements MakeUpLessionRepositoryInterface {
   async findByStudentAndCourse(studentId: number, courseSlug: string): Promise<MakeUpLession[]> {
     return await MakeUpLession.createQueryBuilder("mul")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("mul.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
       .leftJoinAndSelect("mul.studySession", "studySession")

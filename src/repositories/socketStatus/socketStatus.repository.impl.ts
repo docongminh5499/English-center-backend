@@ -13,9 +13,9 @@ class SocketStatusRepositoryImpl implements SocketStatusRepositoryInterface {
     const socketStatus = new SocketStatus();
     socketStatus.socketId = socketId;
     socketStatus.user = user;
-    
+
     const validateErrors = await validate(socketStatus);
-    if (validateErrors.length)  throw new ValidationError(validateErrors);
+    if (validateErrors.length) throw new ValidationError(validateErrors);
 
     const savedSocketStatus = await socketStatus.save();
     return savedSocketStatus.id !== undefined;
@@ -25,6 +25,8 @@ class SocketStatusRepositoryImpl implements SocketStatusRepositoryInterface {
   async remove(socketId: string): Promise<boolean> {
     const result: DeleteResult = await SocketStatus
       .createQueryBuilder()
+      .setLock("pessimistic_write")
+      .useTransaction(true)
       .delete()
       .where("socketId = :socketId", { socketId })
       .execute();
@@ -36,12 +38,16 @@ class SocketStatusRepositoryImpl implements SocketStatusRepositoryInterface {
   async findBySocketId(socketId: string): Promise<SocketStatus | null> {
     return SocketStatus.findOne({
       where: { socketId: socketId },
-      relations: ["user"]
+      relations: ["user"],
+      lock: { mode: "pessimistic_read" },
+      transaction: true
     });
   }
 
   async findAllSocketConnByUser(userId: number): Promise<SocketStatus[]> {
     return SocketStatus.createQueryBuilder("socket")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .where("socket.userId = :userId", { userId })
       .getMany();
   }

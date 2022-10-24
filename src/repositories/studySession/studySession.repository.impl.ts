@@ -7,6 +7,8 @@ import StudySessionRepositoryInterface from "./studySession.repository.interface
 class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
     async findStudySessionByStudent(studentId: number, courseSlug: string): Promise<UserAttendStudySession[] | null> {
         const studentAttendStudySession = await UserAttendStudySession.createQueryBuilder("user_attend_study_session")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("user_attend_study_session.studySession", "studySession")
             .leftJoinAndSelect("studySession.course", "course")
             .where("studentId = :studentId", { studentId: studentId })
@@ -19,6 +21,8 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
 
     async findStudySessionsByCourseSlug(courseSlug: string, pageable: Pageable): Promise<StudySession[]> {
         let queryStmt = StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("ss.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "teacherWorker")
             .leftJoinAndSelect("teacherWorker.user", "teacherUser")
@@ -42,6 +46,8 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
 
     async countStudySessionsByCourseSlug(courseSlug: string): Promise<number> {
         let queryStmt = StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect("ss.course", "course")
             .where("course.slug = :courseSlug", { courseSlug });
         return await queryStmt.getCount();

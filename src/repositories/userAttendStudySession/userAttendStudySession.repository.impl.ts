@@ -6,6 +6,8 @@ import UserAttendStudySessionRepositoryInterface from "./userAttendStudySession.
 class UserAttendStudySessionRepositoryImpl implements UserAttendStudySessionRepositoryInterface {
   async findAttendenceByStudentAndCourse(studentId: number, courseSlug: string): Promise<UserAttendStudySession[]> {
     const result = await UserAttendStudySession.createQueryBuilder('a')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("a.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
       .leftJoinAndSelect("a.studySession", "studySession")
