@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, JoinColumn } from "typeorm";
-import { IsBoolean, IsDate, IsNotEmpty, IsString, Length } from "class-validator";
+import { IsDate, IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Course } from "./Course";
 import { Shift } from "./Shift";
@@ -22,11 +22,6 @@ export class StudySession extends MyBaseEntity {
   @IsDate()
   @Column({ type: "date", nullable: false })
   date: Date;
-
-  @IsNotEmpty()
-  @IsBoolean()
-  @Column({ type: "boolean", nullable: false })
-  isTeacherAbsent: boolean
 
   @IsString()
   @Column({ type: "text", nullable: true })

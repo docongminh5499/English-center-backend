@@ -315,7 +315,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         let studySession = new StudySession();
         studySession.name = `Tuần ${week}, Buổi ${dayName}`;
         studySession.date = date;
-        studySession.isTeacherAbsent = false;
         studySession.notes = faker.lorem.paragraphs();
         studySession.course = course;
         studySession.shifts = choseSchedule.choseShifts[sheduleIndex];
