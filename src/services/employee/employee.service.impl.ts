@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { validate } from "class-validator";
 import { CourseDetailDto, CourseListDto, CreateCourseDto, PageableDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
@@ -321,6 +322,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySession.tutor = choseSchedule.choseTutor[sheduleIndex];
         studySession.teacher = choseSchedule.choseTeacher;
         studySession.classroom = choseSchedule.choseClassroom[sheduleIndex];
+        const validateErrors = await validate(studySession);
+        if (validateErrors.length)  throw new ValidationError(validateErrors);
         await queryRunner.manager.save(studySession);
         if (index === curriculum.lectures.length - 1) {
           course.expectedClosingDate = new Date(date.getTime());
@@ -332,7 +335,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         offset = offset <= 0 ? offset + 7 : offset;
         firstDayOfSession = new Date(firstDayOfSession.setDate(firstDayOfSession.getDate() + offset));
       }
+      const savedCourseValidateErrors = await validate(savedCourse);
+      if (savedCourseValidateErrors.length)  throw new ValidationError(savedCourseValidateErrors);
       savedCourse = await queryRunner.manager.save(savedCourse);
+
       await queryRunner.commitTransaction();
       await queryRunner.release();
       return savedCourse;

@@ -10,6 +10,7 @@ import {
   IsDate,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   Length,
@@ -64,7 +65,7 @@ export class Course extends MyBaseEntity {
   @Column({ type: "date", nullable: false })
   openingDate: Date;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: true })
   closingDate: Date | null;
