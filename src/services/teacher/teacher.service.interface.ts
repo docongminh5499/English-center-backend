@@ -38,6 +38,9 @@ export default interface TeacherService {
     getStudySessions: (teacherId: number, courseSlug: string,
         pageableDto: PageableDto) => Promise<{ total: number, studySessions: StudySession[] }>;
 
+    getStudySessionDetail: (teacherId?: number, studySessionId?: number)
+        => Promise<{ studySession: StudySession | null, attendences: UserAttendStudySession[], makeups: MakeUpLession[], ownMakeups: MakeUpLession[] }>;
+
     getPersonalInformation: (userId: number) => Promise<UserTeacher>;
 
     modifyPersonalInformation: (userId: number, userTeacher: UserTeacher, avatarFile?: FileDto | null) => Promise<CredentialDto | null>;

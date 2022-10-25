@@ -40,6 +40,8 @@ import { MakeUpLession } from "../../entities/MakeUpLession";
 import MakeUpLessionRepository from "../../repositories/makeUpLesson/makeUpLesson.repository.impl";
 import { TeacherPreferCurriculum } from "../../entities/TeacherPreferCurriculum";
 import TeacherPreferCurriculumRepository from "../../repositories/teacherPreferCurriculum/teacherPreferCurriculum.repository.impl";
+import { getStudySessionState } from "../../utils/functions/getStudySessionState";
+import { StudySessionState } from "../../utils/constants/studySessionState.constant";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -259,6 +261,73 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     };
   }
 
+
+  async getStudySessionDetail(teacherId?: number, studySessionId?: number):
+    Promise<{ studySession: StudySession | null, attendences: UserAttendStudySession[], makeups: MakeUpLession[], ownMakeups: MakeUpLession[] }> {
+    const result = {
+      studySession: null as StudySession | null,
+      attendences: [] as UserAttendStudySession[],
+      makeups: [] as MakeUpLession[],
+      ownMakeups: [] as MakeUpLession[],
+    };
+    if (teacherId === undefined || studySessionId === undefined) return result;
+    result.studySession = await StudySessionRepository.findStudySessionById(studySessionId);
+    if (result.studySession === null) return result;
+    if (result.studySession.teacher.worker.user.id !== teacherId) {
+      result.studySession = null;
+      return result;
+    }
+    if (getStudySessionState(result.studySession) === StudySessionState.Ready) {
+      result.studySession = null;
+      return result;
+    }
+    const attendences = await UserAttendStudySessionRepository.findAttendenceByStudySessionId(studySessionId);
+    if (attendences.length > 0) {
+      const makeupsByStudySessions = await MakeUpLessionRepository.findByStudySessionId(studySessionId);
+      const makeupsByTargetStudySessions = await MakeUpLessionRepository.findByTargetStudySessionId(studySessionId);
+      result.attendences = attendences;
+      result.makeups = makeupsByTargetStudySessions;
+      result.ownMakeups = makeupsByStudySessions;
+      return result;
+    }
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      let current = 0;
+      const total = await StudentParticipateCourseRepository.countStudentsByCourseSlug(result.studySession.course.slug);
+      while (current < total) {
+        const pageable = new Pageable({ limit: 20, skip: current });
+        const participations = await StudentParticipateCourseRepository.findStudentsByCourseSlug(result.studySession.course.slug, pageable);
+        for (const participation of participations) {
+          let userAttendStudySession = new UserAttendStudySession();
+          userAttendStudySession.student = participation.student;
+          userAttendStudySession.studySession = result.studySession;
+          userAttendStudySession.commentOfTeacher = "";
+          userAttendStudySession.isAttend = true;
+          await queryRunner.manager.save(userAttendStudySession);
+        }
+        current = current + participations.length;
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      const attendences = await UserAttendStudySessionRepository.findAttendenceByStudySessionId(studySessionId);
+      const makeupsByStudySessions = await MakeUpLessionRepository.findByStudySessionId(studySessionId);
+      const makeupsByTargetStudySessions = await MakeUpLessionRepository.findByTargetStudySessionId(studySessionId);
+      result.attendences = attendences;
+      result.makeups = makeupsByTargetStudySessions;
+      result.ownMakeups = makeupsByStudySessions;
+      return result;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      result.studySession = null;
+      return result;
+    }
+  }
 
 
   async getPersonalInformation(userId: number): Promise<UserTeacher> {

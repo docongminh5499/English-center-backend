@@ -52,6 +52,27 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .where("course.slug = :courseSlug", { courseSlug });
         return await queryStmt.getCount();
     }
+
+
+    async findStudySessionById(studySessionId: number): Promise<StudySession | null> {
+        const studySession = await StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("ss.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "teacherWorker")
+            .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+            .leftJoinAndSelect("ss.tutor", "tutor")
+            .leftJoinAndSelect("tutor.worker", "tutorWorker")
+            .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+            .leftJoinAndSelect("ss.classroom", "classroom")
+            .leftJoinAndSelect("classroom.branch", "branch")
+            .where("ss.id = :studySessionId", { studySessionId })
+            .getOne();
+        if (studySession !== null) 
+            studySession.shifts = await ShiftRepository.findShiftsByStudySession(studySession.id);
+        return studySession;
+    }
 }
 
 const StudySessionRepository = new StudySessionRepositoryImpl()

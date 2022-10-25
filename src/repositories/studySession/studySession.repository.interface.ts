@@ -8,4 +8,6 @@ export default interface StudySessionRepository{
     findStudySessionsByCourseSlug: (courseSlug: string, pageable: Pageable) => Promise<StudySession[]>;
 
     countStudySessionsByCourseSlug: (courseSlug: string) => Promise<number>;
+
+    findStudySessionById: (studySessionId: number) => Promise<StudySession|null>;
 }

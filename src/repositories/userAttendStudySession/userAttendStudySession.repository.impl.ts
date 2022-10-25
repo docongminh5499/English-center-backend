@@ -22,6 +22,18 @@ class UserAttendStudySessionRepositoryImpl implements UserAttendStudySessionRepo
     }
     return result;
   }
+
+
+  async findAttendenceByStudySessionId(studySessionId: number): Promise<UserAttendStudySession[]> {
+    return await UserAttendStudySession.createQueryBuilder('a')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("a.student", "student")
+      .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("a.studySession", "studySession")
+      .where("studySession.id = :studySessionId", { studySessionId })
+      .getMany();
+  }
 }
 
 const UserAttendStudySessionRepository = new UserAttendStudySessionRepositoryImpl();
