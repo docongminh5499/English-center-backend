@@ -8,9 +8,8 @@ import { Sex } from "../utils/constants/sex.constant";
 import { slugify } from "../utils/functions/slugify";
 import * as bcrypt from "bcryptjs";
 import { Account } from "../entities/Account";
-import { Curriculum } from "../entities/Curriculum";
 
-export const createTeachers = async (branches: Branch[], curriculums: Curriculum[]) => {
+export const createTeachers = async (branches: Branch[]) => {
   const teachers = [];
   const avatars = [
     "/assets/images/avatar/student1.jpg",
@@ -69,7 +68,6 @@ export const createTeachers = async (branches: Branch[], curriculums: Curriculum
       teacher.worker = worker;
       teacher.experience = faker.lorem.paragraphs();
       teacher.shortDesc = faker.lorem.paragraphs();
-      teacher.curriculums = faker.helpers.arrayElements(curriculums, faker.datatype.number({ min: 5, max: 15 }))
       teacher = await UserTeacher.save(teacher);
       teacher.worker = worker;
 

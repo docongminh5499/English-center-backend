@@ -114,4 +114,50 @@ router.delete("/delete-curriculum/:curriculumId", async (req: any, res: any, nex
 
 
 
+router.get("/get-prefered-curriculums", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await TeacherService.getPreferedCurriculums(req.user.userId));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+
+
+router.post("/check-prefered-curriculums", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(
+      await TeacherService.getCheckPreferredCurriculum(req.user.userId, req.body.curriculumId));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/add-prefered-curriculums", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(
+      await TeacherService.addPreferredCurriculum(req.user.userId, req.body.curriculumId));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/remove-prefered-curriculums", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(
+      await TeacherService.removePreferredCurriculum(req.user.userId, req.body.curriculumId));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
 export { router as TeacherCurriculumRouter };

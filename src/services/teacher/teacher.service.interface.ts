@@ -51,4 +51,12 @@ export default interface TeacherService {
     createCurriculum: (userId?: number, curriculumDto?: CurriculumDto) => Promise<Curriculum | null>;
 
     deleteCurriculum: (curriculumId?: number) => Promise<boolean>;
+
+    getPreferedCurriculums: (userId?: number) => Promise<Curriculum[]>;
+
+    getCheckPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
+
+    addPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
+
+    removePreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
 }

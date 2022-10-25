@@ -18,7 +18,9 @@ class CurriculumRepositoryImpl implements CurriculumRepositoryInterface {
       .setLock("pessimistic_read")
       .useTransaction(true)
       .leftJoinAndSelect("curriculum.lectures", "lectures")
+      .leftJoinAndSelect("curriculum.tags", "tags")
       .where("curriculum.id = :curriculumId", { curriculumId })
+      .andWhere("curriculum.latest = true")
       .getOne();
   }
 

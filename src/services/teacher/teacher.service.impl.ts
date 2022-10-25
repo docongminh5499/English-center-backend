@@ -38,6 +38,8 @@ import StudentDoExerciseRepository from "../../repositories/studentDoExercise/st
 import UserAttendStudySessionRepository from "../../repositories/userAttendStudySession/userAttendStudySession.repository.impl";
 import { MakeUpLession } from "../../entities/MakeUpLession";
 import MakeUpLessionRepository from "../../repositories/makeUpLesson/makeUpLesson.repository.impl";
+import { TeacherPreferCurriculum } from "../../entities/TeacherPreferCurriculum";
+import TeacherPreferCurriculumRepository from "../../repositories/teacherPreferCurriculum/teacherPreferCurriculum.repository.impl";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -499,6 +501,43 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     } else {
       return await CurriculumRepository.setNullCurriculumById(curriculumId);
     }
+  }
+
+
+
+  async getPreferedCurriculums(userId?: number): Promise<Curriculum[]> {
+    if (userId === undefined) return [];
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+    if (teacher === null) return [];
+    return teacher.preferredCurriculums.map(prefer => prefer.curriculum);
+  }
+
+
+  async getCheckPreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
+    return UserTeacherRepository.checkPreferredCurriculum(userId, curriculumId);
+  }
+
+
+  async addPreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+    if (teacher === null) return false;
+    const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
+    if (curriculum === null) return false;
+
+    const prefer = new TeacherPreferCurriculum();
+    prefer.curriculum = curriculum;
+    prefer.teacher = teacher;
+    await prefer.save();
+    return true;
+  }
+
+  async removePreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+    if (teacher === null) return false;
+    return await TeacherPreferCurriculumRepository.deletePreferCurriculum(userId, curriculumId);
   }
 }
 

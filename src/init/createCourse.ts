@@ -2,10 +2,11 @@ import { faker } from "@faker-js/faker";
 import { Branch } from "../entities/Branch";
 import { Course } from "../entities/Course";
 import { Curriculum } from "../entities/Curriculum";
+import { TeacherPreferCurriculum } from "../entities/TeacherPreferCurriculum";
 import { UserTeacher } from "../entities/UserTeacher";
 import { slugify } from "../utils/functions/slugify";
 
-export const createCourse = async (teachers: UserTeacher[], curriculums: Curriculum[], branches: Branch[]) => {
+export const createCourse = async (curriculums: Curriculum[], branches: Branch[], prefered: TeacherPreferCurriculum[]) => {
   const courses = [];
   const slugs: string[] = [];
   const capacities = [25, 30, 40, 60];
@@ -15,9 +16,9 @@ export const createCourse = async (teachers: UserTeacher[], curriculums: Curricu
     const numberOfCourse = faker.datatype.number({ min: 3, max: 6 });
 
     const teachersPreferCurriculum: UserTeacher[] = [];
-    teachers.forEach(teacher => {
-      if (teacher.curriculums.filter(c => c.id === curriculum.id).length > 0)
-        teachersPreferCurriculum.push(teacher);
+    prefered.forEach(prefer => {
+      if (prefer.curriculum.id === curriculum.id) 
+        teachersPreferCurriculum.push(prefer.teacher);
     })
 
     for (let courseIndex = 0; courseIndex < numberOfCourse; courseIndex++) {

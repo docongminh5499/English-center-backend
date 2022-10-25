@@ -1,9 +1,9 @@
 import { IsNotEmpty, IsString, Length } from "class-validator";
-import { Column, Entity, JoinColumn, JoinTable, ManyToMany, OneToMany, OneToOne, PrimaryColumn } from "typeorm";
+import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryColumn } from "typeorm";
 import { Course } from "./Course";
-import { Curriculum } from "./Curriculum";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { StudySession } from "./StudySession";
+import { TeacherPreferCurriculum } from "./TeacherPreferCurriculum";
 import { Worker } from "./Worker";
 
 @Entity()
@@ -32,8 +32,7 @@ export class UserTeacher extends MyBaseEntity {
 
   @OneToMany(() => StudySession, (studySession) => studySession.teacher)
   studySessions: StudySession[];
-  
-  @ManyToMany(() => Curriculum, { onDelete: "CASCADE", onUpdate: "CASCADE" })
-  @JoinTable({ name: "teacher_prefer_curriculum" })
-  curriculums: Curriculum[];
+
+  @OneToMany(() => TeacherPreferCurriculum, (prefer) => prefer.teacher)
+  preferredCurriculums: TeacherPreferCurriculum[];
 }
