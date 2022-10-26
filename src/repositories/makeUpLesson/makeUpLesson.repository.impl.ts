@@ -47,6 +47,7 @@ class MakeUpLessionRepositoryImpl implements MakeUpLessionRepositoryInterface {
       .useTransaction(true)
       .leftJoinAndSelect("mul.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("mul.studySession", "studySession")
       .leftJoinAndSelect("mul.targetStudySession", "targetStudySession")
       .where("targetStudySession.id = :studySessionId", { studySessionId })
       .getMany();

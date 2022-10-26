@@ -141,6 +141,19 @@ router.post("/get-study-session-detail", async (req: any, res: any, next: any) =
 
 
 
+router.post("/modify-study-session-detail", async (req: any, res: any, next: any) => {
+  try {
+    const result = await TeacherService.modifyStudySessionDetail(
+      req.user.userId, req.body.studySession, req.body.attendance, req.body.makeups);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
 
 router.delete("/delete-exercise/:exerciseId", async (req: any, res: any, next: any) => {
   try {

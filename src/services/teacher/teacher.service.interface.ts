@@ -41,6 +41,8 @@ export default interface TeacherService {
     getStudySessionDetail: (teacherId?: number, studySessionId?: number)
         => Promise<{ studySession: StudySession | null, attendences: UserAttendStudySession[], makeups: MakeUpLession[], ownMakeups: MakeUpLession[] }>;
 
+    modifyStudySessionDetail: (teacherId?: number, studySession?: StudySession, attendences?: UserAttendStudySession[], makeups?: MakeUpLession[]) => Promise<boolean>;
+
     getPersonalInformation: (userId: number) => Promise<UserTeacher>;
 
     modifyPersonalInformation: (userId: number, userTeacher: UserTeacher, avatarFile?: FileDto | null) => Promise<CredentialDto | null>;

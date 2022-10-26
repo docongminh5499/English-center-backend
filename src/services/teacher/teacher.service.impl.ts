@@ -43,6 +43,7 @@ import TeacherPreferCurriculumRepository from "../../repositories/teacherPreferC
 import { getStudySessionState } from "../../utils/functions/getStudySessionState";
 import { StudySessionState } from "../../utils/constants/studySessionState.constant";
 
+
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
     const selectable = new Selectable()
@@ -328,6 +329,122 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       return result;
     }
   }
+
+
+  async modifyStudySessionDetail(teacherId?: number, studySession?: StudySession, attendences?: UserAttendStudySession[], makeups?: MakeUpLession[]): Promise<boolean> {
+    if (teacherId === undefined || studySession === undefined || attendences === undefined || makeups === undefined) return false;
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      const foundStudySession = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "teacherWorker")
+        .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+        .leftJoinAndSelect("ss.shifts", "shifts")
+        .where("ss.id = :studySessionId", { studySessionId: studySession.id })
+        .orderBy({
+          "shifts.weekDay": "ASC",
+          "shifts.startTime": "ASC",
+        }).getOne();
+      if (foundStudySession === null || foundStudySession.teacher.worker.user.id !== teacherId)
+        throw new NotFoundError();
+      // Check course and studySession state
+      if (getStudySessionState(foundStudySession) === StudySessionState.Ready)
+        throw new ValidationError([]);
+      if (foundStudySession.course.closingDate !== null)
+        throw new ValidationError([]);
+      // Update study session
+      if (foundStudySession.version !== studySession.version)
+        throw new InvalidVersionColumnError();
+      foundStudySession.notes = studySession.notes;
+      const savedStudySession = await queryRunner.manager.save(foundStudySession);
+      if (savedStudySession.version !== studySession.version + 1
+        && savedStudySession.version !== studySession.version)
+        throw new InvalidVersionColumnError();
+      // Update attendences
+      for (let index = 0; index < attendences.length; index++) {
+        const attendence = attendences[index];
+        if (attendence.studySession.id !== studySession.id)
+          throw new ValidationError([]);
+        const foundAttendence = await queryRunner.manager
+          .createQueryBuilder(UserAttendStudySession, "a")
+          .setLock("pessimistic_write")
+          .useTransaction(true)
+          .leftJoinAndSelect("a.studySession", "studySession")
+          .leftJoinAndSelect("a.student", "student")
+          .leftJoinAndSelect("student.user", "user")
+          .where("studySession.id = :studySessionId", { studySessionId: attendence.studySession.id })
+          .andWhere("user.id = :userId", { userId: attendence.student.user.id })
+          .getOne();
+        if (foundAttendence === null)
+          throw new NotFoundError();
+        if (foundAttendence.version !== attendence.version)
+          throw new InvalidVersionColumnError();
+        foundAttendence.isAttend = attendence.isAttend;
+        foundAttendence.commentOfTeacher = attendence.commentOfTeacher;
+        await queryRunner.manager.upsert(UserAttendStudySession, foundAttendence, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+        await foundAttendence.reload();
+        if (foundAttendence.version !== attendence.version + 1
+          && foundAttendence.version !== attendence.version)
+          throw new InvalidVersionColumnError();
+      }
+      for (let index = 0; index < makeups.length; index++) {
+        const makeup = makeups[index];
+        if (makeup.targetStudySession.id !== studySession.id)
+          throw new ValidationError([]);
+        const foundMakeUp = await queryRunner.manager
+          .createQueryBuilder(MakeUpLession, "mul")
+          .setLock("pessimistic_write")
+          .useTransaction(true)
+          .leftJoinAndSelect("mul.student", "student")
+          .leftJoinAndSelect("student.user", "user")
+          .leftJoinAndSelect("mul.targetStudySession", "targetStudySession")
+          .where("targetStudySession.id = :studySessionId", { studySessionId: makeup.targetStudySession.id })
+          .andWhere("user.id = :userId", { userId: makeup.student.user.id })
+          .getOne();
+        if (foundMakeUp === null)
+          throw new NotFoundError();
+        if (foundMakeUp.version !== makeup.version)
+          throw new InvalidVersionColumnError();
+        foundMakeUp.isAttend = makeup.isAttend;
+        foundMakeUp.commentOfTeacher = makeup.commentOfTeacher;
+        await queryRunner.manager.upsert(MakeUpLession, foundMakeUp, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+        await foundMakeUp.reload();
+        if (foundMakeUp.version !== makeup.version + 1
+          && foundMakeUp.version !== makeup.version)
+          throw new InvalidVersionColumnError();
+        const foundAttendence = await queryRunner.manager
+          .createQueryBuilder(UserAttendStudySession, "a")
+          .setLock("pessimistic_write")
+          .useTransaction(true)
+          .leftJoinAndSelect("a.studySession", "studySession")
+          .leftJoinAndSelect("a.student", "student")
+          .leftJoinAndSelect("student.user", "user")
+          .where("studySession.id = :studySessionId", { studySessionId: makeup.studySession.id })
+          .andWhere("user.id = :userId", { userId: makeup.student.user.id })
+          .getOne();
+        if (foundAttendence === null)
+          throw new NotFoundError();
+        foundAttendence.isAttend = makeup.isAttend;
+        foundAttendence.commentOfTeacher = makeup.commentOfTeacher;
+        await queryRunner.manager.upsert(UserAttendStudySession, foundAttendence, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
+  }
+
 
 
   async getPersonalInformation(userId: number): Promise<UserTeacher> {
