@@ -4,8 +4,8 @@ import UserAttendStudySessionRepositoryInterface from "./userAttendStudySession.
 
 
 class UserAttendStudySessionRepositoryImpl implements UserAttendStudySessionRepositoryInterface {
-  async findAttendenceByStudentAndCourse(studentId: number, courseSlug: string): Promise<UserAttendStudySession[]> {
-    const result = await UserAttendStudySession.createQueryBuilder('a')
+  async findAttendenceByStudentAndCourse(studentId: number, courseSlug: string, teacherId: number | undefined): Promise<UserAttendStudySession[]> {
+    let query = UserAttendStudySession.createQueryBuilder('a')
       .setLock("pessimistic_read")
       .useTransaction(true)
       .leftJoinAndSelect("a.student", "student")
@@ -13,8 +13,10 @@ class UserAttendStudySessionRepositoryImpl implements UserAttendStudySessionRepo
       .leftJoinAndSelect("a.studySession", "studySession")
       .leftJoinAndSelect("studySession.course", "course")
       .where("userStudent.id = :studentId", { studentId })
-      .andWhere("course.slug = :courseSlug", { courseSlug })
-      .getMany();
+      .andWhere("course.slug = :courseSlug", { courseSlug });
+    if (teacherId !== undefined)
+      query = query.andWhere("studySession.teacherWorker = :teacherId", { teacherId })
+    const result = await query.getMany();
     for (let index = 0; index < result.length; index++) {
       const attendence = result[index];
       attendence.studySession.shifts = await

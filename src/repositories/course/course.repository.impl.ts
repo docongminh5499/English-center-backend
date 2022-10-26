@@ -1,32 +1,51 @@
 import moment = require("moment");
 import { Pageable, Selectable, Sortable } from "..";
 import { Course } from "../../entities/Course";
+import { StudySession } from "../../entities/StudySession";
 import Queryable from "../../utils/common/queryable.interface";
 import CourseRepositoryInterface from "./course.repository.interface";
 
 class CourseRepositoryImpl implements CourseRepositoryInterface {
-    async countCourseByTeacher(queryable: Queryable<Course>, teacherId?: number): Promise<number> {
+    async countCourseByTeacher(queryable: Queryable<Course>, teacherId: number): Promise<number> {
         let query = Course.createQueryBuilder()
             .setLock("pessimistic_read")
             .useTransaction(true);
         query = queryable.buildQuery(query);
-        if (teacherId !== undefined)
-            query = query.andWhere("teacherWorker = :id", { id: teacherId });
+        query = query.andWhere((qb: any) => {
+            const subQuery = qb
+                .subQuery()
+                .select("ss.courseId")
+                .distinct(true)
+                .from(StudySession, "ss")
+                .where("teacherWorker = :id")
+                .getQuery()
+            return "Course.id IN " + subQuery
+        }).setParameter("id", teacherId);
         return query.getCount()
     }
 
-    async findCourseByTeacher(pageable: Pageable, sortable: Sortable,
-        selectable: Selectable, queryable: Queryable<Course>, teacherId?: number): Promise<Course[]> {
+    async findCourseByTeacher(pageable: Pageable, sortable: Sortable, queryable: Queryable<Course>, teacherId: number): Promise<Course[]> {
         let query = Course.createQueryBuilder()
             .setLock("pessimistic_read")
             .useTransaction(true);
-        query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
-        if (teacherId !== undefined)
-            query = query.andWhere("teacherWorker = :id", { id: teacherId });
+        query = query
+            .leftJoinAndSelect("Course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            .andWhere((qb: any) => {
+                const subQuery = qb
+                    .subQuery()
+                    .select("ss.courseId")
+                    .distinct(true)
+                    .from(StudySession, "ss")
+                    .where("teacherWorker = :id")
+                    .getQuery()
+                return "Course.id IN " + subQuery
+            }).setParameter("id", teacherId);
         query = sortable.buildQuery(query);
         query = pageable.buildQuery(query);
-        return query.execute()
+        return query.getMany()
     }
 
     async findCourseForTimetableByStudent(studentId: number): Promise<Course[]> {

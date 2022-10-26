@@ -19,7 +19,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
 
 
 
-    async findStudySessionsByCourseSlug(courseSlug: string, pageable: Pageable): Promise<StudySession[]> {
+    async findStudySessionsByCourseSlug(courseSlug: string, pageable: Pageable, teacherId?: number | undefined): Promise<StudySession[]> {
         let queryStmt = StudySession.createQueryBuilder('ss')
             .setLock("pessimistic_read")
             .useTransaction(true)
@@ -33,7 +33,9 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .leftJoinAndSelect("ss.classroom", "classroom")
             .leftJoinAndSelect("classroom.branch", "branch")
             .where("course.slug = :courseSlug", { courseSlug })
-            .orderBy({ "ss.date": "ASC" })
+            .orderBy({ "ss.date": "ASC" });
+        if (teacherId !== undefined)
+            queryStmt = queryStmt.andWhere("teacherUser.id = :teacherId", { teacherId })
         queryStmt = pageable.buildQuery(queryStmt);
         const results = await queryStmt.getMany();
         for (let index = 0; index < results.length; index++) {
@@ -44,12 +46,14 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
     }
 
 
-    async countStudySessionsByCourseSlug(courseSlug: string): Promise<number> {
+    async countStudySessionsByCourseSlug(courseSlug: string, teacherId?: number | undefined): Promise<number> {
         let queryStmt = StudySession.createQueryBuilder('ss')
             .setLock("pessimistic_read")
             .useTransaction(true)
             .leftJoinAndSelect("ss.course", "course")
             .where("course.slug = :courseSlug", { courseSlug });
+        if (teacherId !== undefined)
+            queryStmt = queryStmt.andWhere("ss.teacherWorker = :teacherId", { teacherId })
         return await queryStmt.getCount();
     }
 
@@ -59,6 +63,9 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .setLock("pessimistic_read")
             .useTransaction(true)
             .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("course.teacher", "courseTeacher")
+            .leftJoinAndSelect("courseTeacher.worker", "courseTeacherWorker")
+            .leftJoinAndSelect("courseTeacherWorker.user", "courseTeacherUser")
             .leftJoinAndSelect("ss.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "teacherWorker")
             .leftJoinAndSelect("teacherWorker.user", "teacherUser")
@@ -69,9 +76,18 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .leftJoinAndSelect("classroom.branch", "branch")
             .where("ss.id = :studySessionId", { studySessionId })
             .getOne();
-        if (studySession !== null) 
+        if (studySession !== null)
             studySession.shifts = await ShiftRepository.findShiftsByStudySession(studySession.id);
         return studySession;
+    }
+
+
+    async findCourseIdsByTeacherId(teacherId: number): Promise<{ id: number }[]> {
+        return await StudySession.createQueryBuilder("ss")
+            .select("ss.courseId", "id")
+            .distinct(true)
+            .where("teacherWorker = :id", { id: teacherId })
+            .execute();
     }
 }
 

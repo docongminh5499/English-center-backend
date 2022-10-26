@@ -1,6 +1,6 @@
 import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto, FileDto, CredentialDto } from "../../dto";
 import { Course } from "../../entities/Course";
-import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Sortable } from "../../repositories";
 import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
 import DocumentRepository from "../../repositories/document/document.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
@@ -46,37 +46,31 @@ import { StudySessionState } from "../../utils/constants/studySessionState.const
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
-    const selectable = new Selectable()
-      .add("Course.id", "id")
-      .add("Course.image", "image")
-      .add("closingDate", "closingDate")
-      .add("Course.name", "name")
-      .add("openingDate", "openingDate")
-      .add("slug", "slug");
     const sortable = new Sortable()
       .add("openingDate", "DESC")
-      .add("name", "ASC");
+      .add("Course.name", "ASC");
     const pageable = new Pageable(pageableDto);
-
     const [courseCount, courseList] = await Promise.all([
       CourseRepository.countCourseByTeacher(queryable, teacherId),
-      CourseRepository.findCourseByTeacher(pageable, sortable, selectable, queryable, teacherId)
+      CourseRepository.findCourseByTeacher(pageable, sortable, queryable, teacherId)
     ]);
-
     const courseListDto = new CourseListDto();
     courseListDto.courses = courseList;
     courseListDto.limit = pageable.limit;
     courseListDto.skip = pageable.offset;
     courseListDto.total = courseCount;
-
     return courseListDto;
   }
 
 
   async getCourseDetail(teacherId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== teacherId)
-      return null;
+    if (course === null) return null;
+    // Check permissions
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(teacherId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) return null;
+    // Return data
     const courseDetail = new CourseDetailDto();
     courseDetail.version = course.version;
     courseDetail.id = course.id;
@@ -88,10 +82,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     courseDetail.closingDate = course.closingDate;
     courseDetail.expectedClosingDate = course.expectedClosingDate;
     courseDetail.image = course.image;
-    courseDetail.documents = course.documents;
-    courseDetail.studySessions = course.studySessions;
-    courseDetail.exercises = course.exercises;
     courseDetail.curriculum = course.curriculum;
+    courseDetail.teacher = course.teacher;
     return courseDetail;
   }
 
@@ -99,9 +91,14 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getStudents(userId: number, courseSlug: string,
     query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
-    if (userId === undefined) return { total: 0, students: [] };
+    if (userId === undefined || courseSlug === undefined) return { total: 0, students: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== userId) return { total: 0, students: [] };
+    if (course === null) return { total: 0, students: [] };
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(userId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) return { total: 0, students: [] };
+
     const pageable = new Pageable(pageableDto);
     const result = await StudentParticipateCourseRepository.findStudentsByCourseSlug(courseSlug, pageable, query);
     const total = await StudentParticipateCourseRepository.countStudentsByCourseSlug(courseSlug, query);
@@ -117,15 +114,20 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     courseSlug: string): Promise<{ student: UserStudent, doExercises: StudentDoExercise[], attendences: UserAttendStudySession[], makeUpLessons: MakeUpLession[] }> {
     if (userId === undefined) throw new NotFoundError();
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== userId) throw new ValidationError([]);
+    if (course === null) throw new NotFoundError();
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(userId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) throw new ValidationError([]);
     if (!StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug))
       throw new ValidationError([]);
 
+    const isSameTeacher = course.teacher.worker.user.id === userId;
     const [student, doExercises, attendences, makeUpLessons] = await Promise.all([
       UserStudentRepository.findStudentById(studentId),
-      StudentDoExerciseRepository.findMaxScoreDoExerciseByStudentAndCourse(studentId, courseSlug),
-      UserAttendStudySessionRepository.findAttendenceByStudentAndCourse(studentId, courseSlug),
-      MakeUpLessionRepository.findByStudentAndCourse(studentId, courseSlug),
+      isSameTeacher ? StudentDoExerciseRepository.findMaxScoreDoExerciseByStudentAndCourse(studentId, courseSlug) : [],
+      UserAttendStudySessionRepository.findAttendenceByStudentAndCourse(studentId, courseSlug, isSameTeacher ? undefined : userId),
+      MakeUpLessionRepository.findByStudentAndCourse(studentId, courseSlug, isSameTeacher ? undefined : userId),
     ]);
     if (student === null) throw new NotFoundError();
     return { student, doExercises, attendences, makeUpLessons };
@@ -252,10 +254,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     pageableDto: PageableDto): Promise<{ total: number, studySessions: StudySession[] }> {
     if (teacherId === undefined) return { total: 0, studySessions: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== teacherId) return { total: 0, studySessions: [] };
+    if (course === null) return { total: 0, studySessions: [] };
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(teacherId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) return { total: 0, studySessions: [] };
+
+    const isSameTeacher = course.teacher.worker.user.id === teacherId
     const pageable = new Pageable(pageableDto);
-    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable);
-    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable, isSameTeacher ? undefined : teacherId);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug, isSameTeacher ? undefined : teacherId);
     return {
       total: total,
       studySessions: result,
@@ -274,7 +282,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (teacherId === undefined || studySessionId === undefined) return result;
     result.studySession = await StudySessionRepository.findStudySessionById(studySessionId);
     if (result.studySession === null) return result;
-    if (result.studySession.teacher.worker.user.id !== teacherId) {
+    if (result.studySession.teacher.worker.user.id !== teacherId &&
+      result.studySession.course.teacher.worker.user.id !== teacherId) {
       result.studySession = null;
       return result;
     }

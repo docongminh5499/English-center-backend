@@ -3,8 +3,8 @@ import MakeUpLessionRepositoryInterface from "./makeUpLesson.repository.interfac
 
 
 class MakeUpLessionRepositoryImpl implements MakeUpLessionRepositoryInterface {
-  async findByStudentAndCourse(studentId: number, courseSlug: string): Promise<MakeUpLession[]> {
-    return await MakeUpLession.createQueryBuilder("mul")
+  async findByStudentAndCourse(studentId: number, courseSlug: string, teacherId: number | undefined): Promise<MakeUpLession[]> {
+    let query = MakeUpLession.createQueryBuilder("mul")
       .setLock("pessimistic_read")
       .useTransaction(true)
       .leftJoinAndSelect("mul.student", "student")
@@ -15,7 +15,9 @@ class MakeUpLessionRepositoryImpl implements MakeUpLessionRepositoryInterface {
       .leftJoinAndSelect("targetStudySession.course", "courseTargetStudySession")
       .where("userStudent.id = :studentId", { studentId })
       .andWhere("courseStudySession.slug = :courseSlug", { courseSlug })
-      .getMany();
+    if (teacherId !== undefined)
+      query = query.andWhere("studySession.teacherWorker = :teacherId", { teacherId })
+    return await query.getMany();
   }
 
 

@@ -2,12 +2,14 @@ import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import Pageable from "../helpers/pageable";
 
-export default interface StudySessionRepository{
+export default interface StudySessionRepository {
     findStudySessionByStudent: (studentId: number, courseId: string) => Promise<UserAttendStudySession[] | null>;
 
-    findStudySessionsByCourseSlug: (courseSlug: string, pageable: Pageable) => Promise<StudySession[]>;
+    findStudySessionsByCourseSlug: (courseSlug: string, pageable: Pageable, teacherId?: number | undefined) => Promise<StudySession[]>;
 
-    countStudySessionsByCourseSlug: (courseSlug: string) => Promise<number>;
+    countStudySessionsByCourseSlug: (courseSlug: string, teacherId?: number | undefined) => Promise<number>;
 
-    findStudySessionById: (studySessionId: number) => Promise<StudySession|null>;
+    findStudySessionById: (studySessionId: number) => Promise<StudySession | null>;
+
+    findCourseIdsByTeacherId: (teacherId: number) => Promise<{ id: number }[]>;
 }
