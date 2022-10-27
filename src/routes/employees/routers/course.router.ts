@@ -150,4 +150,15 @@ router.post("/create-course", upload.single('image'), async (req: any, res: any,
 })
 
 
+router.post("/reopen-course", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await EmployeeService.repoenCourse(req.user.userId, req.body.courseSlug));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
 export { router as CourseRouter };

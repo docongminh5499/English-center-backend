@@ -200,4 +200,15 @@ router.delete("/delete-document/:documentId", async (req: any, res: any, next: a
   }
 })
 
+
+router.post("/close-course", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await TeacherService.closeCourse(req.user.userId, req.body.courseSlug));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
 export { router as CourseRouter };

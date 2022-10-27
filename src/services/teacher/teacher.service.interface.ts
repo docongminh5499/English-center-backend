@@ -64,4 +64,6 @@ export default interface TeacherService {
     addPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
 
     removePreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
+
+    closeCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 }

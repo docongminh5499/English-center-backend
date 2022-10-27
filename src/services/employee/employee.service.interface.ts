@@ -33,4 +33,6 @@ export default interface EmployeeService {
         pageableDto: PageableDto) => Promise<{ total: number, studySessions: StudySession[] }>;
 
     createCourse: (userId?: number, createCourseDto?: CreateCourseDto) => Promise<Course | null>;
+
+    repoenCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 }

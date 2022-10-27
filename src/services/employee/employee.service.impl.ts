@@ -323,7 +323,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySession.teacher = choseSchedule.choseTeacher;
         studySession.classroom = choseSchedule.choseClassroom[sheduleIndex];
         const validateErrors = await validate(studySession);
-        if (validateErrors.length)  throw new ValidationError(validateErrors);
+        if (validateErrors.length) throw new ValidationError(validateErrors);
         await queryRunner.manager.save(studySession);
         if (index === curriculum.lectures.length - 1) {
           course.expectedClosingDate = new Date(date.getTime());
@@ -336,7 +336,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         firstDayOfSession = new Date(firstDayOfSession.setDate(firstDayOfSession.getDate() + offset));
       }
       const savedCourseValidateErrors = await validate(savedCourse);
-      if (savedCourseValidateErrors.length)  throw new ValidationError(savedCourseValidateErrors);
+      if (savedCourseValidateErrors.length) throw new ValidationError(savedCourseValidateErrors);
       savedCourse = await queryRunner.manager.save(savedCourse);
 
       await queryRunner.commitTransaction();
@@ -348,6 +348,20 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       await queryRunner.release();
       return null;
     }
+  }
+
+
+  async repoenCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
+    if (userId === undefined || courseSlug === undefined) return null;
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    if (course === null) return null;
+    if (course.closingDate === null) return null;
+    if (employee.worker.branch.id !== course.branch.id) return null;
+    course.closingDate = null;
+    const savedCourse = await course.save();
+    return savedCourse;
   }
 }
 

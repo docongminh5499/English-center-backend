@@ -42,6 +42,7 @@ import { TeacherPreferCurriculum } from "../../entities/TeacherPreferCurriculum"
 import TeacherPreferCurriculumRepository from "../../repositories/teacherPreferCurriculum/teacherPreferCurriculum.repository.impl";
 import { getStudySessionState } from "../../utils/functions/getStudySessionState";
 import { StudySessionState } from "../../utils/constants/studySessionState.constant";
+import moment = require("moment");
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -728,11 +729,25 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     return true;
   }
 
+
   async removePreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
     if (userId === undefined || curriculumId === undefined) return false;
     const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
     if (teacher === null) return false;
     return await TeacherPreferCurriculumRepository.deletePreferCurriculum(userId, curriculumId);
+  }
+
+
+  async closeCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
+    if (userId === undefined || courseSlug === undefined) return null;
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) return null;
+    if (course.teacher.worker.user.id !== userId) return null;
+    if (course.closingDate !== null) return null;
+    if (moment().diff(moment(course.expectedClosingDate)) < 0) return null;
+    course.closingDate = new Date();
+    const savedCourse = await course.save();
+    return savedCourse;
   }
 }
 
