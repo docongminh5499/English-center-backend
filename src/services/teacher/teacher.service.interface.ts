@@ -66,4 +66,6 @@ export default interface TeacherService {
     removePreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
 
     closeCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+
+    getSchedule: (pageableDto: PageableDto, userId?: number, startDate?: Date, endDate?: Date) => Promise<{ total: number, studySessions: StudySession[] }>;
 }

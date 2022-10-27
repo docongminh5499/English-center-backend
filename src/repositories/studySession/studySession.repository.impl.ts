@@ -1,3 +1,5 @@
+import moment = require("moment");
+import { Brackets } from "typeorm";
 import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import Pageable from "../helpers/pageable";
@@ -88,6 +90,57 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .distinct(true)
             .where("teacherWorker = :id", { id: teacherId })
             .execute();
+    }
+
+
+    async findStudySessionsByTeacherId(teacherId: number, startDate: Date, endDate: Date, pageable: Pageable): Promise<StudySession[]> {
+        let queryStmt = StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "teacherWorker")
+            .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("course.teacher", "courseTeacher")
+            .leftJoinAndSelect("courseTeacher.worker", "courseTeacherWorker")
+            .leftJoinAndSelect("courseTeacherWorker.user", "courseTeacherUser")
+            .leftJoinAndSelect("ss.classroom", "classroom")
+            .leftJoinAndSelect("classroom.branch", "branch")
+            .where(new Brackets(qb => {
+                qb.where("teacherUser.id = :teacherId", { teacherId })
+                    .orWhere("courseTeacherUser.id = :teacherId", { teacherId })
+            }))
+            .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
+            .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .orderBy({ "ss.date": "ASC" });
+        queryStmt = pageable.buildQuery(queryStmt);
+        const results = await queryStmt.getMany();
+        for (let index = 0; index < results.length; index++) {
+            const studySession = results[index];
+            studySession.shifts = await ShiftRepository.findShiftsByStudySession(studySession.id);
+        }
+        return results;
+    }
+
+
+    async countStudySessionsByTeacherId(teacherId: number, startDate: Date, endDate: Date): Promise<number> {
+        return await StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "teacherWorker")
+            .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("course.teacher", "courseTeacher")
+            .leftJoinAndSelect("courseTeacher.worker", "courseTeacherWorker")
+            .leftJoinAndSelect("courseTeacherWorker.user", "courseTeacherUser")
+            .where(new Brackets(qb => {
+                qb.where("teacherUser.id = :teacherId", { teacherId })
+                    .orWhere("courseTeacherUser.id = :teacherId", { teacherId })
+            }))
+            .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
+            .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .getCount();
     }
 }
 

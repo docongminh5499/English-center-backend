@@ -749,6 +749,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const savedCourse = await course.save();
     return savedCourse;
   }
+
+
+  async getSchedule(pageableDto: PageableDto, userId?: number, startDate?: Date, endDate?: Date): Promise<{ total: number, studySessions: StudySession[] }> {
+    const result = { total: 0, studySessions: [] as StudySession[] }
+    if (userId === undefined || startDate === undefined || endDate === undefined) return result;
+    const pageable = new Pageable(pageableDto);
+    result.studySessions = await StudySessionRepository.findStudySessionsByTeacherId(userId, startDate, endDate, pageable);
+    result.total = await StudySessionRepository.countStudySessionsByTeacherId(userId, startDate, endDate);
+    return result;
+  }
 }
 
 const TeacherService = new TeacherServiceImpl();

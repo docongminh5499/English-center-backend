@@ -12,4 +12,8 @@ export default interface StudySessionRepository {
     findStudySessionById: (studySessionId: number) => Promise<StudySession | null>;
 
     findCourseIdsByTeacherId: (teacherId: number) => Promise<{ id: number }[]>;
+
+    findStudySessionsByTeacherId: (teacherId: number, startDate: Date, endDate: Date, pageable: Pageable) => Promise<StudySession[]>;
+
+    countStudySessionsByTeacherId: (teacherId: number, startDate: Date, endDate: Date) => Promise<number>;
 }
