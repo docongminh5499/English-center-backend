@@ -43,6 +43,8 @@ import TeacherPreferCurriculumRepository from "../../repositories/teacherPreferC
 import { getStudySessionState } from "../../utils/functions/getStudySessionState";
 import { StudySessionState } from "../../utils/constants/studySessionState.constant";
 import moment = require("moment");
+import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
+import { UserEmployee } from "../../entities/UserEmployee";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -85,6 +87,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     courseDetail.image = course.image;
     courseDetail.curriculum = course.curriculum;
     courseDetail.teacher = course.teacher;
+    courseDetail.branch = course.branch;
     return courseDetail;
   }
 
@@ -758,6 +761,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     result.studySessions = await StudySessionRepository.findStudySessionsByTeacherId(userId, startDate, endDate, pageable);
     result.total = await StudySessionRepository.countStudySessionsByTeacherId(userId, startDate, endDate);
     return result;
+  }
+
+
+  async getEmployeeByBranch(userId?: number, branchId?: number): Promise<UserEmployee[]> {
+    if (userId === undefined || branchId === undefined) return [];
+    return await EmployeeRepository.findUserEmployeeByBranch(branchId);
   }
 }
 

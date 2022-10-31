@@ -1,4 +1,4 @@
-import { CourseDetailDto, CourseListDto, CreateCourseDto, PageableDto } from "../../dto";
+import { CourseDetailDto, CourseListDto, CreateCourseDto, PageableDto, StudySessionDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
@@ -35,4 +35,14 @@ export default interface EmployeeService {
     createCourse: (userId?: number, createCourseDto?: CreateCourseDto) => Promise<Course | null>;
 
     repoenCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+
+    getShifts: (date: Date) => Promise<Shift[]>;
+
+    getAvailableTeachersInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number,  curriculumId?: number, branchId?: number) => Promise<UserTeacher[]>;
+
+    getAvailableTutorsInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number, branchId?: number) => Promise<UserTutor[]>;
+
+    getAvailableClassroomInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number, branchId?: number) => Promise<Classroom[]>;
+
+    updateStudySession: (userId?: number, studySessionDto?: StudySessionDto) => Promise<StudySession | null>;
 }

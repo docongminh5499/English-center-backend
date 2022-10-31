@@ -7,6 +7,7 @@ import { COURSE_DESTINATION } from "../../../utils/constants/course.constant";
 import CreateCourseDtoMapper from "../mappers/createCourse.mapper";
 import PageableMapper from "../mappers/pageable.mapper";
 import CourseQueryable from "../queryables/course.queryable";
+import StudySessionMapper from "../mappers/studySession.mapper";
 
 const router = express.Router();
 const storage = multer.diskStorage({
@@ -158,6 +159,83 @@ router.post("/reopen-course", async (req: any, res: any, next: any) => {
     next(err);
   }
 });
+
+
+
+router.post("/get-shifts", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await EmployeeService.getShifts(req.body.date));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+
+router.post("/get-available-teachers-in-date", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.getAvailableTeachersInDate(
+      req.user.userId,
+      req.body.date,
+      req.body.shiftIds,
+      req.body.studySession,
+      req.body.curriculumId,
+      req.body.branchId
+    );
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/get-available-tutors-in-date", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.getAvailableTutorsInDate(
+      req.user.userId,
+      req.body.date,
+      req.body.shiftIds,
+      req.body.studySession,
+      req.body.branchId
+    );
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/get-available-classrooms-in-date", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.getAvailableClassroomInDate(
+      req.user.userId,
+      req.body.date,
+      req.body.shiftIds,
+      req.body.studySession,
+      req.body.branchId
+    );
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/update-study-session", async (req: any, res: any, next: any) => {
+  try {
+    const studySessionDto = StudySessionMapper.mapToDto(req.body);
+    const result = await EmployeeService.updateStudySession(req.user.userId, studySessionDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
 
 
 

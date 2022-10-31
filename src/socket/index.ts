@@ -3,9 +3,11 @@ import * as http from "http";
 import addMessageEventHandler from "./message";
 import addNotificationEventHandler from "./notification";
 import addBasicEventHandler from "./basic";
+import { DefaultEventsMap } from "socket.io/dist/typed-events";
 
+let io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>;
 export const socketInitialization = (server: http.Server) => {
-  const io = new Server(server, {
+  io = new Server(server, {
     cors: { origin: "http://localhost:3000" }
   });
 
@@ -13,3 +15,4 @@ export const socketInitialization = (server: http.Server) => {
   addMessageEventHandler(io);
   addNotificationEventHandler(io);
 }
+export { io };

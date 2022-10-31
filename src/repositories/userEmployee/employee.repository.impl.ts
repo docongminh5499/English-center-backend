@@ -14,6 +14,17 @@ class EmployeeRepositoryImpl implements EmployeeRepositoryInferface {
       .getOne();
   }
 
+
+  async findUserEmployeeByBranch(branchId: number): Promise<UserEmployee[]> {
+    return await UserEmployee.createQueryBuilder("employee")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("employee.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .where("branch.id = :branchId", { branchId })
+      .getMany();
+  }
 }
 
 

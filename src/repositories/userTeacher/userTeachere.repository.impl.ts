@@ -1,3 +1,5 @@
+import moment = require("moment");
+import { StudySession } from "../../entities/StudySession";
 import { UserTeacher } from "../../entities/UserTeacher";
 import UserTeacherRepositoryInterface from "./userTeacher.repository.interface";
 
@@ -56,6 +58,38 @@ class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
       .andWhere("curriculums.latest = true")
       .getCount();
     return result > 0;
+  }
+
+
+  async findTeachersAvailableInDate(date: Date, shiftIds: number[], studySession: number, curriculumId: number, branchId?: number): Promise<UserTeacher[]> {
+    const busyTeacherIdsQuery = StudySession.createQueryBuilder("ss")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("ss.shifts", "shifts")
+      .leftJoinAndSelect("ss.teacher", "teacher")
+      .leftJoinAndSelect("teacher.worker", "worker")
+      .leftJoinAndSelect("worker.user", "userTeacher")
+      .select("userTeacher.id", "id")
+      .distinct(true)
+      .where("ss.date = :date", { date: moment(date).format("YYYY-MM-DD") })
+      .andWhere("ss.id <> :studySessionId", { studySessionId: studySession })
+      .andWhere(`shifts.id IN (:...ids)`, { ids: shiftIds });
+
+    let teacherQuery = UserTeacher.createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.worker", "worker")
+      .leftJoinAndSelect("worker.user", "userTeacher")
+      .leftJoinAndSelect("tt.preferredCurriculums", "preferredCurriculums")
+      .leftJoinAndSelect("preferredCurriculums.curriculum", "curriculums")
+    if (branchId !== undefined)
+      teacherQuery = teacherQuery.leftJoinAndSelect("worker.branch", "branch");
+    teacherQuery = teacherQuery.where(`userTeacher.id NOT IN (${busyTeacherIdsQuery.getQuery()})`)
+      .andWhere("curriculums.id = :curriculumId", { curriculumId })
+    if (branchId !== undefined)
+      teacherQuery = teacherQuery.andWhere("branch.id = :branchId", { branchId })
+    teacherQuery = teacherQuery.setParameters(busyTeacherIdsQuery.getParameters());
+    return await teacherQuery.getMany();
   }
 }
 

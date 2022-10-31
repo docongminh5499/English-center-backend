@@ -211,4 +211,15 @@ router.post("/close-course", async (req: any, res: any, next: any) => {
 });
 
 
+router.post("/get-employee-by-branch", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await TeacherService.getEmployeeByBranch(req.user.userId, req.body.branchId));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
 export { router as CourseRouter };

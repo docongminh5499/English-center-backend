@@ -1,5 +1,7 @@
+import moment = require("moment");
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
+import { Weekday } from "../../utils/constants/weekday.constant";
 import ShiftRepositoryInterface from "./shift.repository.interface";
 
 class ShiftRepositoryImpl implements ShiftRepositoryInterface {
@@ -25,7 +27,7 @@ class ShiftRepositoryImpl implements ShiftRepositoryInterface {
       .select("shifts.id", "id")
       .distinct(true)
       .where("userTeacher.id = :teacherId", { teacherId })
-      .andWhere("ss.date >= :beginingDate", { beginingDate })
+      .andWhere("ss.date >= :beginingDate", { beginingDate: moment(beginingDate).format("YYYY-MM-DD") })
     const availableShiftsQuery = Shift.createQueryBuilder("s")
       .setLock("pessimistic_read")
       .useTransaction(true)
@@ -45,6 +47,16 @@ class ShiftRepositoryImpl implements ShiftRepositoryInterface {
       .useTransaction(true)
       .leftJoinAndSelect("shift.studySessions", "studySessions")
       .where(`studySessions.id = :studySessionId`, { studySessionId })
+      .orderBy({ "startTime": "ASC" })
+      .getMany();
+  }
+
+
+  async findShiftsByWeekDay(weekDay: Weekday): Promise<Shift[]> {
+    return await Shift.createQueryBuilder('shift')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .where(`shift.weekDay = :weekDay`, { weekDay })
       .orderBy({ "startTime": "ASC" })
       .getMany();
   }
