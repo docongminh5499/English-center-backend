@@ -8,6 +8,7 @@ import { Exercise } from "../../entities/Exercise";
 import { MakeUpLession } from "../../entities/MakeUpLession";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudySession } from "../../entities/StudySession";
+import { Tag } from "../../entities/Tag";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { UserEmployee } from "../../entities/UserEmployee";
 import { UserStudent } from "../../entities/UserStudent";
@@ -71,4 +72,6 @@ export default interface TeacherService {
     getSchedule: (pageableDto: PageableDto, userId?: number, startDate?: Date, endDate?: Date) => Promise<{ total: number, studySessions: StudySession[] }>;
 
     getEmployeeByBranch: (userId?: number, branchId?: number) => Promise<UserEmployee[]>;
+
+    getCurriculumTags: (userId: number) => Promise<Tag[]>;
 }

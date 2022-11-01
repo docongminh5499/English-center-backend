@@ -45,6 +45,9 @@ import { StudySessionState } from "../../utils/constants/studySessionState.const
 import moment = require("moment");
 import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
 import { UserEmployee } from "../../entities/UserEmployee";
+import { Tag } from "../../entities/Tag";
+import TagRepository from "../../repositories/tag/tag.repository.impl";
+import { TagsType } from "../../utils/constants/tags.constant";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -583,6 +586,23 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       newCurriculum.name = curriculumDto.curriculum.name;
       newCurriculum.desc = curriculumDto.curriculum.desc;
       newCurriculum.type = curriculumDto.curriculum.type;
+      newCurriculum.shiftsPerSession = parseInt(curriculumDto.curriculum.shiftsPerSession as any);
+      newCurriculum.level = curriculumDto.curriculum.level;
+      newCurriculum.tags = await Promise.all(
+        curriculumDto.curriculum.tags.map(async (tag: any) => {     // tag is string
+          const foundTag = await queryRunner.manager
+            .createQueryBuilder(Tag, "tag")
+            .setLock("pessimistic_write")
+            .useTransaction(true)
+            .where(`tag.name = :name`, { name: tag })
+            .getOne();
+          if (foundTag) return foundTag;
+          const tagEntity = new Tag();
+          tagEntity.name = tag;
+          tagEntity.type = TagsType.Curriculum;
+          return await queryRunner.manager.save(tagEntity);
+        })
+      );
       newCurriculum.latest = true;
       if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
         newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
@@ -603,7 +623,18 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       const newCurriculumValidateErrors = await validate(newCurriculum);
       if (newCurriculumValidateErrors.length) throw new ValidationError(newCurriculumValidateErrors);
 
-      await queryRunner.manager.save(foundCurriculum);
+      // Delete modified curriculum if there is no course using it.
+      const count = await CourseRepository.countByCurriculumId(foundCurriculum.id);
+      if (count === 0) {
+        if (foundCurriculum && foundCurriculum.image) {
+          const filePath = path.join(process.cwd(), "public", foundCurriculum.image);
+          fs.unlinkSync(filePath);
+        }
+        await queryRunner.manager.remove(foundCurriculum);
+      } else {
+        await queryRunner.manager.save(foundCurriculum);
+      }
+
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
       if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
       for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
@@ -648,11 +679,27 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       newCurriculum.name = curriculumDto.curriculum.name;
       newCurriculum.desc = curriculumDto.curriculum.desc;
       newCurriculum.type = curriculumDto.curriculum.type;
+      newCurriculum.shiftsPerSession = parseInt(curriculumDto.curriculum.shiftsPerSession as any);
+      newCurriculum.level = curriculumDto.curriculum.level;
+      newCurriculum.tags = await Promise.all(
+        curriculumDto.curriculum.tags.map(async (tag: any) => {     // tag is string
+          const foundTag = await queryRunner.manager
+            .createQueryBuilder(Tag, "tag")
+            .setLock("pessimistic_write")
+            .useTransaction(true)
+            .where(`tag.name = :name`, { name: tag })
+            .getOne();
+          if (foundTag) return foundTag;
+          const tagEntity = new Tag();
+          tagEntity.name = tag;
+          tagEntity.type = TagsType.Curriculum;
+          return await queryRunner.manager.save(tagEntity);
+        })
+      );
       newCurriculum.latest = true;
       if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
         newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
       }
-
       const curriculumValidateErrors = await validate(newCurriculum);
       if (curriculumValidateErrors.length) throw new ValidationError(curriculumValidateErrors);
 
@@ -767,6 +814,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getEmployeeByBranch(userId?: number, branchId?: number): Promise<UserEmployee[]> {
     if (userId === undefined || branchId === undefined) return [];
     return await EmployeeRepository.findUserEmployeeByBranch(branchId);
+  }
+
+
+  async getCurriculumTags(userId: number): Promise<Tag[]> {
+    if (userId === undefined) return [];
+    return await TagRepository.getCurriculumTags();
   }
 }
 
