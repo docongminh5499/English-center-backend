@@ -158,8 +158,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.branch.id !== employee.worker.branch.id) return { total: 0, studySessions: [] };
     const pageable = new Pageable(pageableDto);
-    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable);
-    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlugAndTeacher(courseSlug, pageable);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlugAndTeacher(courseSlug);
 
     return {
       total: total,

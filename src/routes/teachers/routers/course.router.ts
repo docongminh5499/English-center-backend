@@ -24,9 +24,6 @@ const upload = multer({ storage: storage })
 
 router.get("/get-course", async (req: any, res: any, next: any) => {
   try {
-
-    // TODO: Admin get all courses, not depending on teacher id
-
     const pageableDto = PageableMapper.mapToDto(req.query);
     const queryable = new CourseQueryable().map(req.query);
     const courseListDto = await TeacherService.getCoursesByTeacher(req.user.userId, pageableDto, queryable);

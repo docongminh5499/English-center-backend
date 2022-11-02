@@ -21,7 +21,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
 
 
 
-    async findStudySessionsByCourseSlug(courseSlug: string, pageable: Pageable, teacherId?: number | undefined): Promise<StudySession[]> {
+    async findStudySessionsByCourseSlugAndTeacher(courseSlug: string, pageable: Pageable, teacherId?: number | undefined): Promise<StudySession[]> {
         let queryStmt = StudySession.createQueryBuilder('ss')
             .setLock("pessimistic_read")
             .useTransaction(true)
@@ -48,7 +48,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
     }
 
 
-    async countStudySessionsByCourseSlug(courseSlug: string, teacherId?: number | undefined): Promise<number> {
+    async countStudySessionsByCourseSlugAndTeacher(courseSlug: string, teacherId?: number | undefined): Promise<number> {
         let queryStmt = StudySession.createQueryBuilder('ss')
             .setLock("pessimistic_read")
             .useTransaction(true)
@@ -141,6 +141,93 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
             .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
             .getCount();
+    }
+
+
+    async findStudySessionsByTutorId(tutorId: number, startDate: Date, endDate: Date, pageable: Pageable): Promise<StudySession[]> {
+        let queryStmt = StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.tutor", "tutor")
+            .leftJoinAndSelect("tutor.worker", "tutorWorker")
+            .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("ss.classroom", "classroom")
+            .leftJoinAndSelect("classroom.branch", "branch")
+            .where("tutorUser.id = :tutorId", { tutorId })
+            .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
+            .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .orderBy({ "ss.date": "ASC" });
+        queryStmt = pageable.buildQuery(queryStmt);
+        const results = await queryStmt.getMany();
+        for (let index = 0; index < results.length; index++) {
+            const studySession = results[index];
+            studySession.shifts = await ShiftRepository.findShiftsByStudySession(studySession.id);
+        }
+        return results;
+    }
+
+
+    async countStudySessionsByTutorId(tutorId: number, startDate: Date, endDate: Date): Promise<number> {
+        return await StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.tutor", "tutor")
+            .leftJoinAndSelect("tutor.worker", "tutorWorker")
+            .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("ss.classroom", "classroom")
+            .leftJoinAndSelect("classroom.branch", "branch")
+            .where("tutorUser.id = :tutorId", { tutorId })
+            .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
+            .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .getCount();
+    }
+
+
+    async findCourseIdsByTutorId(tutorId: number): Promise<{ id: number }[]> {
+        return await StudySession.createQueryBuilder("ss")
+            .select("ss.courseId", "id")
+            .distinct(true)
+            .where("tutorWorker = :id", { id: tutorId })
+            .execute();
+    }
+
+
+    async findStudySessionsByCourseSlugAndTutor(courseSlug: string, pageable: Pageable, tutorId: number): Promise<StudySession[]> {
+        let queryStmt = StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "teacherWorker")
+            .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+            .leftJoinAndSelect("ss.tutor", "tutor")
+            .leftJoinAndSelect("tutor.worker", "tutorWorker")
+            .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("ss.classroom", "classroom")
+            .leftJoinAndSelect("classroom.branch", "branch")
+            .where("course.slug = :courseSlug", { courseSlug })
+            .andWhere("tutorUser.id = :tutorId", { tutorId })
+            .orderBy({ "ss.date": "ASC" });
+        queryStmt = pageable.buildQuery(queryStmt);
+        const results = await queryStmt.getMany();
+        for (let index = 0; index < results.length; index++) {
+            const studySession = results[index];
+            studySession.shifts = await ShiftRepository.findShiftsByStudySession(studySession.id);
+        }
+        return results;
+    }
+
+
+    async countStudySessionsByCourseSlugAndTutor(courseSlug: string, tutorId: number): Promise<number> {
+        let queryStmt = StudySession.createQueryBuilder('ss')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.course", "course")
+            .where("course.slug = :courseSlug", { courseSlug })
+            .andWhere("ss.tutorWorker = :tutorId", { tutorId })
+        return await queryStmt.getCount();
     }
 }
 

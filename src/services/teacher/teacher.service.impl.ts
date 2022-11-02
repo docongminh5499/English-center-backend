@@ -269,8 +269,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
     const isSameTeacher = course.teacher.worker.user.id === teacherId
     const pageable = new Pageable(pageableDto);
-    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable, isSameTeacher ? undefined : teacherId);
-    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug, isSameTeacher ? undefined : teacherId);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlugAndTeacher(courseSlug, pageable, isSameTeacher ? undefined : teacherId);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlugAndTeacher(courseSlug, isSameTeacher ? undefined : teacherId);
     return {
       total: total,
       studySessions: result,
@@ -479,7 +479,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
 
     persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
-    persistenceUserTeacher.worker.user.dateOfBirth = userTeacher.worker.user.dateOfBirth;
+    persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).toDate();
     persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
     persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
     persistenceUserTeacher.worker.nation = userTeacher.worker.nation;
@@ -576,7 +576,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     try {
       if (curriculumDto == undefined || curriculumDto.curriculum.id == undefined)
         throw new NotFoundError();
-      const foundCurriculum = await CurriculumRepository.getCurriculumById(curriculumDto.curriculum.id);
+      const foundCurriculum = await queryRunner.manager
+        .createQueryBuilder(Curriculum, "curriculum")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("curriculum.lectures", "lectures")
+        .leftJoinAndSelect("curriculum.tags", "tags")
+        .where("curriculum.id = :curriculumId", { curriculumId: curriculumDto.curriculum.id })
+        .andWhere("curriculum.latest = true")
+        .getOne();
+
       if (foundCurriculum === null)
         throw new NotFoundError();
       if (curriculumDto.curriculum.version !== foundCurriculum?.version)
@@ -622,9 +631,23 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (oldCurriculumValidateErrors.length) throw new ValidationError(oldCurriculumValidateErrors);
       const newCurriculumValidateErrors = await validate(newCurriculum);
       if (newCurriculumValidateErrors.length) throw new ValidationError(newCurriculumValidateErrors);
-
+      // Get list teachers who prefer the curiculum
+      const prefers = await queryRunner.manager
+        .createQueryBuilder(TeacherPreferCurriculum, "p")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("p.teacher", "teacher")
+        .leftJoinAndSelect("p.curriculum", "curriculum")
+        .getMany();
       // Delete modified curriculum if there is no course using it.
-      const count = await CourseRepository.countByCurriculumId(foundCurriculum.id);
+      const count = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("curriculum.id = :curriculumId", { curriculumId: foundCurriculum.id })
+        .getCount();
+
       if (count === 0) {
         if (foundCurriculum && foundCurriculum.image) {
           const filePath = path.join(process.cwd(), "public", foundCurriculum.image);
@@ -637,6 +660,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
       if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
+      for (const prefer of prefers) {
+        const preferEntity = new TeacherPreferCurriculum();
+        preferEntity.curriculum = savedCurriculum;
+        preferEntity.teacher = prefer.teacher;
+        await queryRunner.manager.save(preferEntity);
+      }
       for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
         const lecture = curriculumDto.curriculum.lectures[index];
         const newLecture = new Lecture();
