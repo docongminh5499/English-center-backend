@@ -9,7 +9,6 @@ import { Tag } from "../../entities/Tag";
 import { MakeUpLession } from "../../entities/MakeUpLession";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudySession } from "../../entities/StudySession";
-import { Tag } from "../../entities/Tag";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { UserEmployee } from "../../entities/UserEmployee";
 import { UserStudent } from "../../entities/UserStudent";

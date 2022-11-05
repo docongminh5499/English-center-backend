@@ -50,9 +50,7 @@ import { StudySessionState } from "../../utils/constants/studySessionState.const
 import moment = require("moment");
 import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
 import { UserEmployee } from "../../entities/UserEmployee";
-import { Tag } from "../../entities/Tag";
 import TagRepository from "../../repositories/tag/tag.repository.impl";
-import { TagsType } from "../../utils/constants/tags.constant";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
