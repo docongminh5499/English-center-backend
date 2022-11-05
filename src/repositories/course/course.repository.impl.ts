@@ -61,6 +61,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
             .orderBy({
                 "course.openingDate": "ASC",
+                "shifts.startTime": "ASC",
             })
             .getMany();
         console.log(studentCourses);
@@ -91,10 +92,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
-            // .leftJoinAndSelect("course.studySessions", "studySessions")
             .leftJoinAndSelect("course.exercises", "exercises")
-            // .leftJoinAndSelect("course.curriculum", "curriculum")
-            // .leftJoinAndSelect("curriculum.lectures", "lectures")
             .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
             .leftJoinAndSelect("studentPaticipateCourses.student", "student")
             .leftJoinAndSelect("student.user", "userStudent")

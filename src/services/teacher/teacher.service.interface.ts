@@ -5,6 +5,7 @@ import { Course } from "../../entities/Course";
 import { Curriculum } from "../../entities/Curriculum";
 import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
+import { Tag } from "../../entities/Tag";
 import { MakeUpLession } from "../../entities/MakeUpLession";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudySession } from "../../entities/StudySession";
@@ -59,6 +60,12 @@ export default interface TeacherService {
 
     deleteCurriculum: (curriculumId?: number) => Promise<boolean>;
 
+    //Hoc Exercise
+    createExercise: (courseId: number, basicInfo: any, questions: any[]) => Promise<Exercise | null>;
+
+    addNewQuestionTag: (tagName: string) => Promise<Tag | null>;
+
+    getAllQuestionTags: () => Promise<Tag[]>;
     getPreferedCurriculums: (userId?: number) => Promise<Curriculum[]>;
 
     getCheckPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
