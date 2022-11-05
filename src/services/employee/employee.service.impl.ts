@@ -474,6 +474,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           });
         }
       }
+      if (course.image) {
+        const filePath = path.join(process.cwd(), "public", course.image);
+        fs.unlinkSync(filePath);
+      }
       await queryRunner.manager.remove(course);
       // Curriculum
       const courseCount = await queryRunner.manager
