@@ -34,15 +34,25 @@ export default interface EmployeeService {
 
     createCourse: (userId?: number, createCourseDto?: CreateCourseDto) => Promise<Course | null>;
 
+    closeCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+
     repoenCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+
+    removeCourse: (userId?: number, courseSlug?: string) => Promise<boolean>;
 
     getShifts: (date: Date) => Promise<Shift[]>;
 
-    getAvailableTeachersInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number,  curriculumId?: number, branchId?: number) => Promise<UserTeacher[]>;
+    getAvailableTeachersInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number, curriculumId?: number, branchId?: number) => Promise<UserTeacher[]>;
 
     getAvailableTutorsInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number, branchId?: number) => Promise<UserTutor[]>;
 
     getAvailableClassroomInDate: (userId?: number, date?: Date, shiftIds?: number[], studySession?: number, branchId?: number) => Promise<Classroom[]>;
 
+    getAvaiableStudentCount: (userId?: number, studySessionId?: number, courseSlug?: string, date?: Date, shiftIds?: number[]) => Promise<{ total: number, free: number, acceptedPercent: number }>;
+
+    addStudySession: (userId?: number, courseSlug?: string, studySessionDto?: StudySessionDto) => Promise<StudySession | null>;
+
     updateStudySession: (userId?: number, studySessionDto?: StudySessionDto) => Promise<StudySession | null>;
+
+    removeStudySession: (userId?: number, studySessionId?: number) => Promise<boolean>;
 }

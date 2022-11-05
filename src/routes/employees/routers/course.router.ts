@@ -162,6 +162,17 @@ router.post("/reopen-course", async (req: any, res: any, next: any) => {
 
 
 
+router.post("/close-course", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await EmployeeService.closeCourse(req.user.userId, req.body.courseSlug));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
 router.post("/get-shifts", async (req: any, res: any, next: any) => {
   try {
     return res.status(200).json(await EmployeeService.getShifts(req.body.date));
@@ -226,6 +237,19 @@ router.post("/get-available-classrooms-in-date", async (req: any, res: any, next
 })
 
 
+router.post("/add-study-session", async (req: any, res: any, next: any) => {
+  try {
+    const studySessionDto = StudySessionMapper.mapToDto(req.body);
+    const result = await EmployeeService.addStudySession(req.user.userId, req.body.courseSlug, studySessionDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
 router.post("/update-study-session", async (req: any, res: any, next: any) => {
   try {
     const studySessionDto = StudySessionMapper.mapToDto(req.body);
@@ -237,6 +261,39 @@ router.post("/update-study-session", async (req: any, res: any, next: any) => {
   }
 })
 
+
+router.post("/get-available-student-count", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.getAvaiableStudentCount(
+      req.user.userId, req.body.studySessionId, req.body.courseSlug, req.body.date, req.body.shiftIds);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+router.post("/remove-study-session", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.removeStudySession(req.user.userId, req.body.studySessionId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+router.post("/remove-course", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.removeCourse(req.user.userId, req.body.courseSlug);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
 
 
 export { router as CourseRouter };
