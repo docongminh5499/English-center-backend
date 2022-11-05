@@ -13,4 +13,6 @@ export default interface StudentParticipateCourseRepository {
     getAverageStarPointByCourseSlug: (courseSlug: string) => Promise<number>;
 
     getCommentsByCourseSlug: (courseSlug: string, pageable: Pageable) => Promise<StudentParticipateCourse[]>;
+
+    checkStudentParticipateCourse: (studentId: number, courseSlug: string) => Promise<boolean>;
 }

@@ -5,6 +5,7 @@ import { CourseRouter } from "./routers/course.router";
 import { TeacherCurriculumRouter } from "./routers/curriculum.router";
 import { TeacherExerciseRouter } from "./routers/exercise.route";
 import { TeacherPersonalRouter } from "./routers/personal.router";
+import { TeacherScheduleRouter } from "./routers/schedule.router";
 
 const router = express.Router();
 
@@ -13,5 +14,6 @@ router.use("/courses", CourseRouter);
 router.use("/personal", TeacherPersonalRouter);
 router.use("/curriculum", TeacherCurriculumRouter);
 router.use("/exercise", TeacherExerciseRouter);
+router.use("/schedule", TeacherScheduleRouter);
 
 export default router;

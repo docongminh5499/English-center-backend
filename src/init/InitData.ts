@@ -18,6 +18,7 @@ import { createStudentUser } from "./createStudentUser";
 import { createStudySession } from "./createStudySession";
 import { createTag } from "./createTag";
 import { createTeachers } from "./createTeacher";
+import { createTeacherPreferCurriculums } from "./createTeacherPreferCurriculum";
 import { createTutors } from "./createTutor";
 
 export async function initData() {
@@ -38,7 +39,9 @@ export async function initData() {
 
   const curriculums = await createCurriculums(curriculumTags);
 
-  const teachers = await createTeachers(branches, curriculums);
+  const teachers = await createTeachers(branches);
+
+  const prefered = await createTeacherPreferCurriculums(teachers, curriculums);
 
   await createTutors(branches, shifts);
 
@@ -48,7 +51,7 @@ export async function initData() {
 
   await createParents(students);
 
-  const courses = await createCourse(teachers, curriculums, branches);
+  const courses = await createCourse(curriculums, branches, prefered);
 
   courses.sort((prev: Course, next: Course) => {
     if (prev.openingDate > next.openingDate) return 1;

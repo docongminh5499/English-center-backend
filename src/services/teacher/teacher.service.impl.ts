@@ -1,6 +1,6 @@
 import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto, FileDto, CredentialDto } from "../../dto";
 import { Course } from "../../entities/Course";
-import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Sortable } from "../../repositories";
 import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
 import DocumentRepository from "../../repositories/document/document.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
@@ -18,7 +18,6 @@ import * as jwt from "jsonwebtoken";
 import { AppDataSource } from "../../utils/functions/dataSource";
 import { InvalidVersionColumnError } from "../../utils/errors/invalidVersionColumn.error";
 import { Curriculum } from "../../entities/Curriculum";
-import { AccountRole } from "../../utils/constants/role.constant";
 import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
 import CurriculumDto from "../../dto/requests/curriculum.dto";
 import { CURRICULUM_DESTINATION_SRC } from "../../utils/constants/curriculum.constant";
@@ -35,40 +34,51 @@ import { WrongAnswer } from "../../entities/WrongAnswer";
 import { Tag } from "../../entities/Tag";
 import { DuplicateError } from "../../utils/errors/duplicate.error";
 import { TagsType } from "../../utils/constants/tags.constant";
+import { StudySession } from "../../entities/StudySession";
+import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
+import { StudentDoExercise } from "../../entities/StudentDoExercise";
+import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
+import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
+import StudentDoExerciseRepository from "../../repositories/studentDoExercise/studentDoExercise.repository.impl";
+import UserAttendStudySessionRepository from "../../repositories/userAttendStudySession/userAttendStudySession.repository.impl";
+import { MakeUpLession } from "../../entities/MakeUpLession";
+import MakeUpLessionRepository from "../../repositories/makeUpLesson/makeUpLesson.repository.impl";
+import { TeacherPreferCurriculum } from "../../entities/TeacherPreferCurriculum";
+import TeacherPreferCurriculumRepository from "../../repositories/teacherPreferCurriculum/teacherPreferCurriculum.repository.impl";
+import { getStudySessionState } from "../../utils/functions/getStudySessionState";
+import { StudySessionState } from "../../utils/constants/studySessionState.constant";
+import moment = require("moment");
+import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
+import { UserEmployee } from "../../entities/UserEmployee";
+
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
-    const selectable = new Selectable()
-      .add("Course.id", "id")
-      .add("Course.image", "image")
-      .add("closingDate", "closingDate")
-      .add("Course.name", "name")
-      .add("openingDate", "openingDate")
-      .add("slug", "slug");
     const sortable = new Sortable()
       .add("openingDate", "DESC")
-      .add("name", "ASC");
+      .add("Course.name", "ASC");
     const pageable = new Pageable(pageableDto);
-
     const [courseCount, courseList] = await Promise.all([
       CourseRepository.countCourseByTeacher(queryable, teacherId),
-      CourseRepository.findCourseByTeacher(pageable, sortable, selectable, queryable, teacherId)
+      CourseRepository.findCourseByTeacher(pageable, sortable, queryable, teacherId)
     ]);
-
     const courseListDto = new CourseListDto();
     courseListDto.courses = courseList;
     courseListDto.limit = pageable.limit;
     courseListDto.skip = pageable.offset;
     courseListDto.total = courseCount;
-
     return courseListDto;
   }
 
 
   async getCourseDetail(teacherId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== teacherId)
-      return null;
+    if (course === null) return null;
+    // Check permissions
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(teacherId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) return null;
+    // Return data
     const courseDetail = new CourseDetailDto();
     courseDetail.version = course.version;
     courseDetail.id = course.id;
@@ -80,10 +90,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     courseDetail.closingDate = course.closingDate;
     courseDetail.expectedClosingDate = course.expectedClosingDate;
     courseDetail.image = course.image;
-    courseDetail.documents = course.documents;
-    courseDetail.studySessions = course.studySessions;
-    courseDetail.exercises = course.exercises;
     courseDetail.curriculum = course.curriculum;
+    courseDetail.teacher = course.teacher;
+    courseDetail.branch = course.branch;
     return courseDetail;
   }
 
@@ -91,13 +100,13 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getStudents(userId: number, courseSlug: string,
     query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
-    if (userId === undefined) return { total: 0, students: [] };
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return { total: 0, students: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, students: [] };
-
+    if (userId === undefined || courseSlug === undefined) return { total: 0, students: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== userId) return { total: 0, students: [] };
+    if (course === null) return { total: 0, students: [] };
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(userId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) return { total: 0, students: [] };
 
     const pageable = new Pageable(pageableDto);
     const result = await StudentParticipateCourseRepository.findStudentsByCourseSlug(courseSlug, pageable, query);
@@ -110,13 +119,32 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
 
+  async getStudentDetailsInCourse(userId: number, studentId: number,
+    courseSlug: string): Promise<{ student: UserStudent, doExercises: StudentDoExercise[], attendences: UserAttendStudySession[], makeUpLessons: MakeUpLession[] }> {
+    if (userId === undefined) throw new NotFoundError();
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(userId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) throw new ValidationError([]);
+    if (!StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug))
+      throw new ValidationError([]);
+
+    const isSameTeacher = course.teacher.worker.user.id === userId;
+    const [student, doExercises, attendences, makeUpLessons] = await Promise.all([
+      UserStudentRepository.findStudentById(studentId),
+      isSameTeacher ? StudentDoExerciseRepository.findMaxScoreDoExerciseByStudentAndCourse(studentId, courseSlug) : [],
+      UserAttendStudySessionRepository.findAttendenceByStudentAndCourse(studentId, courseSlug, isSameTeacher ? undefined : userId),
+      MakeUpLessionRepository.findByStudentAndCourse(studentId, courseSlug, isSameTeacher ? undefined : userId),
+    ]);
+    if (student === null) throw new NotFoundError();
+    return { student, doExercises, attendences, makeUpLessons };
+  }
+
 
   async getExercises(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, exercises: Exercise[] }> {
     if (userId === undefined) return { total: 0, exercises: [] };
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return { total: 0, exercises: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, exercises: [] };
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return { total: 0, exercises: [] };
 
@@ -133,10 +161,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async deleteExercise(teacherId: number, exerciseId: number): Promise<boolean> {
     if (teacherId === undefined) return false;
-    const account = await AccountRepository.findByUserId(teacherId);
-    if (account === null) return false;
-    if (account.role !== AccountRole.TEACHER) return false;
-
     const exercise = await ExerciseRepository.findExerciseById(exerciseId);
     if (exercise === null) return false;
     if (exercise.course.teacher.worker.user.id !== teacherId) return false;
@@ -151,10 +175,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getDocuments(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, documents: Document[] }> {
     if (userId === undefined) return { total: 0, documents: [] };
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return { total: 0, documents: [] };
-    if (account.role !== AccountRole.TEACHER) return { total: 0, documents: [] };
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return { total: 0, documents: [] };
 
@@ -170,9 +190,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async deleteDocument(teacherId: number, documentId: number): Promise<boolean> {
     if (teacherId === undefined) return false;
-    const account = await AccountRepository.findByUserId(teacherId);
-    if (account === null) return false;
-    if (account.role !== AccountRole.TEACHER) return false;
 
     const document = await DocumentRepository.findDocumentById(documentId);
     if (document === null) return false;
@@ -185,9 +202,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async createDocument(userId: number, documentDto: DocumentDto): Promise<Document | null> {
     if (userId === undefined) return null;
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
 
     if (documentDto.courseSlug === undefined)
       throw new ValidationError([]);
@@ -221,10 +235,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const result = { total: 0, average: 0, starTypeCount: {}, comments: [] };
 
     if (userId === undefined) return result;
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return result;
-    if (account.role !== AccountRole.TEACHER) return result;
-
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.teacher.worker.user.id !== userId) return result;
     if (course.closingDate === null || course.closingDate === undefined) return result;
@@ -246,6 +256,213 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       }));
     return { total, average: average, starTypeCount, comments: maskedComment };
   }
+
+
+
+  async getStudySessions(teacherId: number, courseSlug: string,
+    pageableDto: PageableDto): Promise<{ total: number, studySessions: StudySession[] }> {
+    if (teacherId === undefined) return { total: 0, studySessions: [] };
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) return { total: 0, studySessions: [] };
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(teacherId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) return { total: 0, studySessions: [] };
+
+    const isSameTeacher = course.teacher.worker.user.id === teacherId
+    const pageable = new Pageable(pageableDto);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable, isSameTeacher ? undefined : teacherId);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug, isSameTeacher ? undefined : teacherId);
+    return {
+      total: total,
+      studySessions: result,
+    };
+  }
+
+
+  async getStudySessionDetail(teacherId?: number, studySessionId?: number):
+    Promise<{ studySession: StudySession | null, attendences: UserAttendStudySession[], makeups: MakeUpLession[], ownMakeups: MakeUpLession[] }> {
+    const result = {
+      studySession: null as StudySession | null,
+      attendences: [] as UserAttendStudySession[],
+      makeups: [] as MakeUpLession[],
+      ownMakeups: [] as MakeUpLession[],
+    };
+    if (teacherId === undefined || studySessionId === undefined) return result;
+    result.studySession = await StudySessionRepository.findStudySessionById(studySessionId);
+    if (result.studySession === null) return result;
+    if (result.studySession.teacher.worker.user.id !== teacherId &&
+      result.studySession.course.teacher.worker.user.id !== teacherId) {
+      result.studySession = null;
+      return result;
+    }
+    if (getStudySessionState(result.studySession) === StudySessionState.Ready) {
+      result.studySession = null;
+      return result;
+    }
+    const attendences = await UserAttendStudySessionRepository.findAttendenceByStudySessionId(studySessionId);
+    if (attendences.length > 0) {
+      const makeupsByStudySessions = await MakeUpLessionRepository.findByStudySessionId(studySessionId);
+      const makeupsByTargetStudySessions = await MakeUpLessionRepository.findByTargetStudySessionId(studySessionId);
+      result.attendences = attendences;
+      result.makeups = makeupsByTargetStudySessions;
+      result.ownMakeups = makeupsByStudySessions;
+      return result;
+    }
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      let current = 0;
+      const total = await StudentParticipateCourseRepository.countStudentsByCourseSlug(result.studySession.course.slug);
+      while (current < total) {
+        const pageable = new Pageable({ limit: 20, skip: current });
+        const participations = await StudentParticipateCourseRepository.findStudentsByCourseSlug(result.studySession.course.slug, pageable);
+        for (const participation of participations) {
+          let userAttendStudySession = new UserAttendStudySession();
+          userAttendStudySession.student = participation.student;
+          userAttendStudySession.studySession = result.studySession;
+          userAttendStudySession.commentOfTeacher = "";
+          userAttendStudySession.isAttend = true;
+          await queryRunner.manager.save(userAttendStudySession);
+        }
+        current = current + participations.length;
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      const attendences = await UserAttendStudySessionRepository.findAttendenceByStudySessionId(studySessionId);
+      const makeupsByStudySessions = await MakeUpLessionRepository.findByStudySessionId(studySessionId);
+      const makeupsByTargetStudySessions = await MakeUpLessionRepository.findByTargetStudySessionId(studySessionId);
+      result.attendences = attendences;
+      result.makeups = makeupsByTargetStudySessions;
+      result.ownMakeups = makeupsByStudySessions;
+      return result;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      result.studySession = null;
+      return result;
+    }
+  }
+
+
+  async modifyStudySessionDetail(teacherId?: number, studySession?: StudySession, attendences?: UserAttendStudySession[], makeups?: MakeUpLession[]): Promise<boolean> {
+    if (teacherId === undefined || studySession === undefined || attendences === undefined || makeups === undefined) return false;
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      const foundStudySession = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "teacherWorker")
+        .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+        .leftJoinAndSelect("ss.shifts", "shifts")
+        .where("ss.id = :studySessionId", { studySessionId: studySession.id })
+        .orderBy({
+          "shifts.weekDay": "ASC",
+          "shifts.startTime": "ASC",
+        }).getOne();
+      if (foundStudySession === null || foundStudySession.teacher.worker.user.id !== teacherId)
+        throw new NotFoundError();
+      // Check course and studySession state
+      if (getStudySessionState(foundStudySession) === StudySessionState.Ready)
+        throw new ValidationError([]);
+      if (foundStudySession.course.closingDate !== null)
+        throw new ValidationError([]);
+      // Update study session
+      if (foundStudySession.version !== studySession.version)
+        throw new InvalidVersionColumnError();
+      foundStudySession.notes = studySession.notes;
+      const savedStudySession = await queryRunner.manager.save(foundStudySession);
+      if (savedStudySession.version !== studySession.version + 1
+        && savedStudySession.version !== studySession.version)
+        throw new InvalidVersionColumnError();
+      // Update attendences
+      for (let index = 0; index < attendences.length; index++) {
+        const attendence = attendences[index];
+        if (attendence.studySession.id !== studySession.id)
+          throw new ValidationError([]);
+        const foundAttendence = await queryRunner.manager
+          .createQueryBuilder(UserAttendStudySession, "a")
+          .setLock("pessimistic_write")
+          .useTransaction(true)
+          .leftJoinAndSelect("a.studySession", "studySession")
+          .leftJoinAndSelect("a.student", "student")
+          .leftJoinAndSelect("student.user", "user")
+          .where("studySession.id = :studySessionId", { studySessionId: attendence.studySession.id })
+          .andWhere("user.id = :userId", { userId: attendence.student.user.id })
+          .getOne();
+        if (foundAttendence === null)
+          throw new NotFoundError();
+        if (foundAttendence.version !== attendence.version)
+          throw new InvalidVersionColumnError();
+        foundAttendence.isAttend = attendence.isAttend;
+        foundAttendence.commentOfTeacher = attendence.commentOfTeacher;
+        await queryRunner.manager.upsert(UserAttendStudySession, foundAttendence, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+        await foundAttendence.reload();
+        if (foundAttendence.version !== attendence.version + 1
+          && foundAttendence.version !== attendence.version)
+          throw new InvalidVersionColumnError();
+      }
+      for (let index = 0; index < makeups.length; index++) {
+        const makeup = makeups[index];
+        if (makeup.targetStudySession.id !== studySession.id)
+          throw new ValidationError([]);
+        const foundMakeUp = await queryRunner.manager
+          .createQueryBuilder(MakeUpLession, "mul")
+          .setLock("pessimistic_write")
+          .useTransaction(true)
+          .leftJoinAndSelect("mul.student", "student")
+          .leftJoinAndSelect("student.user", "user")
+          .leftJoinAndSelect("mul.targetStudySession", "targetStudySession")
+          .where("targetStudySession.id = :studySessionId", { studySessionId: makeup.targetStudySession.id })
+          .andWhere("user.id = :userId", { userId: makeup.student.user.id })
+          .getOne();
+        if (foundMakeUp === null)
+          throw new NotFoundError();
+        if (foundMakeUp.version !== makeup.version)
+          throw new InvalidVersionColumnError();
+        foundMakeUp.isAttend = makeup.isAttend;
+        foundMakeUp.commentOfTeacher = makeup.commentOfTeacher;
+        await queryRunner.manager.upsert(MakeUpLession, foundMakeUp, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+        await foundMakeUp.reload();
+        if (foundMakeUp.version !== makeup.version + 1
+          && foundMakeUp.version !== makeup.version)
+          throw new InvalidVersionColumnError();
+        const foundAttendence = await queryRunner.manager
+          .createQueryBuilder(UserAttendStudySession, "a")
+          .setLock("pessimistic_write")
+          .useTransaction(true)
+          .leftJoinAndSelect("a.studySession", "studySession")
+          .leftJoinAndSelect("a.student", "student")
+          .leftJoinAndSelect("student.user", "user")
+          .where("studySession.id = :studySessionId", { studySessionId: makeup.studySession.id })
+          .andWhere("user.id = :userId", { userId: makeup.student.user.id })
+          .getOne();
+        if (foundAttendence === null)
+          throw new NotFoundError();
+        foundAttendence.isAttend = makeup.isAttend;
+        foundAttendence.commentOfTeacher = makeup.commentOfTeacher;
+        await queryRunner.manager.upsert(UserAttendStudySession, foundAttendence, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
+  }
+
 
 
   async getPersonalInformation(userId: number): Promise<UserTeacher> {
@@ -339,10 +556,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getCurriculumList(userId?: number): Promise<Curriculum[]> {
     if (userId === undefined) return [];
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return [];
-    if (account.role !== AccountRole.TEACHER) return [];
     return await CurriculumRepository.getCurriculumList();
   }
 
@@ -351,10 +564,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getCurriculum(userId?: number, curriculumId?: number): Promise<Curriculum | null> {
     if (curriculumId === undefined) return null;
     if (userId === undefined) return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
     return await CurriculumRepository.getCurriculumById(curriculumId);
   }
 
@@ -362,11 +571,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async modifyCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
     if (userId === undefined) return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
-
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
@@ -436,10 +640,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async createCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
     if (userId === undefined) return null;
-
-    const account = await AccountRepository.findByUserId(userId);
-    if (account === null) return null;
-    if (account.role !== AccountRole.TEACHER) return null;
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -635,6 +835,72 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       }
     });
     return tag;
+  }
+
+
+  async getPreferedCurriculums(userId?: number): Promise<Curriculum[]> {
+    if (userId === undefined) return [];
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+    if (teacher === null) return [];
+    return teacher.preferredCurriculums.map(prefer => prefer.curriculum);
+  }
+
+
+  async getCheckPreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
+    return UserTeacherRepository.checkPreferredCurriculum(userId, curriculumId);
+  }
+
+
+  async addPreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+    if (teacher === null) return false;
+    const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
+    if (curriculum === null) return false;
+
+    const prefer = new TeacherPreferCurriculum();
+    prefer.curriculum = curriculum;
+    prefer.teacher = teacher;
+    await prefer.save();
+    return true;
+  }
+
+
+  async removePreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+    if (teacher === null) return false;
+    return await TeacherPreferCurriculumRepository.deletePreferCurriculum(userId, curriculumId);
+  }
+
+
+  async closeCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
+    if (userId === undefined || courseSlug === undefined) return null;
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) return null;
+    if (course.teacher.worker.user.id !== userId) return null;
+    if (course.closingDate !== null) return null;
+    if (moment().diff(moment(course.expectedClosingDate)) < 0) return null;
+    course.closingDate = new Date();
+    const savedCourse = await course.save();
+    return savedCourse;
+  }
+
+
+  async getSchedule(pageableDto: PageableDto, userId?: number, startDate?: Date, endDate?: Date): Promise<{ total: number, studySessions: StudySession[] }> {
+    const result = { total: 0, studySessions: [] as StudySession[] }
+    if (userId === undefined || startDate === undefined || endDate === undefined) return result;
+    const pageable = new Pageable(pageableDto);
+    result.studySessions = await StudySessionRepository.findStudySessionsByTeacherId(userId, startDate, endDate, pageable);
+    result.total = await StudySessionRepository.countStudySessionsByTeacherId(userId, startDate, endDate);
+    return result;
+  }
+
+
+  async getEmployeeByBranch(userId?: number, branchId?: number): Promise<UserEmployee[]> {
+    if (userId === undefined || branchId === undefined) return [];
+    return await EmployeeRepository.findUserEmployeeByBranch(branchId);
   }
 }
 

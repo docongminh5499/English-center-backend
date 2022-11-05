@@ -4,10 +4,9 @@ import { Course } from "../../entities/Course";
 import Queryable from "../../utils/common/queryable.interface";
 
 export default interface CourseRepository {
-    findCourseByTeacher: (pageable: Pageable, sortable: Sortable,
-        selectable: Selectable, queryable: Queryable<Course>, teacherId?: number) => Promise<Course[]>;
+    findCourseByTeacher: (pageable: Pageable, sortable: Sortable, queryable: Queryable<Course>, teacherId: number) => Promise<Course[]>;
 
-    countCourseByTeacher: (queryable: Queryable<Course>, teacherId?: number) => Promise<number>;
+    countCourseByTeacher: (queryable: Queryable<Course>, teacherId: number) => Promise<number>;
 
     findCourseForTimetableByStudent: (studentId: number) => Promise<Course[]>;
 
@@ -22,5 +21,10 @@ export default interface CourseRepository {
 
     countByCurriculumId: (curriculumId: number) => Promise<number>;
     
-    findBriefCourseBySlug: (courseSlug: string) => Promise<Course | null>
+    findBriefCourseBySlug: (courseSlug: string) => Promise<Course | null>;
+
+    findCourseByBranch: (pageable: Pageable, sortable: Sortable,
+        selectable: Selectable, queryable: Queryable<Course>, branchId?: number) => Promise<Course[]>;
+
+    countCourseByBranch: (queryable: Queryable<Course>, branchId?: number) => Promise<number>;
 }

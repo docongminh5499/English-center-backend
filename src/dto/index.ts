@@ -6,6 +6,8 @@ import MessageDto from "./requests/message.dto";
 import DocumentDto from "./requests/document.dto";
 import CourseNotificationDto from "./requests/courseNotification.dto";
 import FileDto from "./requests/file.dto";
+import CreateCourseDto from "./requests/createCourse.dto";
+import StudySessionDto from "./requests/studySession.dto";
 
 import CredentialDto from "./responses/credential.dto";
 import CourseListDto from "./responses/courseList.dto";
@@ -32,6 +34,8 @@ export {
     DocumentDto,
     CourseNotificationDto,
     FileDto,
+    CreateCourseDto,
+    StudySessionDto,
     // Response DTO
     CredentialDto,
     CourseListDto,

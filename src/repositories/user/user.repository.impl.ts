@@ -7,19 +7,23 @@ class UserRepositoryImpl implements UserRepositoryInterface {
     const user = await User
       .findOne({
         where: { id: userId },
-        relations: ["socketStatuses"]
+        relations: ["socketStatuses"],
+        lock: { mode: "pessimistic_read" },
+        transaction: true
       });
     return user;
   }
 
   async findUserByFullName(fullName: string): Promise<User[]> {
     return User.createQueryBuilder("user")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
       .leftJoinAndSelect("user.socketStatuses", "socketStatuses")
       .where("user.fullName LIKE :paramFullName", { paramFullName: '%' + fullName + '%' })
       .getMany();
   }
 
-  async findUserByUsername(username: string) : Promise<User>{
+  async findUserByUsername(username: string): Promise<User> {
     const account = await AccountRepository.findByUserName(username);
     return account!.user;
   }

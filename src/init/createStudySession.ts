@@ -32,7 +32,7 @@ let weekDays = [
 
 export async function createStudySession(course: Course, teachers: UserTeacher[]) {
   const choseSchedule: ChoseSchedule = {
-    choseTeacher: faker.helpers.arrayElement(teachers),
+    choseTeacher: course.teacher,
     choseShifts: [],
     choseClassroom: [],
     choseTutor: [],
@@ -128,9 +128,7 @@ export async function createStudySession(course: Course, teachers: UserTeacher[]
     let studySession = new StudySession();
     studySession.name = `Tuần ${week}, Buổi ${dayName}`;
     studySession.date = date;
-    studySession.isTeacherAbsent = false;
     studySession.notes = faker.lorem.paragraphs();
-    studySession.cancelled = false;
     studySession.course = course;
     studySession.shifts = choseSchedule.choseShifts[sheduleIndex];
     studySession.tutor = choseSchedule.choseTutor[sheduleIndex];

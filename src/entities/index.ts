@@ -30,6 +30,7 @@ import { MakeUpLession } from "./MakeUpLession";
 import { StudentDoExercise } from "./StudentDoExercise";
 import { Worker } from "./Worker";
 import { SocketStatus } from "./SocketStatus";
+import { TeacherPreferCurriculum } from "./TeacherPreferCurriculum";
 
 module.exports = [
   Account,
@@ -51,6 +52,7 @@ module.exports = [
   UserTeacher,
   UserTutor,
   Worker,
+  TeacherPreferCurriculum,
   //Hoc
   Branch,
   Classroom,

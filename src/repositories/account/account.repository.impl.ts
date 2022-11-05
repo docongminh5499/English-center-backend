@@ -9,7 +9,9 @@ class AccountRepositoryImpl implements AccountRepositoryInterface {
 
         const account = await Account.findOne({
             where: { username: username },
-            relations: ['user']
+            relations: ['user'],
+            lock: { mode: "pessimistic_read" },
+            transaction: true,
         });
         return account;
     }
@@ -18,7 +20,9 @@ class AccountRepositoryImpl implements AccountRepositoryInterface {
         if (email === undefined)
             return null;
         const user = await User.findOne({
-            where: { email: email }
+            where: { email: email },
+            lock: { mode: "pessimistic_read" },
+            transaction: true,
         });
         return user;
     }
@@ -26,6 +30,8 @@ class AccountRepositoryImpl implements AccountRepositoryInterface {
 
     async findByUserId(userId: number): Promise<Account | null> {
         return await Account.createQueryBuilder('account')
+            .setLock("pessimistic_read")
+            .useTransaction(true)
             .leftJoinAndSelect('account.user', 'user')
             .where("user.id = :userId", { userId })
             .getOne();
