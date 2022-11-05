@@ -30,6 +30,11 @@ import { Exercise } from "../../entities/Exercise";
 import MaskedComment from "../../dto/responses/maskedComment.dto";
 import { getExerciseStatus } from "../../utils/functions/getExerciseStatus";
 import { ExerciseStatus } from "../../utils/constants/exercise.constant";
+import { Question } from "../../entities/Question";
+import { WrongAnswer } from "../../entities/WrongAnswer";
+import { Tag } from "../../entities/Tag";
+import { DuplicateError } from "../../utils/errors/duplicate.error";
+import { TagsType } from "../../utils/constants/tags.constant";
 
 class TeacherServiceImpl implements TeacherServiceInterface {
   async getCoursesByTeacher(teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -500,6 +505,136 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     } else {
       return await CurriculumRepository.setNullCurriculumById(curriculumId);
     }
+  }
+
+  //Hoc Exercise
+  async createExercise(courseId: number, basicInfo: any, questions: any[]) : Promise<Exercise | null>{
+    const course = await CourseRepository.findCourseById(courseId);
+    if(course === null)
+      return null;
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      //Create Exercise
+      const exercise = new Exercise();
+      exercise.course = course!;
+      exercise.name = basicInfo.nameExercise;
+      exercise.maxTime = basicInfo.maxTime;
+      exercise.questions = [];
+
+      const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
+      const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
+      console.log(dateDoExercise)
+      exercise.openTime = new Date(
+        dateDoExercise[0].getFullYear(), 
+        dateDoExercise[0].getMonth(), 
+        dateDoExercise[0].getDate(),
+        timeDoExercise[0].getHours(),
+        timeDoExercise[0].getMinutes(),
+        timeDoExercise[0].getSeconds(),
+      );
+      exercise.endTime = new Date(
+        dateDoExercise[1].getFullYear(), 
+        dateDoExercise[1].getMonth(), 
+        dateDoExercise[1].getDate(),
+        timeDoExercise[1].getHours(),
+        timeDoExercise[1].getMinutes(),
+        timeDoExercise[1].getSeconds(),
+      );
+
+      //Create Question
+      for(const question of questions){
+        const questionEntity = new Question();
+        questionEntity.quesContent = question.quesContent;
+        questionEntity.audioSrc = question.audioSrc;
+        questionEntity.imgSrc = question.imgSrc;
+        questionEntity.answer = question.rightAnswer;
+        questionEntity.tags = [];
+        //TODO: add tags
+        for(const tag of question.tags){
+          const findedTag = await Tag.find({
+            where: {
+              name: tag,
+              type: TagsType.Question,
+            }
+          });
+          if (findedTag.length === 0) continue;
+          questionEntity.tags.push(findedTag[0])
+        }
+
+        const savedQuestion = await queryRunner.manager.save(questionEntity);
+        if(savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
+
+        if(question.wrongAnswer1 !== ''){
+          const wrongAnswer = new WrongAnswer();
+          wrongAnswer.answer = question.wrongAnswer1;
+          wrongAnswer.question = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+        }
+        if(question.wrongAnswer2 !== ''){
+          const wrongAnswer = new WrongAnswer();
+          wrongAnswer.answer = question.wrongAnswer2;
+          wrongAnswer.question = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+        }
+        if(question.wrongAnswer3 !== ''){
+          const wrongAnswer = new WrongAnswer();
+          wrongAnswer.answer = question.wrongAnswer3;
+          wrongAnswer.question = savedQuestion;
+          
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+        }
+
+        exercise.questions.push(savedQuestion);
+      }
+
+      const savedExercise = await queryRunner.manager.save(exercise);
+        if(savedExercise.id === null || savedExercise.id === undefined) throw new Error();
+      
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      return savedExercise;
+    }catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
+  }
+
+  async addNewQuestionTag(tagName: string) : Promise<Tag | null>{
+    try{
+      const isOld = await Tag.find({
+        where: {
+          name: tagName,
+        }
+      });
+      if(isOld.length > 0) throw new DuplicateError();
+      const newTag = new Tag();
+      newTag.name = tagName;
+      newTag.type = TagsType.Question;
+      const savedTag = await Tag.save(newTag);
+      return savedTag;
+    }catch(error){
+      console.log(error);  
+      return null;  
+    }
+  }
+
+  async getAllQuestionTags() : Promise<Tag[]>{
+    const tag = Tag.find({
+      where: {
+        type: TagsType.Question,
+      }
+    });
+    return tag;
   }
 }
 

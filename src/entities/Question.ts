@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable, OneToMany } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Tag } from "./Tag";
+import { WrongAnswer } from "./WrongAnswer";
 
 @Entity()
 export class Question extends MyBaseEntity {
@@ -28,6 +29,9 @@ export class Question extends MyBaseEntity {
   @Length(0, 255)
   @Column({type:'varchar', length: 255, nullable: true })
   audioSrc: string | null;
+
+  @OneToMany(() => WrongAnswer, (wrongAnswer) => wrongAnswer.question)
+  wrongAnswers: WrongAnswer[];
 
   @ManyToMany(() => Tag, {onDelete: "CASCADE", onUpdate: "CASCADE"})
   @JoinTable({ name: "question_belong_tag" })

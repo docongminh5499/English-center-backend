@@ -20,7 +20,7 @@ export class WrongAnswer extends MyBaseEntity {
   @Column({ length: 255, nullable: false })
   answer: string;
 
-  @ManyToOne(() => Question, {
+  @ManyToOne(() => Question, (question) => question.wrongAnswers ,{
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "CASCADE",

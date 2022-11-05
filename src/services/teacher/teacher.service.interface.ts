@@ -5,6 +5,7 @@ import { Course } from "../../entities/Course";
 import { Curriculum } from "../../entities/Curriculum";
 import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
+import { Tag } from "../../entities/Tag";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
@@ -42,4 +43,11 @@ export default interface TeacherService {
     createCurriculum: (userId?: number, curriculumDto?: CurriculumDto) => Promise<Curriculum | null>;
 
     deleteCurriculum: (curriculumId?: number) => Promise<boolean>;
+
+    //Hoc Exercise
+    createExercise: (courseId: number, basicInfo: any, questions: any[]) => Promise<Exercise | null>;
+
+    addNewQuestionTag: (tagName: string) => Promise<Tag | null>;
+
+    getAllQuestionTags: () => Promise<Tag[]>;
 }

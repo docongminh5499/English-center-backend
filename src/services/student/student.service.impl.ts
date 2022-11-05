@@ -1,9 +1,13 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
+import { Exercise } from "../../entities/Exercise";
+import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
 import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
+import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
 import StudentServiceInterface from "./student.service.interface";
 
@@ -32,9 +36,6 @@ class StudentServiceImpl implements StudentServiceInterface {
             CourseRepository.countCourseByStudent(queryable, studentId),
             CourseRepository.findCourseByStudent(pageable, sortable, selectable, queryable, studentId)
         ]);
-        
-        // console.log(courseCount);
-        // console.log(courseList);
         
         const courseListDto = new CourseListDto();
         courseListDto.courses = courseList;
@@ -82,6 +83,64 @@ class StudentServiceImpl implements StudentServiceInterface {
         const attendance = await StudySessionRepository.findStudySessionByStudent(studentId, courseSlug);
         // console.log(attendance);
         return attendance!;
+    }
+
+    async getAllExercises(courseId: number) : Promise<Exercise[] | null>{
+        try{
+            console.log(courseId);
+            const exercise = await Exercise.createQueryBuilder("exercise")
+                                    .leftJoinAndSelect("exercise.questions", "questions")
+                                    .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                                    .leftJoinAndSelect("questions.tags", "tags")
+                                    .where("courseId = :courseId", {courseId: courseId})
+                                    .getMany();
+            return exercise;
+        } catch(error){
+            console.log(error);
+            return null;
+        }
+    }
+
+    async submitExercise(studentId: number, exerciseId: number, answers: any[]) : Promise<StudentDoExercise | null>{
+        try{
+            const student = await UserStudentRepository.findUserStudentById(studentId);
+            const exercise = await ExerciseRepository.findExerciseById(exerciseId);
+            if(student === null || exercise === null){
+                return null;
+            }
+            let rightAnswer = 0;
+            answers.forEach((answer: any) => {
+                if(answer.questionId === parseInt(answer.answerId)){
+                    rightAnswer++;
+                }
+            })
+            const studentDoExercise = new StudentDoExercise();
+            studentDoExercise.student = student;
+            studentDoExercise.exercise = exercise;
+            studentDoExercise.score = rightAnswer/ answers.length * 10;
+            await StudentDoExercise.save(studentDoExercise);
+            return studentDoExercise;
+        } catch(error){
+            console.log(error);
+            return null;
+        }
+    }
+
+    async getStudentDoExercise(studentId: number, courseId: number) : Promise<StudentDoExercise[] | null>{
+        try{
+            const studentDoExercise = StudentDoExercise.createQueryBuilder("studentDoExercise")
+                                                       .leftJoinAndSelect("studentDoExercise.student", "student")
+                                                       .leftJoinAndSelect("student.user", "user")
+                                                       .leftJoinAndSelect("studentDoExercise.exercise", "exercise")
+                                                       .leftJoinAndSelect("exercise.course", "course")
+                                                       .where("user.id = :studentId", {studentId})
+                                                       .andWhere("course.id = :courseId", {courseId})
+                                                       .getMany();
+            return studentDoExercise;
+        } catch(error){
+            console.log(error);
+            return null;
+        }
     }
 }
 
