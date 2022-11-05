@@ -572,6 +572,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     notification.read = false;
     notification.content = notificationDto.content;
     notification.user = foundUser;
+    notification.createdAt = new Date();
 
     const validateErrors = await validate(notification);
     if (validateErrors.length) throw new ValidationError(validateErrors);
