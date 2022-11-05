@@ -29,6 +29,7 @@ import { getStudySessionState } from "../../utils/functions/getStudySessionState
 import { StudySessionState } from "../../utils/constants/studySessionState.constant";
 import UserAttendStudySessionRepository from "../../repositories/userAttendStudySession/userAttendStudySession.repository.impl";
 import MakeUpLessionRepository from "../../repositories/makeUpLesson/makeUpLesson.repository.impl";
+import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
 
 class TutorServiceImpl implements TutorServiceInterface {
   async getCoursesByTutor(tutorId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -243,6 +244,22 @@ class TutorServiceImpl implements TutorServiceInterface {
       total: total,
       students: result.map(r => r.student)
     };
+  }
+
+
+  async getStudentDetailsInCourse(userId: number, studentId: number, courseSlug: string): Promise<{ student: UserStudent }> {
+    if (userId === undefined) throw new NotFoundError();
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+
+    const courseIds = await StudySessionRepository.findCourseIdsByTutorId(userId);
+    const foundId = courseIds.find(object => object.id === course.id);
+    if (!foundId) throw new ValidationError([]);
+    if (!StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug))
+      throw new ValidationError([]);
+    const student = await UserStudentRepository.findStudentById(studentId);
+    if (student === null) throw new NotFoundError();
+    return { student };
   }
 
 

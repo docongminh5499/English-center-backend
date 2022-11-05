@@ -209,9 +209,18 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (employee === null) throw new NotFoundError();
       if (employee.worker.branch.id !== createCourseDto.branch) throw new ValidationError([]);
       // Teacher want to teach the course
-      const teachers = await UserTeacherRepository
-        .findUserTeacherByBranchAndPreferedCurriculum(createCourseDto.branch, createCourseDto.curriculum);
-      const foundTeacher = teachers.find(teacher => teacher.worker.user.id === createCourseDto.teacher);
+      const preferedTeachers = await queryRunner.manager
+        .createQueryBuilder(UserTeacher, "teacher")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .innerJoinAndSelect("teacher.preferredCurriculums", "preferredCurriculums")
+        .innerJoinAndSelect("preferredCurriculums.curriculum", "curriculums")
+        .where("curriculums.id = :curriculumId", { curriculumId: createCourseDto.curriculum })
+        .andWhere("curriculums.latest = true")
+        .getMany();
+      const foundTeacher = preferedTeachers.find(teacher => teacher.worker.user.id === createCourseDto.teacher);
       if (!foundTeacher) throw new ValidationError([]);
       //Find curriculum
       const curriculum = await CurriculumRepository.getCurriculumById(createCourseDto.curriculum);
@@ -735,7 +744,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Check number of student who can attend new study session
       const result = await this.calculateAvailableStudentCount(queryRunner, course.slug,
         new Date(studySessionDto.date), studySessionDto.shiftIds);
-      const percentages = Math.round(result.free / result.total * 1000) / 10;
+      const percentages = result.total === 0 ? 100 : Math.round(result.free / result.total * 1000) / 10;
       if (percentages < result.acceptedPercent) throw new ValidationError([]);
       // Check date
       const openingDate = new Date(course.openingDate);
@@ -1033,7 +1042,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Check number of student who can attend new study session
       const result = await this.calculateAvailableStudentCount(queryRunner, studySession.course.slug,
         updatedDate, studySessionDto.shiftIds, studySessionDto.id);
-      const percentages = Math.round(result.free / result.total * 1000) / 10;
+      const percentages = result.total === 0 ? 100 : Math.round(result.free / result.total * 1000) / 10;
       if (percentages < result.acceptedPercent) throw new ValidationError([]);
       // Update study session
       studySession.name = studySessionDto.name;

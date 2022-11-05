@@ -65,6 +65,7 @@ export default interface TeacherService {
     addNewQuestionTag: (tagName: string) => Promise<Tag | null>;
 
     getAllQuestionTags: () => Promise<Tag[]>;
+    
     getPreferedCurriculums: (userId?: number) => Promise<Curriculum[]>;
 
     getCheckPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
