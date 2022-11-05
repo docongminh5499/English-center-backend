@@ -752,15 +752,17 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         questionEntity.answer = question.rightAnswer;
         questionEntity.tags = [];
         //TODO: add tags
-        for(const tag of question.tags){
-          const findedTag = await Tag.find({
-            where: {
-              name: tag,
-              type: TagsType.Question,
-            }
-          });
-          if (findedTag.length === 0) continue;
-          questionEntity.tags.push(findedTag[0])
+        if(question.tags !== null) {
+          for(const tag of question.tags){
+            const findedTag = await Tag.find({
+              where: {
+                name: tag,
+                type: TagsType.Question,
+              }
+            });
+            if (findedTag.length === 0) continue;
+            questionEntity.tags.push(findedTag[0])
+          }
         }
 
         const savedQuestion = await queryRunner.manager.save(questionEntity);

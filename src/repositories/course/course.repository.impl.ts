@@ -61,7 +61,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
             .orderBy({
                 "course.openingDate": "ASC",
-                                                "shifts.startTime": "ASC",
+                "shifts.startTime": "ASC",
             })
             .getMany();
         console.log(studentCourses);
