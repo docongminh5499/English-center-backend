@@ -4,17 +4,16 @@ import { UserChatEachOther } from "../../entities/UsersChatEachOther";
 import { ValidationError } from "../../utils/errors/validation.error";
 import Pageable from "../helpers/pageable";
 import Sortable from "../helpers/sortable";
+import SocketStatusRepository from "../socketStatus/socketStatus.repository.impl";
 import UserChatEachOtherRepositoryInterface from "./userChatEachOther.repository.interface";
 
 class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
-  async getLastestMessagesByUserId(userId: number, sortable: Sortable): Promise<UserChatEachOther[]> {
+  async getLastestMessagesByUserId(userId: number, sortable: Sortable, pageable: Pageable): Promise<UserChatEachOther[]> {
     let query = UserChatEachOther.createQueryBuilder("chat")
       .setLock("pessimistic_read")
       .useTransaction(true)
       .leftJoinAndSelect("chat.sender", "sender")
-      .leftJoinAndSelect("sender.socketStatuses", "senderSocketStatuses")
       .leftJoinAndSelect("chat.receiver", "receiver")
-      .leftJoinAndSelect("receiver.socketStatuses", "receiverSocketStatuses")
       .where(`chat.id IN (
         SELECT customTable.id FROM (
           select 
@@ -66,8 +65,76 @@ class UserChatEachOtherImpl implements UserChatEachOtherRepositoryInterface {
       .setParameter('senderMaxUserId', userId)
       .setParameter('receiverMaxUserId', userId);
     query = sortable.buildQuery(query);
+    query = pageable.buildQuery(query);
     const messages = await query.getMany();
+    for (const message of messages) {
+      const [senderSocketStatuses, receiverSocketStatuses] = await Promise.all([
+        SocketStatusRepository.findAllSocketConnByUser(message.sender.id),
+        SocketStatusRepository.findAllSocketConnByUser(message.receiver.id),
+      ]);
+      message.sender.socketStatuses = senderSocketStatuses;
+      message.receiver.socketStatuses = receiverSocketStatuses;
+    }
     return messages;
+  }
+
+
+  async countLastestMessagesByUserId(userId: number): Promise<number> {
+    let query = UserChatEachOther.createQueryBuilder("chat")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .where(`chat.id IN (
+      SELECT customTable.id FROM (
+        select 
+          id,
+          sendingTime,
+          messageContent,
+          senderId as userId,
+          receiverId as targetId
+        from user_chat_each_other uceo 
+        WHERE  uceo.senderId = :senderUserId
+        UNION 
+        select 
+          id,
+          sendingTime,
+          messageContent,
+          receiverId  as userId,
+          senderId  as targetId
+        from user_chat_each_other uceo 
+        WHERE  uceo.receiverId = :receiverUserId
+    ) customTable inner join (
+      select max(sendingTime) as maxSendingTime, userId, targetId 
+      from (
+        select 
+          id,
+          sendingTime,
+          messageContent,
+          senderId as userId,
+          receiverId as targetId
+        from user_chat_each_other uceo 
+        WHERE  uceo.senderId = :senderMaxUserId
+        UNION 
+        select 
+          id,
+          sendingTime,
+          messageContent,
+          receiverId  as userId,
+          senderId  as targetId
+        from user_chat_each_other uceo 
+        WHERE  uceo.receiverId = :receiverMaxUserId
+      ) as a
+      GROUP by a.userId, a.targetId 
+    ) as maxTable on 
+    customTable.userId = maxTable.userId 
+    and customTable.targetId = maxTable.targetId 
+    and customTable.sendingTime = maxTable.maxSendingTime
+  )`)
+      .setParameter('senderUserId', userId)
+      .setParameter('receiverUserId', userId)
+      .setParameter('senderMaxUserId', userId)
+      .setParameter('receiverMaxUserId', userId);
+    const count = await query.getCount();
+    return count;
   }
 
 

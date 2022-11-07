@@ -90,12 +90,16 @@ class MessageServiceImpl implements MessageServiceInterface {
   }
 
 
-  async getContacts(userId?: number): Promise<ContactListDto> {
-    if (userId === undefined)
+  async getContacts(userId?: number, pageableDto?: PageableDto): Promise<ContactListDto> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null)
       throw new InvalidTokenError();
 
     const sortable = new Sortable().add("sendingTime", "DESC");
-    const lastestMessages = await UserChatEachOtherRepository.getLastestMessagesByUserId(userId, sortable);
+    const pageable = new Pageable(pageableDto);
+    const [lastestMessages, total] = await Promise.all([
+      UserChatEachOtherRepository.getLastestMessagesByUserId(userId, sortable, pageable),
+      UserChatEachOtherRepository.countLastestMessagesByUserId(userId)
+    ]);
     const contacts = lastestMessages.map(message => {
       const targetUser = message.receiver.id === userId ? message.sender : message.receiver;
 
@@ -117,17 +121,23 @@ class MessageServiceImpl implements MessageServiceInterface {
     });
     const contactListDto = new ContactListDto();
     contactListDto.contacts = contacts;
+    contactListDto.total = total;
     return contactListDto;
   }
 
 
 
-  async findContacts(name?: string | undefined): Promise<ContactListDto> {
+  async findContacts(name?: string | undefined, pageableDto?: PageableDto): Promise<ContactListDto> {
     const contactListDto = new ContactListDto();
     contactListDto.contacts = [];
 
-    if (name === undefined || name.trim() === "") return contactListDto;
-    const users = await UserRepository.findUserByFullName(name);
+    if (name === undefined || pageableDto === undefined || pageableDto === null || name.trim() === "")
+      return contactListDto;
+    const pageable = new Pageable(pageableDto);
+    const [users, total] = await Promise.all([
+      UserRepository.findUserByFullName(name, pageable),
+      UserRepository.countUserByFullName(name)
+    ]);
     const contacts = users.map(user => ({
       user: {
         userAvatar: user.avatar,
@@ -138,6 +148,7 @@ class MessageServiceImpl implements MessageServiceInterface {
       },
     }));
     contactListDto.contacts = contacts;
+    contactListDto.total = total;
     return contactListDto;
   }
 

@@ -30,6 +30,7 @@ import { StudySessionState } from "../../utils/constants/studySessionState.const
 import UserAttendStudySessionRepository from "../../repositories/userAttendStudySession/userAttendStudySession.repository.impl";
 import MakeUpLessionRepository from "../../repositories/makeUpLesson/makeUpLesson.repository.impl";
 import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
+import { slugify } from "../../utils/functions/slugify";
 
 class TutorServiceImpl implements TutorServiceInterface {
   async getCoursesByTutor(tutorId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -136,6 +137,20 @@ class TutorServiceImpl implements TutorServiceInterface {
       persistenceUserTutor.worker.user.phone = userTutor.worker.user.phone;
       if (avatarFile && avatarFile.filename)
         persistenceUserTutor.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+
+      let slug = slugify(persistenceUserTutor.worker.user.fullName);
+      const existedTutorByFullName = await queryRunner.manager
+        .createQueryBuilder(UserTutor, "tt")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("tt.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("lower(user.fullName) = :fullName", { fullName: persistenceUserTutor.worker.user.fullName })
+        .andWhere("tt.tutorId <> :id", { id: userId })
+        .getCount();
+      if (existedTutorByFullName > 0) slug = slug + "-" + existedTutorByFullName;
+      persistenceUserTutor.slug = slug;
+
       if (persistenceUserTutor.version !== userTutor.version)
         throw new InvalidVersionColumnError();
       if (persistenceUserTutor.worker.version !== userTutor.worker.version)

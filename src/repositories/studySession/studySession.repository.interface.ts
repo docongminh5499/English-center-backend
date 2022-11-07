@@ -5,9 +5,9 @@ import Pageable from "../helpers/pageable";
 export default interface StudySessionRepository {
     findStudySessionByStudent: (studentId: number, courseId: string) => Promise<UserAttendStudySession[] | null>;
 
-    findStudySessionsByCourseSlugAndTeacher: (courseSlug: string, pageable: Pageable, teacherId?: number | undefined) => Promise<StudySession[]>;
+    findStudySessionsByCourseSlugAndTeacher: (courseSlug: string, pageable: Pageable, teacherId?: number | undefined, query?: string) => Promise<StudySession[]>;
 
-    countStudySessionsByCourseSlugAndTeacher: (courseSlug: string, teacherId?: number | undefined) => Promise<number>;
+    countStudySessionsByCourseSlugAndTeacher: (courseSlug: string, teacherId?: number | undefined, query?: string) => Promise<number>;
 
     findStudySessionById: (studySessionId: number) => Promise<StudySession | null>;
 
@@ -22,7 +22,7 @@ export default interface StudySessionRepository {
     countStudySessionsByTutorId: (tutorId: number, startDate: Date, endDate: Date) => Promise<number>;
 
     findCourseIdsByTutorId: (tutorId: number) => Promise<{ id: number }[]>;
-    
+
     findStudySessionsByCourseSlugAndTutor: (courseSlug: string, pageable: Pageable, tutorId: number) => Promise<StudySession[]>;
 
     countStudySessionsByCourseSlugAndTutor: (courseSlug: string, tutorId: number) => Promise<number>;

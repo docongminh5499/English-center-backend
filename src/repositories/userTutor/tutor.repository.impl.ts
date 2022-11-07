@@ -98,15 +98,18 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
   }
 
 
-  async findTutorById(tutorId: number) : Promise<UserTutor | null> {
+  async findTutorById(tutorId: number): Promise<UserTutor | null> {
     return await UserTutor.createQueryBuilder("tutor")
-    .setLock("pessimistic_read")
-    .useTransaction(true)
-    .leftJoinAndSelect("tutor.worker", "worker")
-    .leftJoinAndSelect("worker.user", "user")
-    .leftJoinAndSelect("worker.branch", "branch")
-    .where("user.id = :userId", { userId: tutorId })
-    .getOne();
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tutor.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .leftJoinAndSelect("branch.userEmployee", "manager")
+      .leftJoinAndSelect("manager.worker", "managerWorker")
+      .leftJoinAndSelect("managerWorker.user", "managerUser")
+      .where("user.id = :userId", { userId: tutorId })
+      .getOne();
   }
 }
 

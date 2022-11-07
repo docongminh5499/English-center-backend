@@ -51,6 +51,7 @@ import moment = require("moment");
 import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
 import { UserEmployee } from "../../entities/UserEmployee";
 import TagRepository from "../../repositories/tag/tag.repository.impl";
+import { slugify } from "../../utils/functions/slugify";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -487,25 +488,36 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (persistenceUserTeacher === null) return null;
     const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
 
-    persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
-    persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).toDate();
-    persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
-    persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
-    persistenceUserTeacher.worker.nation = userTeacher.worker.nation;
-    persistenceUserTeacher.worker.homeTown = userTeacher.worker.homeTown;
-    persistenceUserTeacher.worker.user.address = userTeacher.worker.user.address;
-    persistenceUserTeacher.worker.user.email = userTeacher.worker.user.email;
-    persistenceUserTeacher.worker.user.phone = userTeacher.worker.user.phone;
-    persistenceUserTeacher.shortDesc = userTeacher.shortDesc;
-    persistenceUserTeacher.experience = userTeacher.experience;
-    if (avatarFile && avatarFile.filename)
-      persistenceUserTeacher.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
-
-
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
     try {
+      persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
+      persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).toDate();
+      persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
+      persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
+      persistenceUserTeacher.worker.nation = userTeacher.worker.nation;
+      persistenceUserTeacher.worker.homeTown = userTeacher.worker.homeTown;
+      persistenceUserTeacher.worker.user.address = userTeacher.worker.user.address;
+      persistenceUserTeacher.worker.user.email = userTeacher.worker.user.email;
+      persistenceUserTeacher.worker.user.phone = userTeacher.worker.user.phone;
+      persistenceUserTeacher.shortDesc = userTeacher.shortDesc;
+      persistenceUserTeacher.experience = userTeacher.experience;
+      if (avatarFile && avatarFile.filename)
+        persistenceUserTeacher.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+      let slug = slugify(persistenceUserTeacher.worker.user.fullName);
+      const existedTeacherByFullName = await queryRunner.manager
+        .createQueryBuilder(UserTeacher, "tt")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("tt.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("lower(user.fullName) = :fullName", { fullName: persistenceUserTeacher.worker.user.fullName })
+        .andWhere("user.id <> :id", { id: userId })
+        .getCount();
+      if (existedTeacherByFullName > 0) slug = slug + "-" + existedTeacherByFullName;
+      persistenceUserTeacher.slug = slug;
+
       if (persistenceUserTeacher.version !== userTeacher.version)
         throw new InvalidVersionColumnError();
       if (persistenceUserTeacher.worker.version !== userTeacher.worker.version)
@@ -519,7 +531,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (workerValidateErrors.length) throw new ValidationError(workerValidateErrors);
       const teacherValidateErrors = await validate(persistenceUserTeacher);
       if (teacherValidateErrors.length) throw new ValidationError(teacherValidateErrors);
-
       const savedUser = await queryRunner.manager.save(persistenceUserTeacher.worker.user);
       const savedWorker = await queryRunner.manager.save(persistenceUserTeacher.worker);
       await queryRunner.manager.upsert(UserTeacher, persistenceUserTeacher, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
@@ -534,14 +545,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (savedUser.version !== userTeacher.worker.user.version + 1
         && savedUser.version !== userTeacher.worker.user.version)
         throw new InvalidVersionColumnError();
-
       await queryRunner.commitTransaction();
       await queryRunner.release();
       if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
         const filePath = path.join(process.cwd(), "public", oldAvatarSrc);
         fs.unlinkSync(filePath);
       }
-
       const account = await AccountRepository.findByUserId(savedUser.id);
       const credentialDto = new CredentialDto();
       credentialDto.token = jwt.sign({

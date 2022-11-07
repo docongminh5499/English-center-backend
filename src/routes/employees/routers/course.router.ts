@@ -122,7 +122,7 @@ router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
 router.post("/get-study-sessions", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
-    const result = await EmployeeService.getStudySessions(req.user.userId, req.body.courseSlug, pageableDto);
+    const result = await EmployeeService.getStudySessions(req.user.userId, req.body.courseSlug, pageableDto, req.body.query);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

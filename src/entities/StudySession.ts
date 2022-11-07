@@ -53,9 +53,8 @@ export class StudySession extends MyBaseEntity {
 
   @IsNotEmpty()
   @ManyToOne(() => Classroom, {
-    nullable: false,
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "SET NULL",
   })
   @JoinColumn([
     { name: "classroomName", referencedColumnName: "name" },

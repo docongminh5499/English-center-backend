@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { validate } from "class-validator";
 import moment = require("moment");
 import { QueryRunner } from "typeorm";
-import { CourseDetailDto, CourseListDto, CreateCourseDto, NotificationDto, NotificationResponseDto, PageableDto, StudySessionDto } from "../../dto";
+import { ClassroomDto, CourseDetailDto, CourseListDto, CreateCourseDto, CredentialDto, FileDto, NotificationDto, NotificationResponseDto, PageableDto, StudySessionDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
@@ -17,7 +17,7 @@ import { User } from "../../entities/UserEntity";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import { UserTutor } from "../../entities/UserTutor";
-import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import BranchRepository from "../../repositories/branch/branch.repository.impl";
 import ClassroomRepository from "../../repositories/classroom/classroom.repository.impl";
 import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
@@ -41,6 +41,9 @@ import { slugify } from "../../utils/functions/slugify";
 import EmployeeServiceInterface from "./employee.service.interface";
 import * as path from "path";
 import * as fs from "fs";
+import * as jwt from "jsonwebtoken";
+import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
+import { DuplicateError } from "../../utils/errors/duplicate.error";
 
 
 
@@ -52,6 +55,90 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userEmployee === null)
       throw new NotFoundError();
     return userEmployee;
+  }
+
+
+
+  async modifyPersonalInformation(userId: number, userEmployee: UserEmployee, avatarFile?: FileDto | null): Promise<CredentialDto | null> {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      const persistenceUserEmployee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (persistenceUserEmployee === null) throw new NotFoundError();
+      const oldAvatarSrc = persistenceUserEmployee.worker.user.avatar;
+
+      persistenceUserEmployee.worker.user.fullName = userEmployee.worker.user.fullName;
+      persistenceUserEmployee.worker.user.dateOfBirth = moment(userEmployee.worker.user.dateOfBirth).toDate();
+      persistenceUserEmployee.worker.user.sex = userEmployee.worker.user.sex;
+      persistenceUserEmployee.worker.passport = userEmployee.worker.passport;
+      persistenceUserEmployee.worker.nation = userEmployee.worker.nation;
+      persistenceUserEmployee.worker.homeTown = userEmployee.worker.homeTown;
+      persistenceUserEmployee.worker.user.address = userEmployee.worker.user.address;
+      persistenceUserEmployee.worker.user.email = userEmployee.worker.user.email;
+      persistenceUserEmployee.worker.user.phone = userEmployee.worker.user.phone;
+      if (avatarFile && avatarFile.filename)
+        persistenceUserEmployee.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+      if (persistenceUserEmployee.version !== userEmployee.version)
+        throw new InvalidVersionColumnError();
+      if (persistenceUserEmployee.worker.version !== userEmployee.worker.version)
+        throw new InvalidVersionColumnError();
+      if (persistenceUserEmployee.worker.user.version !== userEmployee.worker.user.version)
+        throw new InvalidVersionColumnError();
+
+      const userValidateErrors = await validate(persistenceUserEmployee.worker.user);
+      if (userValidateErrors.length) throw new ValidationError(userValidateErrors);
+      const workerValidateErrors = await validate(persistenceUserEmployee.worker);
+      if (workerValidateErrors.length) throw new ValidationError(workerValidateErrors);
+      const employeeValidateErrors = await validate(persistenceUserEmployee);
+      if (employeeValidateErrors.length) throw new ValidationError(employeeValidateErrors);
+
+      const savedUser = await queryRunner.manager.save(persistenceUserEmployee.worker.user);
+      const savedWorker = await queryRunner.manager.save(persistenceUserEmployee.worker);
+      await queryRunner.manager.upsert(UserEmployee, persistenceUserEmployee, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+      await persistenceUserEmployee.reload();
+
+      if (persistenceUserEmployee.version !== userEmployee.version + 1
+        && persistenceUserEmployee.version !== userEmployee.version)
+        throw new InvalidVersionColumnError();
+      if (savedWorker.version !== userEmployee.worker.version + 1
+        && savedWorker.version !== userEmployee.worker.version)
+        throw new InvalidVersionColumnError();
+      if (savedUser.version !== userEmployee.worker.user.version + 1
+        && savedUser.version !== userEmployee.worker.user.version)
+        throw new InvalidVersionColumnError();
+
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
+        const filePath = path.join(process.cwd(), "public", oldAvatarSrc);
+        fs.unlinkSync(filePath);
+      }
+
+      const account = await AccountRepository.findByUserId(savedUser.id);
+      const credentialDto = new CredentialDto();
+      credentialDto.token = jwt.sign({
+        fullName: account?.user.fullName,
+        userId: account?.user.id,
+        userName: account?.username,
+        role: account?.role,
+        avatar: account?.user.avatar,
+      }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
+      return credentialDto;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
   }
 
 
@@ -156,7 +243,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
 
   async getStudySessions(employeeId: number, courseSlug: string,
-    pageableDto: PageableDto): Promise<{ total: number, studySessions: StudySession[] }> {
+    pageableDto: PageableDto, query?: string): Promise<{ total: number, studySessions: StudySession[] }> {
 
     if (employeeId === undefined) return { total: 0, studySessions: [] };
     const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
@@ -165,8 +252,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course?.branch.id !== employee.worker.branch.id) return { total: 0, studySessions: [] };
     const pageable = new Pageable(pageableDto);
-    const result = await StudySessionRepository.findStudySessionsByCourseSlugAndTeacher(courseSlug, pageable);
-    const total = await StudySessionRepository.countStudySessionsByCourseSlugAndTeacher(courseSlug);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlugAndTeacher(courseSlug, pageable, undefined, query);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlugAndTeacher(courseSlug, undefined, query);
 
     return {
       total: total,
@@ -258,7 +345,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           c.branch.id === classroom.branchId && c.name.toLowerCase() === classroom.name.toLowerCase());
         if (!foundClassroom)
           throw new ValidationError([]);
-        else choseSchedule.choseClassroom.push(foundClassroom);
+        if (foundClassroom.capacity < createCourseDto.maxNumberOfStudent)
+          throw new ValidationError([]);
+        choseSchedule.choseClassroom.push(foundClassroom);
       }
       // Check tutors
       for (let index = 0; index < createCourseDto.tutors.length; index++) {
@@ -273,7 +362,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       }
       // Count course by slug
       let slug = slugify(createCourseDto.name);
-      const existedCourseBySlug = await queryRunner.manager.countBy(Course, { slug });
+      const existedCourseBySlug = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .where("lower(course.name) = :name", { name: createCourseDto.name })
+        .getCount();
       if (existedCourseBySlug > 0) slug = slug + "-" + existedCourseBySlug;
 
       // Create course;
@@ -920,6 +1012,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const classrooms = await classroomQuery.getMany();
       const foundClassroom = classrooms.find(c => c.name === classroom.name && c.branch.id === classroom.branch.id);
       if (foundClassroom === undefined) throw new NotFoundError();
+      if (foundClassroom.capacity < course.maxNumberOfStudent)
+        throw new ValidationError([]);
       //Update classroom
       studySession.classroom = classroom;
       // Participations
@@ -1252,6 +1346,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const classrooms = await classroomQuery.getMany();
       const foundClassroom = classrooms.find(c => c.name === classroom.name && c.branch.id === classroom.branch.id);
       if (foundClassroom === undefined) throw new NotFoundError();
+      if (foundClassroom.capacity < studySession.course.maxNumberOfStudent)
+        throw new ValidationError([]);
       //Update classroom
       studySession.classroom = classroom;
       // Delete makeup lession
@@ -1424,6 +1520,184 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           io.to(id).emit("notification", notification.notification);
         });
       });
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
+  }
+
+
+  async getClassrooms(userId?: number, pageableDto?: PageableDto, query?: string): Promise<{ total: number, classrooms: Classroom[] }> {
+    const result = { total: 0, classrooms: [] as Classroom[] };
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return result;
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) return result;
+
+    const pageable = new Pageable(pageableDto);
+    const [count, classrooms] = await Promise.all([
+      ClassroomRepository.countClassroomByBranch(employee.worker.branch.id, query),
+      ClassroomRepository.findClassroomByBranch(employee.worker.branch.id, pageable, query),
+    ]);
+
+    result.classrooms = classrooms;
+    result.total = count;
+    return result;
+  }
+
+
+  async addClassroom(userId?: number, classroomDto?: ClassroomDto): Promise<Classroom | null> {
+    if (userId === undefined || classroomDto === null || classroomDto === undefined) return null;
+    if (classroomDto.name === undefined || classroomDto.capacity === undefined ||
+      classroomDto.function === undefined || classroomDto.branch === undefined)
+      return null;
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      // Check classroom belong to branch
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError();
+      if (employee.worker.branch.id !== classroomDto.branch) throw new ValidationError([]);
+      // Check existing classroom
+      const existedClassroom = await queryRunner.manager
+        .createQueryBuilder(Classroom, "classroom")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("classroom.branch", "branch")
+        .where("classroom.name = :name", { name: classroomDto.name })
+        .andWhere("branch.id = :branchId", { branchId: classroomDto.branch })
+        .getOne();
+      if (existedClassroom !== null) throw new DuplicateError();
+      // Create new existing classroom
+      const classroom = new Classroom();
+      classroom.name = classroomDto.name;
+      classroom.branch = employee.worker.branch;
+      classroom.function = classroomDto.function;
+      classroom.capacity = classroomDto.capacity;
+      // Commit transaction
+      const savedClassroom = await queryRunner.manager.save(classroom);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return savedClassroom;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
+  }
+
+
+  async modifyClassroom(userId?: number, classroomDto?: ClassroomDto): Promise<Classroom | null> {
+    if (userId === undefined || classroomDto === null || classroomDto === undefined) return null;
+    if (classroomDto.name === undefined || classroomDto.capacity === undefined ||
+      classroomDto.function === undefined || classroomDto.branch === undefined ||
+      classroomDto.oldName === undefined)
+      return null;
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      // Check classroom belong to branch
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError();
+      if (employee.worker.branch.id !== classroomDto.branch) throw new ValidationError([]);
+      // Check existing classroom
+      const existedClassroom = await queryRunner.manager
+        .createQueryBuilder(Classroom, "classroom")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("classroom.branch", "branch")
+        .where("classroom.name = :name", { name: classroomDto.oldName })
+        .andWhere("branch.id = :branchId", { branchId: classroomDto.branch })
+        .getOne();
+      if (existedClassroom === null) throw new NotFoundError();
+      // Check version
+      if (existedClassroom.version !== classroomDto.version)
+      throw new InvalidVersionColumnError();
+      // Update existing classroom
+      existedClassroom.name = classroomDto.name;
+      existedClassroom.branch = employee.worker.branch;
+      existedClassroom.function = classroomDto.function;
+      existedClassroom.capacity = classroomDto.capacity;
+      // Commit transaction
+      await queryRunner.manager.update(Classroom, {
+        name: classroomDto.oldName, branch: classroomDto.branch
+      }, existedClassroom);
+      const updatedClassroom = await queryRunner.manager
+        .createQueryBuilder(Classroom, "classroom")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("classroom.branch", "branch")
+        .where("classroom.name = :name", { name: classroomDto.name })
+        .andWhere("branch.id = :branchId", { branchId: classroomDto.branch })
+        .getOne();
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return updatedClassroom;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
+  }
+
+
+  async removeClassroom(userId?: number, name?: string, branchId?: number): Promise<boolean> {
+    if (userId === undefined || name === undefined || branchId === undefined) return false;
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      // Check classroom belong to branch
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError();
+      if (employee.worker.branch.id !== branchId) throw new ValidationError([]);
+      // Check existing classroom
+      const existedClassroom = await queryRunner.manager
+        .createQueryBuilder(Classroom, "classroom")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("classroom.branch", "branch")
+        .where("classroom.name = :name", { name: name })
+        .andWhere("branch.id = :branchId", { branchId: branchId })
+        .getOne();
+      if (existedClassroom === null) throw new NotFoundError();
+      // Commit transaction
+      await queryRunner.manager.remove(existedClassroom);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
       return true;
     } catch (error) {
       console.log(error);

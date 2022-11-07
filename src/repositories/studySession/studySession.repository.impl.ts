@@ -21,7 +21,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
 
 
 
-    async findStudySessionsByCourseSlugAndTeacher(courseSlug: string, pageable: Pageable, teacherId?: number | undefined): Promise<StudySession[]> {
+    async findStudySessionsByCourseSlugAndTeacher(courseSlug: string, pageable: Pageable, teacherId?: number | undefined, query?: string): Promise<StudySession[]> {
         let queryStmt = StudySession.createQueryBuilder('ss')
             .setLock("pessimistic_read")
             .useTransaction(true)
@@ -38,6 +38,8 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .orderBy({ "ss.date": "ASC" });
         if (teacherId !== undefined)
             queryStmt = queryStmt.andWhere("teacherUser.id = :teacherId", { teacherId })
+        if (query !== undefined && query.trim().length > 0)
+            queryStmt = queryStmt.andWhere("ss.name LIKE :name", { name: "%" + query + "%" })
         queryStmt = pageable.buildQuery(queryStmt);
         const results = await queryStmt.getMany();
         for (let index = 0; index < results.length; index++) {
@@ -48,12 +50,14 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
     }
 
 
-    async countStudySessionsByCourseSlugAndTeacher(courseSlug: string, teacherId?: number | undefined): Promise<number> {
+    async countStudySessionsByCourseSlugAndTeacher(courseSlug: string, teacherId?: number | undefined, query?: string): Promise<number> {
         let queryStmt = StudySession.createQueryBuilder('ss')
             .setLock("pessimistic_read")
             .useTransaction(true)
             .leftJoinAndSelect("ss.course", "course")
             .where("course.slug = :courseSlug", { courseSlug });
+        if (query !== undefined && query.trim().length > 0)
+            queryStmt = queryStmt.andWhere("ss.name LIKE :name", { name: "%" + query + "%" })
         if (teacherId !== undefined)
             queryStmt = queryStmt.andWhere("ss.teacherWorker = :teacherId", { teacherId })
         return await queryStmt.getCount();

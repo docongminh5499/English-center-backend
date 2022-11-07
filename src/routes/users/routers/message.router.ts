@@ -4,9 +4,10 @@ import { PageableMapper, UserMapper } from "../mappers";
 
 const router = express.Router();
 
-router.get("/get-contacts", async (req: any, res: any, next: any) => {
+router.post("/get-contacts", async (req: any, res: any, next: any) => {
   try {
-    const contacts = await MessageService.getContacts(req.user.userId);
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const contacts = await MessageService.getContacts(req.user.userId, pageableDto);
     return res.status(200).json(contacts);
   } catch (err) {
     console.log(err);
@@ -17,7 +18,8 @@ router.get("/get-contacts", async (req: any, res: any, next: any) => {
 
 router.post("/find-contacts", async (req: any, res: any, next: any) => {
   try {
-    const contacts = await MessageService.findContacts(req.body.name);
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const contacts = await MessageService.findContacts(req.body.name, pageableDto);
     return res.status(200).json(contacts);
   } catch (err) {
     console.log(err);
