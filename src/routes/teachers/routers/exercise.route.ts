@@ -15,6 +15,20 @@ router.post("/create-exercise", async (req: any, res: any, next: any) => {
     }
 });
 
+router.post("/modify-exercise", async (req: any, res: any, next: any) => {
+  try {
+    console.log("=========================================");
+    console.log(req.body);
+    const exercise = await TeacherService.modifyExercise(req.body.exerciseId, req.body.basicInfo, req.body.questions,  req.body.deleteQuestions);
+    console.log("*****************************************");
+    console.log(exercise);
+    return res.status(200).json(exercise);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
 router.post("/add-new-question-tag", async (req: any, res: any, next: any) => {
   try {
     console.log(req.body.tagName);
@@ -30,6 +44,26 @@ router.get("/get-all-question-tag", async (req: any, res: any, next: any) => {
   try {
     const tags = await TeacherService.getAllQuestionTags();
     return res.status(200).json(tags);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+router.get("/get-exercise-by-id", async (req: any, res: any, next: any) => {
+  try {
+    const exercise = await TeacherService.getExerciseById(req.query.exerciseId);
+    return res.status(200).json(exercise);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+router.get("/get-student-exercise-result", async (req: any, res: any, next: any) => {
+  try {
+    const exercise = await TeacherService.getStdExeResult(req.query.exerciseId);
+    return res.status(200).json(exercise);
   } catch (err) {
     console.log(err);
     next(err);

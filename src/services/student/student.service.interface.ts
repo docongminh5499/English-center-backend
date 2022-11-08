@@ -1,5 +1,6 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
+import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
@@ -22,4 +23,7 @@ export default interface StudentService {
     submitExercise: (studentId: number, exerciseId: number, answer: any) => Promise<StudentDoExercise | null>;
 
     getStudentDoExercise: (studentId: number, courseId: number) => Promise<StudentDoExercise[] | null>;
+
+    getDocument: (courseId: number) => Promise<Document[] | null>;
+    
 }

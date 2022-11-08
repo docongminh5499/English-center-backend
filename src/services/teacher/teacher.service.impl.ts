@@ -707,11 +707,15 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     }
   }
 
-  //Hoc Exercise
+  //=========================================Hoc Exercise==============================================
   async createExercise(courseId: number, basicInfo: any, questions: any[]) : Promise<Exercise | null>{
     const course = await CourseRepository.findCourseById(courseId);
     if(course === null)
-      return null;
+      throw new NotFoundError();
+
+    if (course.closingDate !== null){
+      throw new Error("Khóa học đã kết thúc, không thể thêm bài tập.");
+    }
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -722,7 +726,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       exercise.name = basicInfo.nameExercise;
       exercise.maxTime = basicInfo.maxTime;
       exercise.questions = [];
-
+      
       const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
       const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
       console.log(dateDoExercise)
@@ -800,14 +804,162 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         if(savedExercise.id === null || savedExercise.id === undefined) throw new Error();
       
       await queryRunner.commitTransaction();
-      await queryRunner.release();
-
       return savedExercise;
     }catch (error) {
       console.log(error);
       await queryRunner.rollbackTransaction();
-      await queryRunner.release();
       return null;
+    }finally {
+      await queryRunner.release();
+    }
+  }
+
+  async modifyExercise(exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]) : Promise<Exercise | null>{
+    const exercise = await Exercise.createQueryBuilder("exercise")
+                                 .leftJoinAndSelect("exercise.questions", "questions")
+                                 .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                                 .leftJoinAndSelect("questions.tags", "tags")
+                                 .leftJoinAndSelect("exercise.course", "course")
+                                 .where("exercise.id = :exerciseId", {exerciseId: exerciseId})
+                                 .getOne();
+    if(exercise === null)
+      throw new NotFoundError();
+    // TODO:Commented for testing
+    // if (exercise.course.closingDate !== null){
+    //   throw new Error("Khóa học đã kết thúc, không thể chỉnh sửa bài tập.");
+    // }
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try{
+      exercise.name = basicInfo.nameExercise;
+      exercise.maxTime = basicInfo.maxTime;
+
+      const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
+      const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
+
+      exercise.openTime = new Date(
+        dateDoExercise[0].getFullYear(), 
+        dateDoExercise[0].getMonth(), 
+        dateDoExercise[0].getDate(),
+        timeDoExercise[0].getHours(),
+        timeDoExercise[0].getMinutes(),
+        timeDoExercise[0].getSeconds(),
+      );
+      exercise.endTime = new Date(
+        dateDoExercise[1].getFullYear(), 
+        dateDoExercise[1].getMonth(), 
+        dateDoExercise[1].getDate(),
+        timeDoExercise[1].getHours(),
+        timeDoExercise[1].getMinutes(),
+        timeDoExercise[1].getSeconds(),
+      );
+
+      if (exercise.questions === null)
+        exercise.questions = [];
+
+      const modifyQuestions = [];
+      
+      deleteQuestions.forEach(async (id: number) => {
+        await queryRunner.manager.delete(Question, id);
+      })
+
+      //Add new Question
+      for(const question of questions){
+        let questionEntity = new Question();
+        //New questions have key field.
+        if(!question.key){
+          const foundQuestion = await queryRunner.manager.findOne(Question, {
+            where: {
+              id: question.id,
+            },
+            relations: ["tags", "wrongAnswers"],
+          })
+          if (foundQuestion === null){
+            throw new NotFoundError();
+          }
+
+          questionEntity = foundQuestion;
+          //Delete wrongAnswer
+          questionEntity.wrongAnswers.forEach(async (wrongAnswer: WrongAnswer) => {
+            await queryRunner.manager.delete(WrongAnswer, wrongAnswer.id);
+          })
+        }else {
+          console.log("--------------------------------------------")
+          questionEntity.wrongAnswers = [];
+        }
+        questionEntity.quesContent = question.quesContent;
+        questionEntity.audioSrc = question.audioSrc;
+        questionEntity.imgSrc = question.imgSrc;
+        questionEntity.answer = question.rightAnswer;
+        questionEntity.tags = [];
+        
+        //Add tags
+        if(question.tags !== null) {
+          for(const tag of question.tags){
+            const findedTag = await Tag.find({
+              where: {
+                name: tag,
+                type: TagsType.Question,
+              }
+            });
+            if (findedTag.length === 0) continue;
+            questionEntity.tags.push(findedTag[0])
+          }
+        }
+
+        const savedQuestion = await queryRunner.manager.save(questionEntity);
+        if(savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
+        
+        if(question.wrongAnswer1 !== ''){
+          const wrongAnswer = new WrongAnswer();
+          wrongAnswer.answer = question.wrongAnswer1;
+          wrongAnswer.question = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+
+          const responseWrongAnswer = new WrongAnswer();
+          responseWrongAnswer.answer = savedWrongAnswer.answer;
+          savedQuestion.wrongAnswers.push(responseWrongAnswer);
+        }
+        if(question.wrongAnswer2 !== ''){
+          const wrongAnswer = new WrongAnswer();
+          wrongAnswer.answer = question.wrongAnswer2;
+          wrongAnswer.question = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+
+          const responseWrongAnswer = new WrongAnswer();
+          responseWrongAnswer.answer = savedWrongAnswer.answer;
+          savedQuestion.wrongAnswers.push(responseWrongAnswer);
+        }
+        if(question.wrongAnswer3 !== ''){
+          const wrongAnswer = new WrongAnswer();
+          wrongAnswer.answer = question.wrongAnswer3;
+          wrongAnswer.question = savedQuestion;
+          
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+
+          const responseWrongAnswer = new WrongAnswer();
+          responseWrongAnswer.answer = savedWrongAnswer.answer;
+          savedQuestion.wrongAnswers.push(responseWrongAnswer);
+        }
+        modifyQuestions.push(savedQuestion);
+      }
+      exercise.questions = modifyQuestions;
+      const savedExercise = await queryRunner.manager.save(exercise);
+        if(savedExercise.id === null || savedExercise.id === undefined) throw new Error();
+      await queryRunner.commitTransaction();
+      return savedExercise;
+    }catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return null;
+    }finally {
+      await queryRunner.release();
     }
   }
 
@@ -838,6 +990,61 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     });
     return tag;
   }
+
+  async getExerciseById(exerciseId: number) : Promise<Exercise | null>{
+    try{
+      const exercise = await Exercise.createQueryBuilder("exercise")
+                               .leftJoinAndSelect("exercise.questions", "questions")
+                               .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                               .leftJoinAndSelect("questions.tags", "tags")
+                               .where("exercise.id = :exerciseId", {exerciseId})
+                               .getOne();
+      
+      if(exercise === null){
+        throw new Error("Không tìm thấy bài tập.");
+      }
+      return exercise;
+    }catch(error){
+      console.log(error);
+      return null;
+    }
+  }
+
+ async getStdExeResult(exerciseId: number) : Promise<StudentDoExercise[] | null>{
+    try{
+      const exercise = await Exercise.createQueryBuilder("exercise")
+                              .where("exercise.id = :exerciseId", {exerciseId})
+                              .getOne();
+      
+      if(exercise === null){
+        throw new Error("Không tìm thấy bài tập.");
+      }
+
+      const stdExeResult = await StudentDoExercise.createQueryBuilder("studentDoExercise")
+                                                  .leftJoin(
+                                                    qb =>
+                                                      qb.from(StudentDoExercise, "inner")
+                                                        .select("max(score)", "maxScore")
+                                                        .addSelect('studentId')
+                                                        .addSelect("exerciseId")
+                                                        .groupBy('studentId, exerciseId'),
+                                                    'maxScoreTable',
+                                                    'maxScoreTable.studentId = studentDoExercise.studentId AND maxScoreTable.exerciseId = studentDoExercise.exerciseId'
+                                                  )
+                                                  .leftJoinAndSelect("studentDoExercise.exercise", "exercise")
+                                                  .leftJoinAndSelect("studentDoExercise.student", "student")
+                                                  .leftJoinAndSelect("student.user", "user")
+                                                  .where("studentDoExercise.score = maxScore")
+                                                  .andWhere("exercise.id = :exerciseId", {exerciseId})
+                                                  .getMany();
+      return stdExeResult;
+    }catch(error){
+      console.log(error);
+      return null;
+    }
+  }
+
+  //=====================================END HOC=============================================================
 
 
   async getPreferedCurriculums(userId?: number): Promise<Curriculum[]> {
