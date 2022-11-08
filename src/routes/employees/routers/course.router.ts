@@ -296,4 +296,16 @@ router.post("/remove-course", async (req: any, res: any, next: any) => {
 });
 
 
+router.post("/get-students", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await EmployeeService.getStudentsParicipateCourse(req.user.userId, req.body.courseSlug, req.body.query, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
 export { router as CourseRouter };

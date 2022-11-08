@@ -6,6 +6,8 @@ import { Curriculum } from "../../entities/Curriculum";
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserEmployee } from "../../entities/UserEmployee";
+import { UserParent } from "../../entities/UserParent";
+import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import { UserTutor } from "../../entities/UserTutor";
 import Queryable from "../../utils/common/queryable.interface";
@@ -65,4 +67,14 @@ export default interface EmployeeService {
     modifyClassroom: (userId?: number, classroomDto?: ClassroomDto) => Promise<Classroom | null>;
 
     removeClassroom: (userId?: number, name?: string, branchId?: number) => Promise<boolean>;
+
+    getStudentsParicipateCourse: (userId: number, courseSlug: string, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
+
+    getAllStudents: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
+
+    getStudentDetails: (userId: number, studentId: number) => Promise<{ student: UserStudent }>;
+
+    getAllParents: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, parents: UserParent[] }>;
+
+    modifyParent: (userId: number, parentId: number, studentId: number, version: number) => Promise<UserParent | null>;
 }

@@ -130,6 +130,7 @@ class MessageServiceImpl implements MessageServiceInterface {
   async findContacts(name?: string | undefined, pageableDto?: PageableDto): Promise<ContactListDto> {
     const contactListDto = new ContactListDto();
     contactListDto.contacts = [];
+    contactListDto.total = 0;
 
     if (name === undefined || pageableDto === undefined || pageableDto === null || name.trim() === "")
       return contactListDto;

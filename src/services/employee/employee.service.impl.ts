@@ -44,6 +44,10 @@ import * as fs from "fs";
 import * as jwt from "jsonwebtoken";
 import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
 import { DuplicateError } from "../../utils/errors/duplicate.error";
+import StudentParticipateCourseRepository from "../../repositories/studentParticipateCourse/studentParticipateCourse.repository.impl";
+import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
+import { UserParent } from "../../entities/UserParent";
+import UserParentRepository from "../../repositories/userParent/userParent.repository.impl";
 
 
 
@@ -1635,7 +1639,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (existedClassroom === null) throw new NotFoundError();
       // Check version
       if (existedClassroom.version !== classroomDto.version)
-      throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError();
       // Update existing classroom
       existedClassroom.name = classroomDto.name;
       existedClassroom.branch = employee.worker.branch;
@@ -1704,6 +1708,114 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
       return false;
+    }
+  }
+
+
+
+  async getStudentsParicipateCourse(userId: number, courseSlug: string,
+    query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
+    if (userId === undefined || courseSlug === undefined ||
+      pageableDto === null || pageableDto === undefined)
+      return { total: 0, students: [] };
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) return { total: 0, students: [] };
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) return { total: 0, students: [] };
+    if (employee.worker.branch.id !== course.branch.id) return { total: 0, students: [] };
+
+    const pageable = new Pageable(pageableDto);
+    const [result, total] = await Promise.all([
+      StudentParticipateCourseRepository.findStudentsByCourseSlug(courseSlug, pageable, query),
+      StudentParticipateCourseRepository.countStudentsByCourseSlug(courseSlug, query)
+    ]);
+    return {
+      total: total,
+      students: result.map(r => r.student)
+    };
+  }
+
+
+  async getAllStudents(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
+    if (userId === undefined || pageableDto === null || pageableDto === undefined)
+      return { total: 0, students: [] };
+    const pageable = new Pageable(pageableDto);
+    const [result, total] = await Promise.all([
+      UserStudentRepository.findStudents(pageable, query),
+      UserStudentRepository.countStudents(query)
+    ]);
+    return {
+      total: total,
+      students: result
+    };
+  }
+
+
+  async getStudentDetails(userId: number, studentId: number): Promise<{ student: UserStudent }> {
+    if (userId === undefined || studentId === undefined) throw new NotFoundError();
+    const student = await UserStudentRepository.findStudentById(studentId);
+    if (student === null) throw new NotFoundError();
+    return { student };
+  }
+
+
+  async getAllParents(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, parents: UserParent[] }> {
+    if (userId === undefined || pageableDto === null || pageableDto === undefined)
+      return { total: 0, parents: [] };
+    if (query === undefined || query.trim().length === 0)
+      return { total: 0, parents: [] };
+    const pageable = new Pageable(pageableDto);
+    const [result, total] = await Promise.all([
+      UserParentRepository.findParents(pageable, query),
+      UserParentRepository.countParents(query)
+    ]);
+    return {
+      total: total,
+      parents: result
+    };
+  }
+
+
+  async modifyParent(userId: number, parentId: number, studentId: number, version: number): Promise<UserParent | null> {
+    if (userId === undefined || parentId === undefined ||
+      studentId === undefined || version === undefined)
+      return null;
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      // Get student
+      const student = await queryRunner.manager
+        .createQueryBuilder(UserStudent, "us")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("us.user", "user")
+        .where("user.id = :studentId", { studentId })
+        .getOne();
+      if (student === null) throw new NotFoundError();
+      if (student.version !== version)
+        throw new InvalidVersionColumnError();
+      // Get parents
+      const parent = await queryRunner.manager
+        .createQueryBuilder(UserParent, "up")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("up.user", "user")
+        .where("user.id = :parentId", { parentId })
+        .getOne();
+      if (parent === null) throw new NotFoundError();
+      student.userParent = parent;
+      // Save and commit
+      await queryRunner.manager.update(UserStudent, { user: studentId }, student);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return parent;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
     }
   }
 }
