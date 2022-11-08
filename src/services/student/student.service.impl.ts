@@ -1,5 +1,6 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
+import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
@@ -141,6 +142,24 @@ class StudentServiceImpl implements StudentServiceInterface {
             console.log(error);
             return null;
         }
+    }
+
+    async getDocument(courseId: number) : Promise<Document[] | null>{
+        try{
+            const course = CourseRepository.findCourseById(courseId);
+            if (course === null) {
+                throw new Error("Khóa học không tồn tại.");
+            }
+            const document = Document.createQueryBuilder("document")
+                                     .where("courseId =:id", {id: courseId})
+                                     .getMany();
+        
+            return document;
+        }catch (error){
+            console.log(error);
+            return null
+        }
+        return null;
     }
 }
 

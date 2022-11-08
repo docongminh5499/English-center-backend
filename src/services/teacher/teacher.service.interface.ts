@@ -59,13 +59,20 @@ export default interface TeacherService {
 
     deleteCurriculum: (curriculumId?: number) => Promise<boolean>;
 
-    //Hoc Exercise
+    //Hoc Exercise modifyExercise
     createExercise: (courseId: number, basicInfo: any, questions: any[]) => Promise<Exercise | null>;
+
+    modifyExercise: (exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]) => Promise<Exercise | null>;
 
     addNewQuestionTag: (tagName: string) => Promise<Tag | null>;
 
     getAllQuestionTags: () => Promise<Tag[]>;
-    
+
+    getExerciseById: (exerciseId: number) => Promise<Exercise | null>;
+
+    getStdExeResult: (exerciseId: number) => Promise<StudentDoExercise[] | null>;
+
+    //==========================END HOC============================================
     getPreferedCurriculums: (userId?: number) => Promise<Curriculum[]>;
 
     getCheckPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
