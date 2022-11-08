@@ -8,6 +8,7 @@ import CourseNotificationDto from "./requests/courseNotification.dto";
 import FileDto from "./requests/file.dto";
 import CreateCourseDto from "./requests/createCourse.dto";
 import StudySessionDto from "./requests/studySession.dto";
+import ClassroomDto from "./requests/classroom.dto";
 
 import CredentialDto from "./responses/credential.dto";
 import CourseListDto from "./responses/courseList.dto";
@@ -36,6 +37,7 @@ export {
     FileDto,
     CreateCourseDto,
     StudySessionDto,
+    ClassroomDto,
     // Response DTO
     CredentialDto,
     CourseListDto,

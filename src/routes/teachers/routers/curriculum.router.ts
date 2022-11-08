@@ -160,4 +160,15 @@ router.post("/remove-prefered-curriculums", async (req: any, res: any, next: any
 })
 
 
+
+router.get("/get-curriculum-tags", async (req: any, res: any, next: any) => {
+  try {
+    return res.status(200).json(await TeacherService.getCurriculumTags(req.user.userId));
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
 export { router as TeacherCurriculumRouter };

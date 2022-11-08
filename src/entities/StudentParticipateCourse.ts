@@ -14,7 +14,7 @@ export class StudentParticipateCourse extends MyBaseEntity {
   student: UserStudent;
 
   @PrimaryColumn({ type: "int", name: "courseId" })
-  @ManyToOne(() => Course, { onDelete: "RESTRICT", onUpdate: "CASCADE" })
+  @ManyToOne(() => Course, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinColumn({ name: "courseId" })
   course: Course;
 

@@ -20,7 +20,7 @@ export const createTeachers = async (branches: Branch[]) => {
     "/assets/images/avatar/teacher.jpg",
   ];
   for (let branchIndex = 0; branchIndex < branches.length; branchIndex++) {
-    const numberOfTeachers = faker.datatype.number({ min: 3, max: 10 });
+    const numberOfTeachers = faker.datatype.number({ min: 10, max: 15 });
     const branch = branches[branchIndex];
     const slugs: string[] = [];
 

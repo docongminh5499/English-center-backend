@@ -5,7 +5,7 @@ import { Tag } from "../entities/Tag";
 import { createQuestion } from "./createQuestion";
 
 export const createExercise = async (course: Course, tags: Tag[]) => {
-  const numberOfExercise = faker.datatype.number({ min: 1, max: 10 });
+  const numberOfExercise = faker.datatype.number({ min: 4, max: 10 });
   const exercises = [];
   for (let index = 0; index < numberOfExercise; index++) {
     let exercise = new Exercise();

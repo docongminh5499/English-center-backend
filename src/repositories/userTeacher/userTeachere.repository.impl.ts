@@ -11,6 +11,9 @@ class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
       .leftJoinAndSelect("teacher.worker", "worker")
       .leftJoinAndSelect("worker.user", "user")
       .leftJoinAndSelect("worker.branch", "branch")
+      .leftJoinAndSelect("branch.userEmployee", "manager")
+      .leftJoinAndSelect("manager.worker", "managerWorker")
+      .leftJoinAndSelect("managerWorker.user", "managerUser")
       .where("user.id = :userId", { userId })
       .getOne();
   }

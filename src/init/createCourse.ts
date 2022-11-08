@@ -13,7 +13,7 @@ export const createCourse = async (curriculums: Curriculum[], branches: Branch[]
 
   for (let index = 0; index < curriculums.length; index++) {
     const curriculum = curriculums[index];
-    const numberOfCourse = faker.datatype.number({ min: 3, max: 6 });
+    const numberOfCourse = faker.datatype.number({ min: 15, max: 20 });
 
     const teachersPreferCurriculum: UserTeacher[] = [];
     prefered.forEach(prefer => {

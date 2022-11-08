@@ -34,6 +34,7 @@ class NotificationRepositoryImpl implements NotificationRepositoryInterface {
     notification.read = false;
     notification.content = content;
     notification.user = user;
+    notification.createdAt = new Date();
 
     const validateErrors = await validate(notification);
     if (validateErrors.length) throw new ValidationError(validateErrors);

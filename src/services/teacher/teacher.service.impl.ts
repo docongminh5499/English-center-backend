@@ -50,6 +50,8 @@ import { StudySessionState } from "../../utils/constants/studySessionState.const
 import moment = require("moment");
 import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
 import { UserEmployee } from "../../entities/UserEmployee";
+import TagRepository from "../../repositories/tag/tag.repository.impl";
+import { slugify } from "../../utils/functions/slugify";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -197,6 +199,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (document.course.closingDate !== null && document.course.closingDate !== undefined)
       return false;
     const result = await DocumentRepository.deleteDocument(documentId);
+    if (document.src) {
+      const filePath = path.join(process.cwd(), "public", document.src);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
     return result;
   }
 
@@ -271,8 +279,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
     const isSameTeacher = course.teacher.worker.user.id === teacherId
     const pageable = new Pageable(pageableDto);
-    const result = await StudySessionRepository.findStudySessionsByCourseSlug(courseSlug, pageable, isSameTeacher ? undefined : teacherId);
-    const total = await StudySessionRepository.countStudySessionsByCourseSlug(courseSlug, isSameTeacher ? undefined : teacherId);
+    const result = await StudySessionRepository.findStudySessionsByCourseSlugAndTeacher(courseSlug, pageable, isSameTeacher ? undefined : teacherId);
+    const total = await StudySessionRepository.countStudySessionsByCourseSlugAndTeacher(courseSlug, isSameTeacher ? undefined : teacherId);
     return {
       total: total,
       studySessions: result,
@@ -480,25 +488,36 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (persistenceUserTeacher === null) return null;
     const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
 
-    persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
-    persistenceUserTeacher.worker.user.dateOfBirth = userTeacher.worker.user.dateOfBirth;
-    persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
-    persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
-    persistenceUserTeacher.worker.nation = userTeacher.worker.nation;
-    persistenceUserTeacher.worker.homeTown = userTeacher.worker.homeTown;
-    persistenceUserTeacher.worker.user.address = userTeacher.worker.user.address;
-    persistenceUserTeacher.worker.user.email = userTeacher.worker.user.email;
-    persistenceUserTeacher.worker.user.phone = userTeacher.worker.user.phone;
-    persistenceUserTeacher.shortDesc = userTeacher.shortDesc;
-    persistenceUserTeacher.experience = userTeacher.experience;
-    if (avatarFile && avatarFile.filename)
-      persistenceUserTeacher.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
-
-
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
     try {
+      persistenceUserTeacher.worker.user.fullName = userTeacher.worker.user.fullName;
+      persistenceUserTeacher.worker.user.dateOfBirth = moment(userTeacher.worker.user.dateOfBirth).toDate();
+      persistenceUserTeacher.worker.user.sex = userTeacher.worker.user.sex;
+      persistenceUserTeacher.worker.passport = userTeacher.worker.passport;
+      persistenceUserTeacher.worker.nation = userTeacher.worker.nation;
+      persistenceUserTeacher.worker.homeTown = userTeacher.worker.homeTown;
+      persistenceUserTeacher.worker.user.address = userTeacher.worker.user.address;
+      persistenceUserTeacher.worker.user.email = userTeacher.worker.user.email;
+      persistenceUserTeacher.worker.user.phone = userTeacher.worker.user.phone;
+      persistenceUserTeacher.shortDesc = userTeacher.shortDesc;
+      persistenceUserTeacher.experience = userTeacher.experience;
+      if (avatarFile && avatarFile.filename)
+        persistenceUserTeacher.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+      let slug = slugify(persistenceUserTeacher.worker.user.fullName);
+      const existedTeacherByFullName = await queryRunner.manager
+        .createQueryBuilder(UserTeacher, "tt")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("tt.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("lower(user.fullName) = :fullName", { fullName: persistenceUserTeacher.worker.user.fullName })
+        .andWhere("user.id <> :id", { id: userId })
+        .getCount();
+      if (existedTeacherByFullName > 0) slug = slug + "-" + existedTeacherByFullName;
+      persistenceUserTeacher.slug = slug;
+
       if (persistenceUserTeacher.version !== userTeacher.version)
         throw new InvalidVersionColumnError();
       if (persistenceUserTeacher.worker.version !== userTeacher.worker.version)
@@ -512,7 +531,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (workerValidateErrors.length) throw new ValidationError(workerValidateErrors);
       const teacherValidateErrors = await validate(persistenceUserTeacher);
       if (teacherValidateErrors.length) throw new ValidationError(teacherValidateErrors);
-
       const savedUser = await queryRunner.manager.save(persistenceUserTeacher.worker.user);
       const savedWorker = await queryRunner.manager.save(persistenceUserTeacher.worker);
       await queryRunner.manager.upsert(UserTeacher, persistenceUserTeacher, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
@@ -527,14 +545,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (savedUser.version !== userTeacher.worker.user.version + 1
         && savedUser.version !== userTeacher.worker.user.version)
         throw new InvalidVersionColumnError();
-
       await queryRunner.commitTransaction();
       await queryRunner.release();
       if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
         const filePath = path.join(process.cwd(), "public", oldAvatarSrc);
         fs.unlinkSync(filePath);
       }
-
       const account = await AccountRepository.findByUserId(savedUser.id);
       const credentialDto = new CredentialDto();
       credentialDto.token = jwt.sign({
@@ -578,7 +594,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     try {
       if (curriculumDto == undefined || curriculumDto.curriculum.id == undefined)
         throw new NotFoundError();
-      const foundCurriculum = await CurriculumRepository.getCurriculumById(curriculumDto.curriculum.id);
+      const foundCurriculum = await queryRunner.manager
+        .createQueryBuilder(Curriculum, "curriculum")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("curriculum.lectures", "lectures")
+        .leftJoinAndSelect("curriculum.tags", "tags")
+        .where("curriculum.id = :curriculumId", { curriculumId: curriculumDto.curriculum.id })
+        .andWhere("curriculum.latest = true")
+        .getOne();
+
       if (foundCurriculum === null)
         throw new NotFoundError();
       if (curriculumDto.curriculum.version !== foundCurriculum?.version)
@@ -588,6 +613,23 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       newCurriculum.name = curriculumDto.curriculum.name;
       newCurriculum.desc = curriculumDto.curriculum.desc;
       newCurriculum.type = curriculumDto.curriculum.type;
+      newCurriculum.shiftsPerSession = parseInt(curriculumDto.curriculum.shiftsPerSession as any);
+      newCurriculum.level = curriculumDto.curriculum.level;
+      newCurriculum.tags = await Promise.all(
+        curriculumDto.curriculum.tags.map(async (tag: any) => {     // tag is string
+          const foundTag = await queryRunner.manager
+            .createQueryBuilder(Tag, "tag")
+            .setLock("pessimistic_write")
+            .useTransaction(true)
+            .where(`tag.name = :name`, { name: tag })
+            .getOne();
+          if (foundTag) return foundTag;
+          const tagEntity = new Tag();
+          tagEntity.name = tag;
+          tagEntity.type = TagsType.Curriculum;
+          return await queryRunner.manager.save(tagEntity);
+        })
+      );
       newCurriculum.latest = true;
       if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
         newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
@@ -607,10 +649,41 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (oldCurriculumValidateErrors.length) throw new ValidationError(oldCurriculumValidateErrors);
       const newCurriculumValidateErrors = await validate(newCurriculum);
       if (newCurriculumValidateErrors.length) throw new ValidationError(newCurriculumValidateErrors);
+      // Get list teachers who prefer the curiculum
+      const prefers = await queryRunner.manager
+        .createQueryBuilder(TeacherPreferCurriculum, "p")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("p.teacher", "teacher")
+        .leftJoinAndSelect("p.curriculum", "curriculum")
+        .getMany();
+      // Delete modified curriculum if there is no course using it.
+      const count = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("curriculum.id = :curriculumId", { curriculumId: foundCurriculum.id })
+        .getCount();
 
-      await queryRunner.manager.save(foundCurriculum);
+      if (count === 0) {
+        if (foundCurriculum && foundCurriculum.image) {
+          const filePath = path.join(process.cwd(), "public", foundCurriculum.image);
+          fs.unlinkSync(filePath);
+        }
+        await queryRunner.manager.remove(foundCurriculum);
+      } else {
+        await queryRunner.manager.save(foundCurriculum);
+      }
+
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
       if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
+      for (const prefer of prefers) {
+        const preferEntity = new TeacherPreferCurriculum();
+        preferEntity.curriculum = savedCurriculum;
+        preferEntity.teacher = prefer.teacher;
+        await queryRunner.manager.save(preferEntity);
+      }
       for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
         const lecture = curriculumDto.curriculum.lectures[index];
         const newLecture = new Lecture();
@@ -653,11 +726,27 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       newCurriculum.name = curriculumDto.curriculum.name;
       newCurriculum.desc = curriculumDto.curriculum.desc;
       newCurriculum.type = curriculumDto.curriculum.type;
+      newCurriculum.shiftsPerSession = parseInt(curriculumDto.curriculum.shiftsPerSession as any);
+      newCurriculum.level = curriculumDto.curriculum.level;
+      newCurriculum.tags = await Promise.all(
+        curriculumDto.curriculum.tags.map(async (tag: any) => {     // tag is string
+          const foundTag = await queryRunner.manager
+            .createQueryBuilder(Tag, "tag")
+            .setLock("pessimistic_write")
+            .useTransaction(true)
+            .where(`tag.name = :name`, { name: tag })
+            .getOne();
+          if (foundTag) return foundTag;
+          const tagEntity = new Tag();
+          tagEntity.name = tag;
+          tagEntity.type = TagsType.Curriculum;
+          return await queryRunner.manager.save(tagEntity);
+        })
+      );
       newCurriculum.latest = true;
       if (curriculumDto.imageFile && curriculumDto.imageFile.filename) {
         newCurriculum.image = CURRICULUM_DESTINATION_SRC + curriculumDto.imageFile.filename;
       }
-
       const curriculumValidateErrors = await validate(newCurriculum);
       if (curriculumValidateErrors.length) throw new ValidationError(curriculumValidateErrors);
 
@@ -731,16 +820,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
       console.log(dateDoExercise)
       exercise.openTime = new Date(
-        dateDoExercise[0].getFullYear(), 
-        dateDoExercise[0].getMonth(), 
+        dateDoExercise[0].getFullYear(),
+        dateDoExercise[0].getMonth(),
         dateDoExercise[0].getDate(),
         timeDoExercise[0].getHours(),
         timeDoExercise[0].getMinutes(),
         timeDoExercise[0].getSeconds(),
       );
       exercise.endTime = new Date(
-        dateDoExercise[1].getFullYear(), 
-        dateDoExercise[1].getMonth(), 
+        dateDoExercise[1].getFullYear(),
+        dateDoExercise[1].getMonth(),
         dateDoExercise[1].getDate(),
         timeDoExercise[1].getHours(),
         timeDoExercise[1].getMinutes(),
@@ -748,7 +837,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       );
 
       //Create Question
-      for(const question of questions){
+      for (const question of questions) {
         const questionEntity = new Question();
         questionEntity.quesContent = question.quesContent;
         questionEntity.audioSrc = question.audioSrc;
@@ -756,8 +845,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         questionEntity.answer = question.rightAnswer;
         questionEntity.tags = [];
         //TODO: add tags
-        if(question.tags !== null) {
-          for(const tag of question.tags){
+        if (question.tags !== null) {
+          for (const tag of question.tags) {
             const findedTag = await Tag.find({
               where: {
                 name: tag,
@@ -770,42 +859,42 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         }
 
         const savedQuestion = await queryRunner.manager.save(questionEntity);
-        if(savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
+        if (savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
 
-        if(question.wrongAnswer1 !== ''){
+        if (question.wrongAnswer1 !== '') {
           const wrongAnswer = new WrongAnswer();
           wrongAnswer.answer = question.wrongAnswer1;
           wrongAnswer.question = savedQuestion;
 
           const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
-          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
         }
-        if(question.wrongAnswer2 !== ''){
+        if (question.wrongAnswer2 !== '') {
           const wrongAnswer = new WrongAnswer();
           wrongAnswer.answer = question.wrongAnswer2;
           wrongAnswer.question = savedQuestion;
 
           const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
-          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
         }
-        if(question.wrongAnswer3 !== ''){
+        if (question.wrongAnswer3 !== '') {
           const wrongAnswer = new WrongAnswer();
           wrongAnswer.answer = question.wrongAnswer3;
           wrongAnswer.question = savedQuestion;
-          
+
           const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
-          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
         }
 
         exercise.questions.push(savedQuestion);
       }
 
       const savedExercise = await queryRunner.manager.save(exercise);
-        if(savedExercise.id === null || savedExercise.id === undefined) throw new Error();
-      
+      if (savedExercise.id === null || savedExercise.id === undefined) throw new Error();
+
       await queryRunner.commitTransaction();
       return savedExercise;
-    }catch (error) {
+    } catch (error) {
       console.log(error);
       await queryRunner.rollbackTransaction();
       return null;
@@ -963,26 +1052,26 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     }
   }
 
-  async addNewQuestionTag(tagName: string) : Promise<Tag | null>{
-    try{
+  async addNewQuestionTag(tagName: string): Promise<Tag | null> {
+    try {
       const isOld = await Tag.find({
         where: {
           name: tagName,
         }
       });
-      if(isOld.length > 0) throw new DuplicateError();
+      if (isOld.length > 0) throw new DuplicateError();
       const newTag = new Tag();
       newTag.name = tagName;
       newTag.type = TagsType.Question;
       const savedTag = await Tag.save(newTag);
       return savedTag;
-    }catch(error){
-      console.log(error);  
-      return null;  
+    } catch (error) {
+      console.log(error);
+      return null;
     }
   }
 
-  async getAllQuestionTags() : Promise<Tag[]>{
+  async getAllQuestionTags(): Promise<Tag[]> {
     const tag = Tag.find({
       where: {
         type: TagsType.Question,
@@ -1110,6 +1199,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getEmployeeByBranch(userId?: number, branchId?: number): Promise<UserEmployee[]> {
     if (userId === undefined || branchId === undefined) return [];
     return await EmployeeRepository.findUserEmployeeByBranch(branchId);
+  }
+
+
+  async getCurriculumTags(userId: number): Promise<Tag[]> {
+    if (userId === undefined) return [];
+    return await TagRepository.getCurriculumTags();
   }
 }
 

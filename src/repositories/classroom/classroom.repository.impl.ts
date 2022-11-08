@@ -2,6 +2,7 @@ import moment = require("moment");
 import { Classroom } from "../../entities/Classroom";
 import { StudySession } from "../../entities/StudySession";
 import { ClassroomFunction } from "../../utils/constants/classroom.constant";
+import Pageable from "../helpers/pageable";
 import ClassroomRepositoryInterface from "./classroom.repository.interface";
 
 class ClassroomRepositoryImpl implements ClassroomRepositoryInterface {
@@ -53,6 +54,32 @@ class ClassroomRepositoryImpl implements ClassroomRepositoryInterface {
       .andWhere(`cr.function = '${ClassroomFunction.CLASSROOM}'`)
       .setParameters(busyClassroomIdsOfClassroomQuery.getParameters());
     return await classroomQuery.getMany();
+  }
+
+
+  async findClassroomByBranch(branchId: number, pageable: Pageable, name?: string): Promise<Classroom[]> {
+    let query = Classroom.createQueryBuilder("cr")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("cr.branch", "branch")
+      .where("branch.id = :branchId", { branchId })
+      .orderBy("cr.name");
+    if (name !== undefined && name.trim().length > 0)
+      query = query.andWhere("cr.name LIKE :name", { name: "%" + name + "%" })
+    query = pageable.buildQuery(query);
+    return await query.getMany();
+  }
+
+
+  async countClassroomByBranch(branchId: number, name?: string): Promise<number> {
+    let query = Classroom.createQueryBuilder("cr")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("cr.branch", "branch")
+      .where("branch.id = :branchId", { branchId })
+    if (name !== undefined && name.trim().length > 0)
+      query = query.andWhere("cr.name LIKE :name", { name: "%" + name + "%" })
+    return await query.getCount();
   }
 }
 

@@ -12,15 +12,15 @@ export class UserTutor extends MyBaseEntity {
   @Length(0, 255)
   @Column({ length: 255, nullable: false, unique: true })
   slug: string;
-  
-  @PrimaryColumn({type: "int", name:"tutorId"})
-  @OneToOne(() => Worker, {onDelete: "CASCADE", onUpdate: "CASCADE"})
-  @JoinColumn({name: "tutorId"})
+
+  @PrimaryColumn({ type: "int", name: "tutorId" })
+  @OneToOne(() => Worker, { onDelete: "CASCADE", onUpdate: "CASCADE" })
+  @JoinColumn({ name: "tutorId" })
   worker: Worker;
 
   //Relation: Tutor--N--<Free In>--N--Shift
   @ManyToMany(() => Shift, (shift) => shift.tutors, {
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
     onUpdate: "CASCADE",
   })
   @JoinTable({ name: "tutor_free_in_shift" })

@@ -132,7 +132,7 @@ export const createCurriculums = async (tags: Tag[]) => {
       tags: faker.helpers.arrayElements(tags, 3)
     }));
 
-    const numberOfLectures = faker.datatype.number({ min: 5, max: 10 });
+    const numberOfLectures = faker.datatype.number({ min: 12, max: 20 });
     for (let lectureIndex = 0; lectureIndex < numberOfLectures; lectureIndex++) {
       const lecture = await Lecture.save(Lecture.create({
         order: lectureIndex + 1,

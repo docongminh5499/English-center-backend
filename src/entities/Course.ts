@@ -92,7 +92,7 @@ export class Course extends MyBaseEntity {
   @OneToMany(() => Exercise, (exercise) => exercise.course, {
     nullable: false,
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "CASCADE",
   })
   exercises: Exercise[];
 

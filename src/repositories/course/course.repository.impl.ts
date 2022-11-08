@@ -184,6 +184,50 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
                 .andWhere("branch.id = :id", { id: branchId });
         return query.getCount()
     }
+
+
+    async countCourseByTutor(queryable: Queryable<Course>, tutorId: number): Promise<number> {
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
+        query = queryable.buildQuery(query);
+        query = query.andWhere((qb: any) => {
+            const subQuery = qb
+                .subQuery()
+                .select("ss.courseId")
+                .distinct(true)
+                .from(StudySession, "ss")
+                .where("tutorWorker = :id")
+                .getQuery()
+            return "Course.id IN " + subQuery
+        }).setParameter("id", tutorId);
+        return query.getCount()
+    }
+
+
+    async findCourseByTutor(pageable: Pageable, sortable: Sortable, queryable: Queryable<Course>, tutorId: number): Promise<Course[]> {
+        let query = Course.createQueryBuilder()
+            .setLock("pessimistic_read")
+            .useTransaction(true);
+        query = queryable.buildQuery(query);
+        query = query
+            .leftJoinAndSelect("Course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            .andWhere((qb: any) => {
+                const subQuery = qb
+                    .subQuery()
+                    .select("ss.courseId")
+                    .distinct(true)
+                    .from(StudySession, "ss")
+                    .where("tutorWorker = :id")
+                    .getQuery()
+                return "Course.id IN " + subQuery
+            }).setParameter("id", tutorId);
+        query = sortable.buildQuery(query);
+        query = pageable.buildQuery(query);
+        return query.getMany()
+    }
 }
 
 const CourseRepository = new CourseRepositoryImpl();

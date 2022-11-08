@@ -6,9 +6,9 @@ export default interface MessageService {
 
     seen: (sender: UserDto, socket: SocketDto) => Promise<MessageResponseDto>;
 
-    getContacts: (userId?: number) => Promise<ContactListDto>;
+    getContacts: (userId?: number, pageableDto?: PageableDto) => Promise<ContactListDto>;
 
-    findContacts: (name?: string) => Promise<ContactListDto>;
+    findContacts: (name?: string, pageableDto?: PageableDto) => Promise<ContactListDto>;
 
     getMessages: (user: UserDto, targetUser: UserDto, pageable: PageableDto) => Promise<MessageListDto>
 

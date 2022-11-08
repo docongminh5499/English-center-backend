@@ -51,11 +51,11 @@ export class Shift extends MyBaseEntity {
   endTime: Date;
 
   //Relation StudySession==N==<belong to>--N--Shift
-  @ManyToMany(() => StudySession, (studySession) => studySession.shifts, { onDelete: "RESTRICT", onUpdate: "CASCADE" })
+  @ManyToMany(() => StudySession, (studySession) => studySession.shifts, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   studySessions: StudySession[];
 
   //Relation: Tutor--N--<Free In>--N--Shift
-  @ManyToMany(() => UserTutor, (tutor) => tutor.shifts, { onDelete: "RESTRICT", onUpdate: "CASCADE" })
+  @ManyToMany(() => UserTutor, (tutor) => tutor.shifts, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   tutors: UserTutor[];
 
 }

@@ -4,7 +4,9 @@ import Pageable from "../helpers/pageable";
 import Sortable from "../helpers/sortable";
 
 export default interface UserChatEachOtherRepository {
-    getLastestMessagesByUserId: (userId: number, sortable: Sortable) => Promise<UserChatEachOther[]>;
+    getLastestMessagesByUserId: (userId: number, sortable: Sortable, pageable: Pageable) => Promise<UserChatEachOther[]>;
+
+    countLastestMessagesByUserId:  (userId: number) => Promise<number>;
 
     getMessages: (userId: number, targetUserId: number, pageable: Pageable, sortable: Sortable) => Promise<UserChatEachOther[]>;
 

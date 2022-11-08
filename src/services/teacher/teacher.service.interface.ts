@@ -86,4 +86,6 @@ export default interface TeacherService {
     getSchedule: (pageableDto: PageableDto, userId?: number, startDate?: Date, endDate?: Date) => Promise<{ total: number, studySessions: StudySession[] }>;
 
     getEmployeeByBranch: (userId?: number, branchId?: number) => Promise<UserEmployee[]>;
+
+    getCurriculumTags: (userId: number) => Promise<Tag[]>;
 }

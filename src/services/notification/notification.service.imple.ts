@@ -124,6 +124,7 @@ class NotificationServiceImpl implements NotificationServiceInterface {
         notification.read = false;
         notification.content = courseNotificationDto.content;
         notification.user = studentUser;
+        notification.createdAt = new Date();
 
         const validateErrors = await validate(notification);
         if (validateErrors.length) throw new ValidationError(validateErrors);

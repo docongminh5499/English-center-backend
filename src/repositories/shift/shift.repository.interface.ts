@@ -9,4 +9,6 @@ export default interface ShiftRepository {
     findShiftsByStudySession: (studySessionId: number) => Promise<Shift[]>;
 
     findShiftsByWeekDay: (weekday: Weekday) => Promise<Shift[]>;
+
+    findAllShifts: () => Promise<Shift[]>;
 }

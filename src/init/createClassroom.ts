@@ -17,7 +17,7 @@ export const createClassrooms = async (branches: Branch[]) => {
     const capacities = [25, 30, 40, 60];
 
     for (let branchIndex = 0; branchIndex < branches.length; branchIndex++) {
-        const numberOfClassroom = faker.datatype.number({ min: 5, max: 10 });
+        const numberOfClassroom = faker.datatype.number({ min: 10, max: 15 });
         const branch = branches[branchIndex];
         for (let index = 0; index < numberOfClassroom; index++) {
             let classroom = new Classroom();

@@ -1,4 +1,5 @@
 import moment = require("moment");
+import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserTutor } from "../../entities/UserTutor";
 import TutorRepositoryInterface from "./tutor.repository.interface";
@@ -82,6 +83,33 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
       tutorQuery = tutorQuery.andWhere("branch.id = :branchId", { branchId })
     tutorQuery = tutorQuery.setParameters({ ...busyTutorIdsQuery.getParameters(), ...freeTutorsIdQuery.getParameters() });
     return await tutorQuery.getMany();
+  }
+
+
+  async findFreeShiftsOfTutor(tutorId: number): Promise<Shift[]> {
+    const result = await UserTutor.createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.shifts", "shifts")
+      .where("tt.tutorId = :id", { id: tutorId })
+      .getOne();
+    if (result == null) return [];
+    return result.shifts;
+  }
+
+
+  async findTutorById(tutorId: number): Promise<UserTutor | null> {
+    return await UserTutor.createQueryBuilder("tutor")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tutor.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .leftJoinAndSelect("branch.userEmployee", "manager")
+      .leftJoinAndSelect("manager.worker", "managerWorker")
+      .leftJoinAndSelect("managerWorker.user", "managerUser")
+      .where("user.id = :userId", { userId: tutorId })
+      .getOne();
   }
 }
 

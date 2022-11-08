@@ -60,6 +60,14 @@ class ShiftRepositoryImpl implements ShiftRepositoryInterface {
       .orderBy({ "startTime": "ASC" })
       .getMany();
   }
+
+
+  async findAllShifts(): Promise<Shift[]> {
+    return await Shift.createQueryBuilder('shift')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .getMany();
+  }
 }
 
 const ShiftRepository = new ShiftRepositoryImpl();
