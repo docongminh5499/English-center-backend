@@ -30,6 +30,19 @@ class UserParentRepositoryImpl implements UserParentRepositoryInterface {
         .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
     return await queryStmt.getCount();
   }
+
+  async findUserParent(parentId: number) : Promise<UserParent | null>{
+    const userParent = UserParent
+                        .createQueryBuilder("parent")
+                        .setLock("pessimistic_read")
+                        .useTransaction(true)
+                        .leftJoinAndSelect("parent.user", "us")
+                        .leftJoinAndSelect("parent.userStudents", "userStudents")
+                        .leftJoinAndSelect("userStudents.user", "user")
+                        .where("us.id = :parentId", {parentId})
+                        .getOne();
+    return userParent;
+  }
 }
 
 

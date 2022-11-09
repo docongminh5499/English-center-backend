@@ -5,6 +5,7 @@ import UserRouter from "./routes/users";
 import TeacherRouter from "./routes/teachers";
 import StudentRouter from "./routes/students";
 import EmployeeRouter from "./routes/employees";
+import ParentRouter from "./routes/parents";
 import TutorRouter from "./routes/tutors";
 import { json, urlencoded } from "body-parser";
 import { NotFoundError } from "./utils/errors/notFound.error";
@@ -25,6 +26,7 @@ app.use("/api/teachers", TeacherRouter);
 app.use("/api/students", StudentRouter);
 app.use("/api/employees", EmployeeRouter);
 app.use("/api/tutors", TutorRouter);
+app.use("/api/parents", ParentRouter);
 
 app.all("*", async (req: any, res: any, next: any) => {
   return next(new NotFoundError());
