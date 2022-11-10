@@ -28,7 +28,7 @@ export default interface TutorService {
 
   getStudents: (userId: number, courseSlug: string, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
 
-  getStudentDetailsInCourse: (userId: number, studentId: number, courseSlug: string) => Promise<{ student: UserStudent}>;
+  getStudentDetailsInCourse: (userId: number, studentId: number, courseSlug: string) => Promise<{ student: UserStudent }>;
 
   getEmployeeByBranch: (userId?: number, branchId?: number) => Promise<UserEmployee[]>;
 
@@ -37,4 +37,6 @@ export default interface TutorService {
 
   getStudySessionDetail: (tutorId?: number, studySessionId?: number)
     => Promise<{ studySession: StudySession | null, attendences: UserAttendStudySession[], makeups: MakeUpLession[], ownMakeups: MakeUpLession[] }>;
+
+  requestOffStudySession: (userId?: number, studySessionId?: number, excuse?: string) => Promise<boolean>;
 }

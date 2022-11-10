@@ -88,4 +88,6 @@ export default interface TeacherService {
     getEmployeeByBranch: (userId?: number, branchId?: number) => Promise<UserEmployee[]>;
 
     getCurriculumTags: (userId: number) => Promise<Tag[]>;
+
+    requestOffStudySession: (userId?: number, studySessionId?: number, excuse?: string) => Promise<boolean>;
 }

@@ -1,4 +1,4 @@
-import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto, FileDto, CredentialDto } from "../../dto";
+import { PageableDto, CourseListDto, DocumentDto, CourseDetailDto, FileDto, CredentialDto, NotificationDto, NotificationResponseDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { AccountRepository, CourseRepository, Pageable, Sortable } from "../../repositories";
 import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
@@ -52,6 +52,11 @@ import EmployeeRepository from "../../repositories/userEmployee/employee.reposit
 import { UserEmployee } from "../../entities/UserEmployee";
 import TagRepository from "../../repositories/tag/tag.repository.impl";
 import { slugify } from "../../utils/functions/slugify";
+import { io } from "../../socket";
+import { QueryRunner } from "typeorm";
+import { User } from "../../entities/UserEntity";
+import { Notification } from "../../entities/Notification";
+import { SystemError } from "../../utils/errors/system.error";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -797,12 +802,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
   //=========================================Hoc Exercise==============================================
-  async createExercise(courseId: number, basicInfo: any, questions: any[]) : Promise<Exercise | null>{
+  async createExercise(courseId: number, basicInfo: any, questions: any[]): Promise<Exercise | null> {
     const course = await CourseRepository.findCourseById(courseId);
-    if(course === null)
+    if (course === null)
       throw new NotFoundError();
 
-    if (course.closingDate !== null){
+    if (course.closingDate !== null) {
       throw new Error("Khóa học đã kết thúc, không thể thêm bài tập.");
     }
     const queryRunner = AppDataSource.createQueryRunner();
@@ -815,7 +820,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       exercise.name = basicInfo.nameExercise;
       exercise.maxTime = basicInfo.maxTime;
       exercise.questions = [];
-      
+
       const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
       const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
       console.log(dateDoExercise)
@@ -898,20 +903,20 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       return null;
-    }finally {
+    } finally {
       await queryRunner.release();
     }
   }
 
-  async modifyExercise(exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]) : Promise<Exercise | null>{
+  async modifyExercise(exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]): Promise<Exercise | null> {
     const exercise = await Exercise.createQueryBuilder("exercise")
-                                 .leftJoinAndSelect("exercise.questions", "questions")
-                                 .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
-                                 .leftJoinAndSelect("questions.tags", "tags")
-                                 .leftJoinAndSelect("exercise.course", "course")
-                                 .where("exercise.id = :exerciseId", {exerciseId: exerciseId})
-                                 .getOne();
-    if(exercise === null)
+      .leftJoinAndSelect("exercise.questions", "questions")
+      .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+      .leftJoinAndSelect("questions.tags", "tags")
+      .leftJoinAndSelect("exercise.course", "course")
+      .where("exercise.id = :exerciseId", { exerciseId: exerciseId })
+      .getOne();
+    if (exercise === null)
       throw new NotFoundError();
     // TODO:Commented for testing
     // if (exercise.course.closingDate !== null){
@@ -920,7 +925,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-    try{
+    try {
       exercise.name = basicInfo.nameExercise;
       exercise.maxTime = basicInfo.maxTime;
 
@@ -928,16 +933,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
 
       exercise.openTime = new Date(
-        dateDoExercise[0].getFullYear(), 
-        dateDoExercise[0].getMonth(), 
+        dateDoExercise[0].getFullYear(),
+        dateDoExercise[0].getMonth(),
         dateDoExercise[0].getDate(),
         timeDoExercise[0].getHours(),
         timeDoExercise[0].getMinutes(),
         timeDoExercise[0].getSeconds(),
       );
       exercise.endTime = new Date(
-        dateDoExercise[1].getFullYear(), 
-        dateDoExercise[1].getMonth(), 
+        dateDoExercise[1].getFullYear(),
+        dateDoExercise[1].getMonth(),
         dateDoExercise[1].getDate(),
         timeDoExercise[1].getHours(),
         timeDoExercise[1].getMinutes(),
@@ -948,23 +953,23 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         exercise.questions = [];
 
       const modifyQuestions = [];
-      
+
       deleteQuestions.forEach(async (id: number) => {
         await queryRunner.manager.delete(Question, id);
       })
 
       //Add new Question
-      for(const question of questions){
+      for (const question of questions) {
         let questionEntity = new Question();
         //New questions have key field.
-        if(!question.key){
+        if (!question.key) {
           const foundQuestion = await queryRunner.manager.findOne(Question, {
             where: {
               id: question.id,
             },
             relations: ["tags", "wrongAnswers"],
           })
-          if (foundQuestion === null){
+          if (foundQuestion === null) {
             throw new NotFoundError();
           }
 
@@ -973,7 +978,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           questionEntity.wrongAnswers.forEach(async (wrongAnswer: WrongAnswer) => {
             await queryRunner.manager.delete(WrongAnswer, wrongAnswer.id);
           })
-        }else {
+        } else {
           console.log("--------------------------------------------")
           questionEntity.wrongAnswers = [];
         }
@@ -982,10 +987,10 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         questionEntity.imgSrc = question.imgSrc;
         questionEntity.answer = question.rightAnswer;
         questionEntity.tags = [];
-        
+
         //Add tags
-        if(question.tags !== null) {
-          for(const tag of question.tags){
+        if (question.tags !== null) {
+          for (const tag of question.tags) {
             const findedTag = await Tag.find({
               where: {
                 name: tag,
@@ -998,39 +1003,39 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         }
 
         const savedQuestion = await queryRunner.manager.save(questionEntity);
-        if(savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
-        
-        if(question.wrongAnswer1 !== ''){
+        if (savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
+
+        if (question.wrongAnswer1 !== '') {
           const wrongAnswer = new WrongAnswer();
           wrongAnswer.answer = question.wrongAnswer1;
           wrongAnswer.question = savedQuestion;
 
           const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
-          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
 
           const responseWrongAnswer = new WrongAnswer();
           responseWrongAnswer.answer = savedWrongAnswer.answer;
           savedQuestion.wrongAnswers.push(responseWrongAnswer);
         }
-        if(question.wrongAnswer2 !== ''){
+        if (question.wrongAnswer2 !== '') {
           const wrongAnswer = new WrongAnswer();
           wrongAnswer.answer = question.wrongAnswer2;
           wrongAnswer.question = savedQuestion;
 
           const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
-          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
 
           const responseWrongAnswer = new WrongAnswer();
           responseWrongAnswer.answer = savedWrongAnswer.answer;
           savedQuestion.wrongAnswers.push(responseWrongAnswer);
         }
-        if(question.wrongAnswer3 !== ''){
+        if (question.wrongAnswer3 !== '') {
           const wrongAnswer = new WrongAnswer();
           wrongAnswer.answer = question.wrongAnswer3;
           wrongAnswer.question = savedQuestion;
-          
+
           const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
-          if(savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
 
           const responseWrongAnswer = new WrongAnswer();
           responseWrongAnswer.answer = savedWrongAnswer.answer;
@@ -1040,14 +1045,14 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       }
       exercise.questions = modifyQuestions;
       const savedExercise = await queryRunner.manager.save(exercise);
-        if(savedExercise.id === null || savedExercise.id === undefined) throw new Error();
+      if (savedExercise.id === null || savedExercise.id === undefined) throw new Error();
       await queryRunner.commitTransaction();
       return savedExercise;
-    }catch (error) {
+    } catch (error) {
       console.log(error);
       await queryRunner.rollbackTransaction();
       return null;
-    }finally {
+    } finally {
       await queryRunner.release();
     }
   }
@@ -1080,54 +1085,54 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     return tag;
   }
 
-  async getExerciseById(exerciseId: number) : Promise<Exercise | null>{
-    try{
+  async getExerciseById(exerciseId: number): Promise<Exercise | null> {
+    try {
       const exercise = await Exercise.createQueryBuilder("exercise")
-                               .leftJoinAndSelect("exercise.questions", "questions")
-                               .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
-                               .leftJoinAndSelect("questions.tags", "tags")
-                               .where("exercise.id = :exerciseId", {exerciseId})
-                               .getOne();
-      
-      if(exercise === null){
+        .leftJoinAndSelect("exercise.questions", "questions")
+        .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+        .leftJoinAndSelect("questions.tags", "tags")
+        .where("exercise.id = :exerciseId", { exerciseId })
+        .getOne();
+
+      if (exercise === null) {
         throw new Error("Không tìm thấy bài tập.");
       }
       return exercise;
-    }catch(error){
+    } catch (error) {
       console.log(error);
       return null;
     }
   }
 
- async getStdExeResult(exerciseId: number) : Promise<StudentDoExercise[] | null>{
-    try{
+  async getStdExeResult(exerciseId: number): Promise<StudentDoExercise[] | null> {
+    try {
       const exercise = await Exercise.createQueryBuilder("exercise")
-                              .where("exercise.id = :exerciseId", {exerciseId})
-                              .getOne();
-      
-      if(exercise === null){
+        .where("exercise.id = :exerciseId", { exerciseId })
+        .getOne();
+
+      if (exercise === null) {
         throw new Error("Không tìm thấy bài tập.");
       }
 
       const stdExeResult = await StudentDoExercise.createQueryBuilder("studentDoExercise")
-                                                  .leftJoin(
-                                                    qb =>
-                                                      qb.from(StudentDoExercise, "inner")
-                                                        .select("max(score)", "maxScore")
-                                                        .addSelect('studentId')
-                                                        .addSelect("exerciseId")
-                                                        .groupBy('studentId, exerciseId'),
-                                                    'maxScoreTable',
-                                                    'maxScoreTable.studentId = studentDoExercise.studentId AND maxScoreTable.exerciseId = studentDoExercise.exerciseId'
-                                                  )
-                                                  .leftJoinAndSelect("studentDoExercise.exercise", "exercise")
-                                                  .leftJoinAndSelect("studentDoExercise.student", "student")
-                                                  .leftJoinAndSelect("student.user", "user")
-                                                  .where("studentDoExercise.score = maxScore")
-                                                  .andWhere("exercise.id = :exerciseId", {exerciseId})
-                                                  .getMany();
+        .leftJoin(
+          qb =>
+            qb.from(StudentDoExercise, "inner")
+              .select("max(score)", "maxScore")
+              .addSelect('studentId')
+              .addSelect("exerciseId")
+              .groupBy('studentId, exerciseId'),
+          'maxScoreTable',
+          'maxScoreTable.studentId = studentDoExercise.studentId AND maxScoreTable.exerciseId = studentDoExercise.exerciseId'
+        )
+        .leftJoinAndSelect("studentDoExercise.exercise", "exercise")
+        .leftJoinAndSelect("studentDoExercise.student", "student")
+        .leftJoinAndSelect("student.user", "user")
+        .where("studentDoExercise.score = maxScore")
+        .andWhere("exercise.id = :exerciseId", { exerciseId })
+        .getMany();
       return stdExeResult;
-    }catch(error){
+    } catch (error) {
       console.log(error);
       return null;
     }
@@ -1205,6 +1210,131 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getCurriculumTags(userId: number): Promise<Tag[]> {
     if (userId === undefined) return [];
     return await TagRepository.getCurriculumTags();
+  }
+
+
+  async sendNotification(queryRunner: QueryRunner, notificationDto: NotificationDto): Promise<NotificationResponseDto> {
+    if (notificationDto.userId === undefined)
+      throw new NotFoundError();
+    if (notificationDto.content === undefined)
+      throw new ValidationError([]);
+    const foundUser = await queryRunner.manager
+      .findOne(User, {
+        where: { id: notificationDto.userId },
+        relations: ["socketStatuses"],
+        lock: { mode: "pessimistic_read" },
+        transaction: true
+      });
+    if (foundUser == null) throw new NotFoundError();
+    const response = new NotificationResponseDto();
+
+    const notification = new Notification();
+    notification.read = false;
+    notification.content = notificationDto.content;
+    notification.user = foundUser;
+    notification.createdAt = new Date();
+
+    const validateErrors = await validate(notification);
+    if (validateErrors.length) throw new ValidationError(validateErrors);
+    const savedNotification = await queryRunner.manager.save(notification);
+    if (savedNotification === null || savedNotification.id === undefined || savedNotification.id === null)
+      throw new SystemError();
+
+    response.success = true;
+    response.receiverSocketStatuses = foundUser.socketStatuses;
+    response.notification = {
+      id: savedNotification.id,
+      content: savedNotification.content,
+      read: savedNotification.read,
+      userId: savedNotification.user.id,
+      createdAt: savedNotification.createdAt
+    };
+    return response;
+  }
+
+
+
+  async requestOffStudySession(userId?: number, studySessionId?: number, excuse?: string): Promise<boolean> {
+    if (userId === undefined || studySessionId === undefined || excuse === undefined)
+      return false;
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      // Find teacher
+      const teacher = await queryRunner.manager
+        .createQueryBuilder(UserTeacher, "teacher")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (teacher === null) throw new NotFoundError();
+      // Find study session
+      const studySession = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.shifts", "shifts")
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("ss.id = :studySessionId", { studySessionId })
+        .orderBy({ "shifts.startTime": "ASC" })
+        .getOne();
+      if (studySession === null) throw new NotFoundError();
+      // Check studySession is ready
+      if (getStudySessionState(studySession) !== StudySessionState.Ready)
+        throw new ValidationError([])
+      // Check teacher
+      if (studySession.teacher.worker.user.id !== userId)
+        throw new ValidationError([])
+      // Query employees by branch
+      const employees = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("branch.id = :branchId", { branchId: studySession.course.branch.id })
+        .getMany();
+      for (const employee of employees) {
+        const notificationDto = {} as NotificationDto;
+        notificationDto.userId = employee.worker.user.id;
+        notificationDto.content =
+          `Giáo viên: ${teacher.worker.user.fullName}, MSGV: ${teacher.worker.user.id}.
+        Yêu cầu nghỉ buổi học: ${studySession.name}, thuộc khóa học: ${studySession.course.name}. 
+        Lý do: ${excuse}.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Commit transaction
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
   }
 }
 

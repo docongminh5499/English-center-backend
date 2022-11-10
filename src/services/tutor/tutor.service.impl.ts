@@ -1,5 +1,5 @@
 import { validate } from "class-validator";
-import { CourseDetailDto, CourseListDto, CredentialDto, FileDto, PageableDto } from "../../dto";
+import { CourseDetailDto, CourseListDto, CredentialDto, FileDto, NotificationDto, NotificationResponseDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { Shift } from "../../entities/Shift";
 import { UserTutor } from "../../entities/UserTutor";
@@ -31,6 +31,11 @@ import UserAttendStudySessionRepository from "../../repositories/userAttendStudy
 import MakeUpLessionRepository from "../../repositories/makeUpLesson/makeUpLesson.repository.impl";
 import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
 import { slugify } from "../../utils/functions/slugify";
+import { QueryRunner } from "typeorm";
+import { User } from "../../entities/UserEntity";
+import { Notification } from "../../entities/Notification";
+import { SystemError } from "../../utils/errors/system.error";
+import { io } from "../../socket";
 
 class TutorServiceImpl implements TutorServiceInterface {
   async getCoursesByTutor(tutorId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -372,6 +377,130 @@ class TutorServiceImpl implements TutorServiceInterface {
     }
   }
 
+
+  async sendNotification(queryRunner: QueryRunner, notificationDto: NotificationDto): Promise<NotificationResponseDto> {
+    if (notificationDto.userId === undefined)
+      throw new NotFoundError();
+    if (notificationDto.content === undefined)
+      throw new ValidationError([]);
+    const foundUser = await queryRunner.manager
+      .findOne(User, {
+        where: { id: notificationDto.userId },
+        relations: ["socketStatuses"],
+        lock: { mode: "pessimistic_read" },
+        transaction: true
+      });
+    if (foundUser == null) throw new NotFoundError();
+    const response = new NotificationResponseDto();
+
+    const notification = new Notification();
+    notification.read = false;
+    notification.content = notificationDto.content;
+    notification.user = foundUser;
+    notification.createdAt = new Date();
+
+    const validateErrors = await validate(notification);
+    if (validateErrors.length) throw new ValidationError(validateErrors);
+    const savedNotification = await queryRunner.manager.save(notification);
+    if (savedNotification === null || savedNotification.id === undefined || savedNotification.id === null)
+      throw new SystemError();
+
+    response.success = true;
+    response.receiverSocketStatuses = foundUser.socketStatuses;
+    response.notification = {
+      id: savedNotification.id,
+      content: savedNotification.content,
+      read: savedNotification.read,
+      userId: savedNotification.user.id,
+      createdAt: savedNotification.createdAt
+    };
+    return response;
+  }
+
+
+
+  async requestOffStudySession(userId?: number, studySessionId?: number, excuse?: string): Promise<boolean> {
+    if (userId === undefined || studySessionId === undefined || excuse === undefined)
+      return false;
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      // Find tutor
+      const tutor = await queryRunner.manager
+        .createQueryBuilder(UserTutor, "tutor")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("tutor.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (tutor === null) throw new NotFoundError();
+      // Find study session
+      const studySession = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.shifts", "shifts")
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("ss.tutor", "tutor")
+        .leftJoinAndSelect("tutor.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .where("ss.id = :studySessionId", { studySessionId })
+        .orderBy({ "shifts.startTime": "ASC" })
+        .getOne();
+      if (studySession === null) throw new NotFoundError();
+      // Check studySession is ready
+      if (getStudySessionState(studySession) !== StudySessionState.Ready)
+        throw new ValidationError([])
+      // Check tutor
+      if (studySession.tutor.worker.user.id !== userId)
+        throw new ValidationError([])
+      // Query employees by branch
+      const employees = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("branch.id = :branchId", { branchId: studySession.course.branch.id })
+        .getMany();
+      for (const employee of employees) {
+        const notificationDto = {} as NotificationDto;
+        notificationDto.userId = employee.worker.user.id;
+        notificationDto.content =
+          `Trợ giảng: ${tutor.worker.user.fullName}, MSTG: ${tutor.worker.user.id}.
+        Yêu cầu nghỉ buổi học: ${studySession.name}, thuộc khóa học: ${studySession.course.name}. 
+        Lý do: ${excuse}.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Commit transaction
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
+  }
 }
 
 

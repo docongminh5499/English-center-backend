@@ -218,5 +218,17 @@ router.post("/get-employee-by-branch", async (req: any, res: any, next: any) => 
 });
 
 
+router.post("/request-off-study-session", async (req: any, res: any, next: any) => {
+  try {
+    const result = await TeacherService.requestOffStudySession(req.user.userId, req.body.studySessionId, req.body.excuse);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
 
 export { router as CourseRouter };

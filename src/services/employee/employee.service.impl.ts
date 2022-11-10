@@ -1096,6 +1096,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("course.curriculum", "curriculum")
         .leftJoinAndSelect("curriculum.lectures", "lectures")
         .leftJoinAndSelect("ss.shifts", "shifts")
+        .leftJoinAndSelect("ss.classroom", "classroom")
+        .leftJoinAndSelect("classroom.branch", "branchClassroom")
         .where("ss.id = :studySessionId", { studySessionId: studySessionDto.id })
         .getOne();
       if (studySession === null) throw new NotFoundError();
@@ -1137,6 +1139,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const equalShifts = oldShiftsId.length === studySessionDto.shiftIds.length
         && oldShiftsId.every(function (value, index) { return value === studySessionDto.shiftIds[index] })
       if (!equalShifts) sameTime = false;
+      // Check same classroom
+      const sameClassroom =
+        studySession.classroom.name.toLowerCase() === studySessionDto.classroom.name.toLowerCase() &&
+        studySession.classroom.branch.id === studySessionDto.classroom.branchId;
       // Check number of student who can attend new study session
       const result = await this.calculateAvailableStudentCount(queryRunner, studySession.course.slug,
         updatedDate, studySessionDto.shiftIds, studySessionDto.id);
@@ -1162,14 +1168,16 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       }
       // Update teacher
       if (studySession.teacher.worker.user.id == studySessionDto.teacherId) {
-        const notificationDto = { userId: studySessionDto.teacherId } as NotificationDto;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
-        const result = await this.sendNotification(queryRunner, notificationDto);
-        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
-          notifications.push({
-            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
-            notification: result.notification
-          });
+        if (!sameTime || !sameClassroom) {
+          const notificationDto = { userId: studySessionDto.teacherId } as NotificationDto;
+          notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
         }
       } else {
         // Old teacher notification
@@ -1234,14 +1242,16 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       }
       // Update tutor
       if (studySession.tutor.worker.user.id == studySessionDto.tutorId) {
-        const notificationDto = { userId: studySessionDto.tutorId } as NotificationDto;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
-        const result = await this.sendNotification(queryRunner, notificationDto);
-        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
-          notifications.push({
-            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
-            notification: result.notification
-          });
+        if (!sameTime || !sameClassroom) {
+          const notificationDto = { userId: studySessionDto.tutorId } as NotificationDto;
+          notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
         }
       } else {
         // Old tutor notification
@@ -1365,13 +1375,22 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         if (!sameTime) {
           await queryRunner.manager.remove(makeupLesson);
           notificationDto.content = `Buổi học bù "${studySession.name}", khoá học "${studySession.course.name}" đã bị hủy, vui lòng lên website và đăng ký lại buổi học khác.`;
-        } else notificationDto.content = `Buổi học bù "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
-        const result = await this.sendNotification(queryRunner, notificationDto);
-        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
-          notifications.push({
-            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
-            notification: result.notification
-          });
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
+        } else if (!sameClassroom) {
+          notificationDto.content = `Buổi học bù "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
         }
       }
       const participations = await queryRunner.manager
@@ -1382,14 +1401,16 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("course.id = :courseId", { courseId: studySession.course.id })
         .getMany();
       for (const participation of participations) {
-        const notificationDto = { userId: participation.student.user.id } as NotificationDto;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
-        const result = await this.sendNotification(queryRunner, notificationDto);
-        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
-          notifications.push({
-            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
-            notification: result.notification
-          });
+        if (!sameTime || !sameClassroom) {
+          const notificationDto = { userId: participation.student.user.id } as NotificationDto;
+          notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
         }
       }
       // Commit transaction
