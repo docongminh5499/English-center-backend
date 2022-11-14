@@ -10,6 +10,7 @@ import { InvalidTokenError } from "../../utils/errors/invalidToken.error";
 import { User } from "../../entities/UserEntity";
 import { Account } from "../../entities/Account";
 import { DuplicateError } from "../../utils/errors/duplicate.error";
+import BranchRepository from "../../repositories/branch/branch.repository.impl";
 
 
 class UserServiceImpl implements UserServiceInterface {
@@ -32,6 +33,7 @@ class UserServiceImpl implements UserServiceInterface {
 
 		const account = await AccountRepository.findByUserName(dto.username);
 		if (account && (await bcrypt.compare(dto.password as string, account.password))) {
+			const isManager = await BranchRepository.checkIsManager(account.user.id);
 			const credentialDto = new CredentialDto();
 			credentialDto.token = jwt.sign({
 				fullName: account.user.fullName,
@@ -39,6 +41,7 @@ class UserServiceImpl implements UserServiceInterface {
 				userName: account.username,
 				role: account.role,
 				avatar: account.user.avatar,
+				isManager: isManager,
 			}, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
 			return credentialDto;
 		}

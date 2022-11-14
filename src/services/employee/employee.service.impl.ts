@@ -128,6 +128,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       }
 
       const account = await AccountRepository.findByUserId(savedUser.id);
+      const isManager = await BranchRepository.checkIsManager(savedUser.id);
       const credentialDto = new CredentialDto();
       credentialDto.token = jwt.sign({
         fullName: account?.user.fullName,
@@ -135,6 +136,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         userName: account?.username,
         role: account?.role,
         avatar: account?.user.avatar,
+        isManager: isManager,
       }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
       return credentialDto;
     } catch (error) {

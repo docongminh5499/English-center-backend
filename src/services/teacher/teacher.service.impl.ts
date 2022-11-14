@@ -57,6 +57,7 @@ import { QueryRunner } from "typeorm";
 import { User } from "../../entities/UserEntity";
 import { Notification } from "../../entities/Notification";
 import { SystemError } from "../../utils/errors/system.error";
+import BranchRepository from "../../repositories/branch/branch.repository.impl";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -557,6 +558,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         fs.unlinkSync(filePath);
       }
       const account = await AccountRepository.findByUserId(savedUser.id);
+      const isManager = await BranchRepository.checkIsManager(savedUser.id);
       const credentialDto = new CredentialDto();
       credentialDto.token = jwt.sign({
         fullName: account?.user.fullName,
@@ -564,6 +566,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         userName: account?.username,
         role: account?.role,
         avatar: account?.user.avatar,
+        isManager: isManager,
       }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
       return credentialDto;
     } catch (error) {
@@ -592,6 +595,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async modifyCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
     if (userId === undefined) return null;
+    const isManager = await BranchRepository.checkIsManager(userId);
+    if (!isManager) return null;
+
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
@@ -661,6 +667,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         .useTransaction(true)
         .leftJoinAndSelect("p.teacher", "teacher")
         .leftJoinAndSelect("p.curriculum", "curriculum")
+        .where("curriculum.id = :curriculumId", { curriculumId: foundCurriculum.id })
         .getMany();
       // Delete modified curriculum if there is no course using it.
       const count = await queryRunner.manager
@@ -718,6 +725,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async createCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
     if (userId === undefined) return null;
+    const isManager = await BranchRepository.checkIsManager(userId);
+    if (!isManager) return null;
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -785,10 +794,13 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
 
-  async deleteCurriculum(curriculumId?: number): Promise<boolean> {
-    if (curriculumId === undefined) return false;
+  async deleteCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || curriculumId === undefined) return false;
     const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
     if (curriculum === null) return false;
+    const isManager = await BranchRepository.checkIsManager(userId);
+    if (!isManager) return false;
+
     const count = await CourseRepository.countByCurriculumId(curriculumId);
     if (count === 0) {
       if (curriculum && curriculum.image) {
@@ -1155,13 +1167,23 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
 
-  async addPreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
-    if (userId === undefined || curriculumId === undefined) return false;
-    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
-    if (teacher === null) return false;
+  async addPreferredCurriculum(userId?: number, teacherId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || teacherId === undefined || curriculumId === undefined) return false;
+    // Check is manager
+    const manager = await UserTeacherRepository.findUserTeacherByid(userId);
+    if (manager === null || manager.worker.user.id !== manager.worker.branch.userTeacher.worker.user.id)
+      return false;
+    // Check existed curriculum
     const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
     if (curriculum === null) return false;
-
+    // Check existed teacher
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(teacherId);
+    if (teacher === null) return false;
+    // Check manager is same branch with teacher
+    if (teacher.worker.branch.id !== manager.worker.branch.id) return false;
+    // Check prefered existed or not
+    if (teacher.preferredCurriculums.find(cur => cur.curriculum.id === curriculumId) !== undefined) return false;
+    // Save data
     const prefer = new TeacherPreferCurriculum();
     prefer.curriculum = curriculum;
     prefer.teacher = teacher;
@@ -1170,11 +1192,24 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
 
-  async removePreferredCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
-    if (userId === undefined || curriculumId === undefined) return false;
-    const teacher = await UserTeacherRepository.findPreferedCurriculums(userId);
+  async removePreferredCurriculum(userId?: number, teacherId?: number, curriculumId?: number): Promise<boolean> {
+    if (userId === undefined || teacherId === undefined || curriculumId === undefined) return false;
+    // Check is manager
+    const manager = await UserTeacherRepository.findUserTeacherByid(userId);
+    if (manager === null || manager.worker.user.id !== manager.worker.branch.userTeacher.worker.user.id)
+      return false;
+    // Check existed curriculum
+    const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
+    if (curriculum === null) return false;
+    // Check existed teacher
+    const teacher = await UserTeacherRepository.findPreferedCurriculums(teacherId);
     if (teacher === null) return false;
-    return await TeacherPreferCurriculumRepository.deletePreferCurriculum(userId, curriculumId);
+    // Check manager is same branch with teacher
+    if (teacher.worker.branch.id !== manager.worker.branch.id) return false;
+    // Check prefered existed or not
+    if (teacher.preferredCurriculums.find(cur => cur.curriculum.id === curriculumId) === undefined) return false;
+    // Delete data
+    return await TeacherPreferCurriculumRepository.deletePreferCurriculum(teacherId, curriculumId);
   }
 
 
@@ -1335,6 +1370,52 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       await queryRunner.release();
       return false;
     }
+  }
+
+
+  async getTeachersByPreferedCurriculum(userId: number, curiculumId: number,
+    pageableDto: PageableDto, query?: string): Promise<{ total: number, teachers: UserTeacher[] }> {
+    // Check data
+    if (userId === undefined || curiculumId === undefined ||
+      pageableDto === null || pageableDto === undefined)
+      return { total: 0, teachers: [] };
+    // Check is manager
+    const manager = await UserTeacherRepository.findUserTeacherByid(userId);
+    if (manager === null || manager.worker.user.id !== manager.worker.branch.userTeacher.worker.user.id)
+      return { total: 0, teachers: [] };
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [result, total] = await Promise.all([
+      UserTeacherRepository.getTeacherByPreferedCurriculum(curiculumId, manager.worker.branch.id, pageable, query),
+      UserTeacherRepository.countTeacherByPreferedCurriculum(curiculumId, manager.worker.branch.id, query)
+    ]);
+    return {
+      total: total,
+      teachers: result
+    };
+  }
+
+
+  async getTeacherAddPreferedCurriculum(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, teachers: UserTeacher[] }> {
+    // Check data
+    if (userId === undefined || pageableDto === null || pageableDto === undefined)
+      return { total: 0, teachers: [] };
+    if (query === undefined || query.trim().length === 0)
+      return { total: 0, teachers: [] };
+    // Check is manager
+    const manager = await UserTeacherRepository.findUserTeacherByid(userId);
+    if (manager === null || manager.worker.user.id !== manager.worker.branch.userTeacher.worker.user.id)
+      return { total: 0, teachers: [] };
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [result, total] = await Promise.all([
+      UserTeacherRepository.getTeacherByNotPreferedCurriculumAndBranch(manager.worker.branch.id, pageable, query),
+      UserTeacherRepository.countTeacherByNotPreferedCurriculumAndBranch(manager.worker.branch.id, query)
+    ]);
+    return {
+      total: total,
+      teachers: result
+    };
   }
 }
 

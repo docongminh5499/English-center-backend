@@ -200,6 +200,7 @@ class TutorServiceImpl implements TutorServiceInterface {
         userName: account?.username,
         role: account?.role,
         avatar: account?.user.avatar,
+        isManager: false,
       }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
       return credentialDto;
     } catch (error) {

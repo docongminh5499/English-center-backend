@@ -108,6 +108,9 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
       .leftJoinAndSelect("branch.userEmployee", "manager")
       .leftJoinAndSelect("manager.worker", "managerWorker")
       .leftJoinAndSelect("managerWorker.user", "managerUser")
+      .leftJoinAndSelect("branch.userTeacher", "teacherManager")
+      .leftJoinAndSelect("teacherManager.worker", "teacherManagerWorker")
+      .leftJoinAndSelect("teacherManagerWorker.user", "teacherManagerUser")
       .where("user.id = :userId", { userId: tutorId })
       .getOne();
   }

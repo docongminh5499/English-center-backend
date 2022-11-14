@@ -57,7 +57,7 @@ export default interface TeacherService {
 
     createCurriculum: (userId?: number, curriculumDto?: CurriculumDto) => Promise<Curriculum | null>;
 
-    deleteCurriculum: (curriculumId?: number) => Promise<boolean>;
+    deleteCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
 
     //Hoc Exercise modifyExercise
     createExercise: (courseId: number, basicInfo: any, questions: any[]) => Promise<Exercise | null>;
@@ -77,9 +77,9 @@ export default interface TeacherService {
 
     getCheckPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
 
-    addPreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
+    addPreferredCurriculum: (userId?: number, teacherId?: number, curriculumId?: number) => Promise<boolean>;
 
-    removePreferredCurriculum: (userId?: number, curriculumId?: number) => Promise<boolean>;
+    removePreferredCurriculum: (userId?: number, teacherId?: number, curriculumId?: number) => Promise<boolean>;
 
     closeCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 
@@ -90,4 +90,8 @@ export default interface TeacherService {
     getCurriculumTags: (userId: number) => Promise<Tag[]>;
 
     requestOffStudySession: (userId?: number, studySessionId?: number, excuse?: string) => Promise<boolean>;
+
+    getTeachersByPreferedCurriculum: (userId: number, curiculumId: number, pageableDto: PageableDto, query?: string) => Promise<{ total: number, teachers: UserTeacher[] }>
+
+    getTeacherAddPreferedCurriculum: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, teachers: UserTeacher[] }>;
 }

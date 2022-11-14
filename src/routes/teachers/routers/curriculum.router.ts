@@ -5,6 +5,7 @@ import * as fs from "fs";
 import { TeacherService } from "../../../services/teacher";
 import { CURRICULUM_DESTINATION } from "../../../utils/constants/curriculum.constant";
 import CurriculumDto from "../../../dto/requests/curriculum.dto";
+import { PageableMapper } from "../mappers";
 
 const router = express.Router();
 const storage = multer.diskStorage({
@@ -104,7 +105,7 @@ router.post("/modify-curriculum", upload.single("image"), async (req: any, res: 
 router.delete("/delete-curriculum/:curriculumId", async (req: any, res: any, next: any) => {
   try {
     return res.status(200).json({
-      success: await TeacherService.deleteCurriculum(req.params.curriculumId)
+      success: await TeacherService.deleteCurriculum(req.user.userId, req.params.curriculumId)
     });
   } catch (err) {
     console.log(err);
@@ -141,7 +142,7 @@ router.post("/check-prefered-curriculums", async (req: any, res: any, next: any)
 router.post("/add-prefered-curriculums", async (req: any, res: any, next: any) => {
   try {
     return res.status(200).json(
-      await TeacherService.addPreferredCurriculum(req.user.userId, req.body.curriculumId));
+      await TeacherService.addPreferredCurriculum(req.user.userId, req.body.teacherId, req.body.curriculumId));
   } catch (err) {
     console.log(err);
     next(err);
@@ -152,7 +153,7 @@ router.post("/add-prefered-curriculums", async (req: any, res: any, next: any) =
 router.post("/remove-prefered-curriculums", async (req: any, res: any, next: any) => {
   try {
     return res.status(200).json(
-      await TeacherService.removePreferredCurriculum(req.user.userId, req.body.curriculumId));
+      await TeacherService.removePreferredCurriculum(req.user.userId, req.body.teacherId, req.body.curriculumId));
   } catch (err) {
     console.log(err);
     next(err);
@@ -169,6 +170,31 @@ router.get("/get-curriculum-tags", async (req: any, res: any, next: any) => {
     next(err);
   }
 })
+
+
+router.post("/get-teachers-by-prefered-curriculum", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getTeachersByPreferedCurriculum(req.user.userId, req.body.curriculumId, pageableDto, req.body.query)
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+router.post("/get-teachers-by-branch-and-not-prefered-curriculum", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await TeacherService.getTeacherAddPreferedCurriculum(req.user.userId, req.body.query, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
 
 
 export { router as TeacherCurriculumRouter };

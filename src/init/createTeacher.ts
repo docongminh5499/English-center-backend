@@ -23,6 +23,7 @@ export const createTeachers = async (branches: Branch[]) => {
     const numberOfTeachers = faker.datatype.number({ min: 10, max: 15 });
     const branch = branches[branchIndex];
     const slugs: string[] = [];
+    const teacherOfCurrentBranch = [];
 
     for (let index = 0; index < numberOfTeachers; index++) {
       let user = new User();
@@ -80,7 +81,10 @@ export const createTeachers = async (branches: Branch[]) => {
         user: user,
       }));
       teachers.push(teacher);
+      teacherOfCurrentBranch.push(teacher);
     }
+    branch.userTeacher = faker.helpers.arrayElement(teacherOfCurrentBranch);
+    await branch.save();
   }
   console.log(`Created ${teachers.length} teachers`);
   return teachers;
