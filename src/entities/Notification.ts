@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm";
-import { IsBoolean, IsNotEmpty, IsString } from "class-validator";
+import { IsBoolean, IsDate, IsNotEmpty, IsString } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { User } from "./UserEntity";
 
@@ -19,4 +19,9 @@ export class Notification extends MyBaseEntity {
 
   @ManyToOne(() => User, {onDelete: "CASCADE", onUpdate: "CASCADE", nullable: false})
   user: User;
+
+  @IsNotEmpty()
+  @IsDate()
+  @Column({ type: "timestamp", precision: 6, nullable: true })
+  createdAt: Date;
 }

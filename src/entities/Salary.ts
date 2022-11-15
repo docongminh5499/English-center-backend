@@ -4,8 +4,11 @@ import {
   OneToOne,
   JoinColumn,
   ManyToOne,
+  Column,
 } from "typeorm";
 import {
+  IsDate,
+  IsNotEmpty,
   IsString,
   Length,
 } from "class-validator";
@@ -21,7 +24,6 @@ export class Salary extends MyBaseEntity {
   @IsString()
   @Length(0, 50)
   @OneToOne(() => Transaction, {
-    //Length: 50,
     nullable: false,
     onUpdate: "CASCADE",
     onDelete: "RESTRICT",
@@ -32,4 +34,9 @@ export class Salary extends MyBaseEntity {
   @ManyToOne(() => Worker, {onDelete: "RESTRICT", onUpdate: "CASCADE", nullable: false})
   @JoinColumn({name: "workerId"})
   worker: Worker;
+
+  @IsNotEmpty()
+  @IsDate()
+  @Column({ type: "timestamp", precision: 6, nullable: false })
+  payDate: Date;
 }

@@ -41,23 +41,22 @@ export class Fee extends MyBaseEntity {
   @JoinColumn({ name: "studentId" })
   userStudent: UserStudent;
 
-  @IsNotEmpty()
-  @OneToOne(() => Course, {
-    nullable: false,
+  @ManyToOne(() => Course, {
     onUpdate: "CASCADE",
-    onDelete: "RESTRICT",
+    onDelete: "SET NULL",
   })
   @JoinColumn()
-  course: Course;
+  course: Course | null;
 
   @ManyToOne(() => UserEmployee, {
     onUpdate: "CASCADE",
-    onDelete: "NO ACTION",
+    onDelete: "RESTRICT",
   })
   @JoinColumn({ name: "employeeId" })
   userEmployee: UserEmployee;
 
+  @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: true })
-  payDate: Date | null;
+  @Column({ type: "timestamp", precision: 6, nullable: false })
+  payDate: Date;
 }

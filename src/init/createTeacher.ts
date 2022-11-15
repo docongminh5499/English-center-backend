@@ -53,7 +53,7 @@ export const createTeachers = async (branches: Branch[]) => {
         min: worker.startDate.getTime(),
         max: (new Date()).getTime(),
       });
-      worker.coefficients = 90;
+      worker.coefficients = faker.datatype.float({ min: 2, max: 4, precision: 0.1 });
       worker.nation = "Kinh";
       worker.passport = faker.phone.number("############");
       worker.homeTown = faker.address.cityName();

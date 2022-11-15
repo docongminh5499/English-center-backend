@@ -7,6 +7,7 @@ import {
   ManyToOne,
 } from "typeorm";
 import {
+  IsBoolean,
   IsDate,
   IsNotEmpty,
   IsNumber,
@@ -80,6 +81,11 @@ export class Course extends MyBaseEntity {
   @Length(0, 255)
   @Column({ length: 255, nullable: false })
   image: string;
+
+  @IsNotEmpty()
+  @IsBoolean()
+  @Column({ type: "boolean", nullable: false, default: false })
+  isLocked: boolean;
 
   //Relation Cuorse--1--<has>==N==Document
   @OneToMany(() => Document, (document) => document.course)

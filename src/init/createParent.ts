@@ -18,7 +18,7 @@ export const createParents = async (students: UserStudent[]) => {
         "/assets/images/avatar/student5.jpg",
     ];
 
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 30; index++) {
         let user = new User();
         const gender: "male" | "female" = faker.helpers.arrayElement([Sex.FEMALE, Sex.MALE]);
         user.email = faker.internet.email();

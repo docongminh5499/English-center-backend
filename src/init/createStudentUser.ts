@@ -16,7 +16,7 @@ export const createStudentUser = async (): Promise<UserStudent[]> => {
         "/assets/images/avatar/student5.jpg",
     ];
 
-    for (let index = 0; index < 50; index++) {
+    for (let index = 0; index < 80; index++) {
         let user = new User();
         const gender: "male" | "female" = faker.helpers.arrayElement([Sex.FEMALE, Sex.MALE]);
         user.email = faker.internet.email();

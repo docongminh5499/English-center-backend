@@ -15,7 +15,7 @@ import { TransactionType } from "../utils/constants/transaction.constant";
 export class Transaction extends MyBaseEntity {
   @IsString()
   @Length(0, 50)
-  @PrimaryColumn()
+  @PrimaryColumn({ type: 'varchar', length: 50, nullable: false })
   transCode: string;
 
   @IsNotEmpty()
@@ -29,8 +29,8 @@ export class Transaction extends MyBaseEntity {
   @IsPositive()
   @Column({
     type: "decimal",
-    precision: 9,
-    scale: 0,
+    precision: 11,
+    scale: 2,
     nullable: false,
     transformer: {
       to(value) { return value; },

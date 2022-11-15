@@ -10,6 +10,7 @@ import { createDocumentCourse } from "./createDocumentCourse";
 import { createEmployees } from "./createEmployee";
 import { createExercise } from "./createExerciseCourse";
 import { createParents } from "./createParent";
+import { createSalary } from "./createSalary";
 import { createShifts } from "./createShift";
 import { createStudentAttendStudySession } from "./createStudentAttendStudySession";
 import { createStudentDoExercise } from "./createStudentDoExercise";
@@ -19,11 +20,14 @@ import { createStudySession } from "./createStudySession";
 import { createTag } from "./createTag";
 import { createTeachers } from "./createTeacher";
 import { createTeacherPreferCurriculums } from "./createTeacherPreferCurriculum";
+import { createTransactionConstants } from "./createTransactionConstants";
 import { createTutors } from "./createTutor";
 
 export async function initData() {
 
   console.log("---------------------- Starting init data ----------------------");
+
+  const constants = await createTransactionConstants();
 
   const tags = await createTag();
 
@@ -43,9 +47,9 @@ export async function initData() {
 
   const prefered = await createTeacherPreferCurriculums(teachers, curriculums);
 
-  await createTutors(branches, shifts);
+  const tutors = await createTutors(branches, shifts);
 
-  await createEmployees(branches);
+  const employees = await createEmployees(branches);
 
   const students = await createStudentUser();
 
@@ -61,12 +65,14 @@ export async function initData() {
 
   for (let courseIndex = 0; courseIndex < courses.length; courseIndex++) {
     const studySessions = await createStudySession(courses[courseIndex], teachers);
-    const participations = await createStudentParticipateCourse(courses[courseIndex], faker.helpers.arrayElements(students, 15));
+    const participations = await createStudentParticipateCourse(courses[courseIndex], studySessions, constants, employees);
     await createDocumentCourse(courses[courseIndex]);
     const exercises = await createExercise(courses[courseIndex], faker.helpers.arrayElements(tags, 10));
     await createStudentAttendStudySession(participations, studySessions);
     await createStudentDoExercise(courses[courseIndex], exercises, participations);
   }
+  await createSalary(teachers, employees, tutors, constants);
+  
 
   console.log("----------------------- Ending init data -----------------------")
 }

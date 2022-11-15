@@ -31,6 +31,8 @@ import { StudentDoExercise } from "./StudentDoExercise";
 import { Worker } from "./Worker";
 import { SocketStatus } from "./SocketStatus";
 import { TeacherPreferCurriculum } from "./TeacherPreferCurriculum";
+import { Refund } from "./Refund";
+import { TransactionConstants } from "./TransactionConstants";
 
 module.exports = [
   Account,
@@ -53,6 +55,8 @@ module.exports = [
   UserTutor,
   Worker,
   TeacherPreferCurriculum,
+  Refund,
+  TransactionConstants,
   //Hoc
   Branch,
   Classroom,

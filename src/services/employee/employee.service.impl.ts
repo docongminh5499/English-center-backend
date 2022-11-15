@@ -386,6 +386,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       course.curriculum = curriculum;
       course.teacher = foundTeacher;
       course.branch = employee.worker.branch;
+      course.isLocked = false;
       let savedCourse = await queryRunner.manager.save(course);
 
       // Start creating study session
@@ -1143,8 +1144,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (!equalShifts) sameTime = false;
       // Check same classroom
       const sameClassroom =
-        studySession.classroom.name.toLowerCase() === studySessionDto.classroom.name.toLowerCase() &&
-        studySession.classroom.branch.id === studySessionDto.classroom.branchId;
+        studySession.classroom?.name.toLowerCase() === studySessionDto.classroom.name.toLowerCase() &&
+        studySession.classroom?.branch.id === studySessionDto.classroom.branchId;
       // Check number of student who can attend new study session
       const result = await this.calculateAvailableStudentCount(queryRunner, studySession.course.slug,
         updatedDate, studySessionDto.shiftIds, studySessionDto.id);

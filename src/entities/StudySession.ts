@@ -51,7 +51,6 @@ export class StudySession extends MyBaseEntity {
   @JoinColumn()
   teacher: UserTeacher;
 
-  @IsNotEmpty()
   @ManyToOne(() => Classroom, {
     onUpdate: "CASCADE",
     onDelete: "SET NULL",
@@ -60,5 +59,5 @@ export class StudySession extends MyBaseEntity {
     { name: "classroomName", referencedColumnName: "name" },
     { name: "branchId", referencedColumnName: "branch" },
   ])
-  classroom: Classroom;
+  classroom: Classroom | null;
 }

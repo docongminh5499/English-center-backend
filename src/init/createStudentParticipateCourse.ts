@@ -1,9 +1,52 @@
 import { faker } from "@faker-js/faker";
+import moment = require("moment");
 import { Course } from "../entities/Course"
+import { Fee } from "../entities/Fee";
 import { StudentParticipateCourse } from "../entities/StudentParticipateCourse";
+import { StudySession } from "../entities/StudySession";
+import { Transaction } from "../entities/Transaction";
+import { TransactionConstants } from "../entities/TransactionConstants";
+import { UserEmployee } from "../entities/UserEmployee";
 import { UserStudent } from "../entities/UserStudent"
+import { TransactionType } from "../utils/constants/transaction.constant";
 
-export const createStudentParticipateCourse = async (course: Course, students: UserStudent[]) => {
+
+const diffDays = (date1: Date, date2: Date) => {
+  const diffTime: number = Math.abs(date2.getTime() - date1.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
+
+const findAvailableStudents = async (course: Course, shiftIds: number[]): Promise<UserStudent[]> => {
+  const busyStudentIdsQuery = StudentParticipateCourse.createQueryBuilder("p")
+    .leftJoin("p.course", "course")
+    .leftJoin("course.studySessions", "ss")
+    .leftJoin("ss.shifts", "shifts")
+    .where("ss.date >= :beginingDate", { beginingDate: moment(course.openingDate).format("YYYY-MM-DD") })
+    .andWhere("ss.date <= :endingDate", { endingDate: moment(course.expectedClosingDate).format("YYYY-MM-DD") })
+    .andWhere(`shifts.id IN (:...ids)`, { ids: shiftIds })
+    .select("p.studentId")
+    .distinct(true);
+  return await UserStudent.createQueryBuilder("s")
+    .leftJoinAndSelect("s.user", "user")
+    .where(`user.id NOT IN (${busyStudentIdsQuery.getQuery()})`)
+    .setParameters(busyStudentIdsQuery.getParameters())
+    .getMany();
+}
+
+
+export const createStudentParticipateCourse = async (course: Course,
+  studySessions: StudySession[], constants: TransactionConstants, employees: UserEmployee[]) => {
+  const sameBranchEmployees = employees.filter(e => e.worker.branch.id === course.branch.id) || [];
+
+  let shiftIds: number[] = [];
+  studySessions.forEach(ss => {
+    const ssShiftIds = ss.shifts.map(s => s.id);
+    shiftIds = shiftIds.concat(ssShiftIds);
+  });
+  const availableStudents: UserStudent[] = await findAvailableStudents(course, shiftIds);
+  const students = faker.helpers.arrayElements(availableStudents, 15);
   const studentAttendCourses = [];
   for (let index = 0; index < students.length; index++) {
     let studentAttendCourse = new StudentParticipateCourse();
@@ -20,6 +63,57 @@ export const createStudentParticipateCourse = async (course: Course, students: U
         });
       }
     }
+    // Giả định luôn đăng ký trước khi khóa học bắt đầu
+    let isFirst = true;
+    let isFinished = false;
+    let totalPaid = 0;
+    let currentDate = new Date(course.openingDate);
+    let feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
+    if (feeDate <= currentDate) feeDate.setMonth(feeDate.getMonth() + 1);
+    if (diffDays(feeDate, currentDate) < 10) feeDate.setMonth(feeDate.getMonth() + 1);
+    while (true) {
+      if ((new Date()) < feeDate) isFinished = true;
+      if (course.expectedClosingDate <= feeDate) {
+        feeDate = new Date(course.expectedClosingDate);
+        isFinished = true;
+      } else if (diffDays(course.expectedClosingDate, feeDate) < 10) {
+        feeDate = new Date(course.expectedClosingDate);
+        isFinished = true;
+      }
+      // Amount of fee
+      const amount = diffDays(feeDate, currentDate) / diffDays(course.expectedClosingDate, currentDate) * (course.price - totalPaid);
+      totalPaid += amount;
+      // Create transaction
+      const transaction = new Transaction();
+      transaction.transCode = faker.random.numeric(16)
+      transaction.content = `Tiền học phí tháng ${currentDate.getMonth() + 1}`;
+      transaction.amount = amount;
+      transaction.type = TransactionType.Fee;
+      transaction.branch = course.branch;
+      const savedTransaction = await Transaction.save(transaction);
+      // Create free
+      const fee = new Fee();
+      fee.payDate = isFirst
+        ? faker.datatype.datetime({
+          min: (new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 10)).getTime(),
+          max: currentDate.getTime()
+        })
+        : faker.datatype.datetime({
+          min: currentDate.getTime(),
+          max: (new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDueDay)).getTime(),
+        });
+      fee.transCode = savedTransaction;
+      fee.userStudent = students[index];
+      fee.course = course;
+      fee.userEmployee = faker.helpers.arrayElement(sameBranchEmployees);
+      await Fee.save(fee);
+      // Reset data
+      isFirst = false;
+      if (isFinished) break;
+      currentDate = new Date(feeDate);
+      feeDate.setMonth(feeDate.getMonth() + 1);
+    }
+    studentAttendCourse.billingDate = new Date(feeDate);
     studentAttendCourse.course = course;
     studentAttendCourse = await StudentParticipateCourse.save(studentAttendCourse);
     studentAttendCourse.student = students[index];
