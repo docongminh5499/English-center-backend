@@ -56,12 +56,13 @@ export const createSalary = async (teachers: UserTeacher[],
       transaction.amount = amount;
       transaction.type = TransactionType.Salary;
       transaction.branch = teacher.worker.branch;
+      transaction.userEmployee = teacher.worker.branch.userEmployee;
+      transaction.payDate = new Date(salaryDate);
       const savedTransaction = await Transaction.save(transaction);
       // Create salary
       const salary = new Salary();
       salary.transCode = savedTransaction;
       salary.worker = teacher.worker;
-      salary.payDate = new Date(salaryDate);
       await Salary.save(salary);
       // Reset data
       currentDate = new Date(salaryDate);
@@ -113,12 +114,13 @@ export const createSalary = async (teachers: UserTeacher[],
       transaction.amount = amount;
       transaction.type = TransactionType.Salary;
       transaction.branch = tutor.worker.branch;
+      transaction.payDate = new Date(salaryDate);
+      transaction.userEmployee = tutor.worker.branch.userEmployee;
       const savedTransaction = await Transaction.save(transaction);
       // Create salary
       const salary = new Salary();
       salary.transCode = savedTransaction;
       salary.worker = tutor.worker;
-      salary.payDate = new Date(salaryDate);
       await Salary.save(salary);
       // Reset data
       currentDate = new Date(salaryDate);
@@ -143,12 +145,13 @@ export const createSalary = async (teachers: UserTeacher[],
       transaction.amount = amount;
       transaction.type = TransactionType.Salary;
       transaction.branch = employee.worker.branch;
+      transaction.payDate = new Date(salaryDate);
+      transaction.userEmployee = employee.worker.branch.userEmployee;
       const savedTransaction = await Transaction.save(transaction);
       // Create salary
       const salary = new Salary();
       salary.transCode = savedTransaction;
       salary.worker = employee.worker;
-      salary.payDate = new Date(salaryDate);
       await Salary.save(salary);
       // Reset data
       currentDate = new Date(salaryDate);

@@ -48,6 +48,8 @@ import StudentParticipateCourseRepository from "../../repositories/studentPartic
 import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
 import { UserParent } from "../../entities/UserParent";
 import UserParentRepository from "../../repositories/userParent/userParent.repository.impl";
+import SalaryRepository from "../../repositories/salary/salary.repository.impl";
+import { Salary } from "../../entities/Salary";
 
 
 
@@ -1841,6 +1843,17 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       await queryRunner.release();
       return null;
     }
+  }
+
+
+  async getPersonalSalaries(userId: number, pageableDto: PageableDto, fromDate?: Date, toDate?: Date): Promise<{ total: number, salaries: Salary[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, salaries: [] };
+    const pageable = new Pageable(pageableDto);
+    const [total, salaries] = await Promise.all([
+      SalaryRepository.countSalaryByUserId(userId, fromDate, toDate),
+      SalaryRepository.findSalaryByUserId(userId, pageable, fromDate, toDate),
+    ]);
+    return { total, salaries };
   }
 }
 

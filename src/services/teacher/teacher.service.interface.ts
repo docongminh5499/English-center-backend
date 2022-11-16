@@ -14,6 +14,7 @@ import { UserEmployee } from "../../entities/UserEmployee";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
+import { Salary } from "../../entities/Salary";
 
 export default interface TeacherService {
     getCoursesByTeacher: (teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>) => Promise<CourseListDto>;
@@ -94,4 +95,6 @@ export default interface TeacherService {
     getTeachersByPreferedCurriculum: (userId: number, curiculumId: number, pageableDto: PageableDto, query?: string) => Promise<{ total: number, teachers: UserTeacher[] }>
 
     getTeacherAddPreferedCurriculum: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, teachers: UserTeacher[] }>;
+
+    getPersonalSalaries: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
 }

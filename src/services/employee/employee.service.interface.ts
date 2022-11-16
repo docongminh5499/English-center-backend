@@ -3,6 +3,7 @@ import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
 import { Curriculum } from "../../entities/Curriculum";
+import { Salary } from "../../entities/Salary";
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserEmployee } from "../../entities/UserEmployee";
@@ -77,4 +78,6 @@ export default interface EmployeeService {
     getAllParents: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, parents: UserParent[] }>;
 
     modifyParent: (userId: number, parentId: number, studentId: number, version: number) => Promise<UserParent | null>;
+
+    getPersonalSalaries: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
 }

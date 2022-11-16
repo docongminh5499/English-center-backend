@@ -4,6 +4,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { TutorService } from "../../../services/tutor";
 import { AVATAR_DESTINATION } from "../../../utils/constants/avatar.constant";
+import { PageableMapper } from "../mappers";
 const router = express.Router();
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -79,5 +80,19 @@ router.post("/modify-personal-information", upload.single('avatar'), async (req:
         next(err);
     }
 });
+
+
+
+router.post("/get-salaries", async (req: any, res: any, next: any) => {
+    try {
+        const pageableDto = PageableMapper.mapToDto(req.body);
+        const result = await TutorService.getPersonalSalaries(req.user.userId, pageableDto, req.body.fromDate, req.body.toDate);
+        return res.status(200).json(result);
+    } catch (err) {
+        console.log(err);
+        next(err);
+    }
+});
+
 
 export { router as TutorPersonalRouter };

@@ -58,6 +58,8 @@ import { User } from "../../entities/UserEntity";
 import { Notification } from "../../entities/Notification";
 import { SystemError } from "../../utils/errors/system.error";
 import BranchRepository from "../../repositories/branch/branch.repository.impl";
+import SalaryRepository from "../../repositories/salary/salary.repository.impl";
+import { Salary } from "../../entities/Salary";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -1416,6 +1418,17 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       total: total,
       teachers: result
     };
+  }
+
+
+  async getPersonalSalaries(userId: number, pageableDto: PageableDto, fromDate?: Date, toDate?: Date): Promise<{ total: number, salaries: Salary[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, salaries: [] };
+    const pageable = new Pageable(pageableDto);
+    const [total, salaries] = await Promise.all([
+      SalaryRepository.countSalaryByUserId(userId, fromDate, toDate),
+      SalaryRepository.findSalaryByUserId(userId, pageable, fromDate, toDate),
+    ]);
+    return { total, salaries };
   }
 }
 

@@ -33,8 +33,8 @@ export class TransactionConstants extends MyBaseEntity {
   @IsPositive()
   @Column({
     type: "decimal",
-    precision: 11,
-    scale: 2,
+    precision: 9,
+    scale: 0,
     nullable: false,
     transformer: {
       to(value) { return value; },

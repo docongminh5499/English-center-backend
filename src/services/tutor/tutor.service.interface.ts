@@ -1,6 +1,7 @@
 import { CourseDetailDto, CourseListDto, CredentialDto, FileDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { MakeUpLession } from "../../entities/MakeUpLession";
+import { Salary } from "../../entities/Salary";
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
@@ -39,4 +40,6 @@ export default interface TutorService {
     => Promise<{ studySession: StudySession | null, attendences: UserAttendStudySession[], makeups: MakeUpLession[], ownMakeups: MakeUpLession[] }>;
 
   requestOffStudySession: (userId?: number, studySessionId?: number, excuse?: string) => Promise<boolean>;
+
+  getPersonalSalaries: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
 }

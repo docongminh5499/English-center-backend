@@ -90,10 +90,7 @@ export const createStudentParticipateCourse = async (course: Course,
       transaction.amount = amount;
       transaction.type = TransactionType.Fee;
       transaction.branch = course.branch;
-      const savedTransaction = await Transaction.save(transaction);
-      // Create free
-      const fee = new Fee();
-      fee.payDate = isFirst
+      transaction.payDate = isFirst
         ? faker.datatype.datetime({
           min: (new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 10)).getTime(),
           max: currentDate.getTime()
@@ -102,10 +99,13 @@ export const createStudentParticipateCourse = async (course: Course,
           min: currentDate.getTime(),
           max: (new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDueDay)).getTime(),
         });
+      transaction.userEmployee = faker.helpers.arrayElement(sameBranchEmployees);
+      const savedTransaction = await Transaction.save(transaction);
+      // Create free
+      const fee = new Fee();
       fee.transCode = savedTransaction;
       fee.userStudent = students[index];
       fee.course = course;
-      fee.userEmployee = faker.helpers.arrayElement(sameBranchEmployees);
       await Fee.save(fee);
       // Reset data
       isFirst = false;

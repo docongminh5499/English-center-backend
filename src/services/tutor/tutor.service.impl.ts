@@ -36,6 +36,8 @@ import { User } from "../../entities/UserEntity";
 import { Notification } from "../../entities/Notification";
 import { SystemError } from "../../utils/errors/system.error";
 import { io } from "../../socket";
+import SalaryRepository from "../../repositories/salary/salary.repository.impl";
+import { Salary } from "../../entities/Salary";
 
 class TutorServiceImpl implements TutorServiceInterface {
   async getCoursesByTutor(tutorId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
@@ -501,6 +503,17 @@ class TutorServiceImpl implements TutorServiceInterface {
       await queryRunner.release();
       return false;
     }
+  }
+
+
+  async getPersonalSalaries(userId: number, pageableDto: PageableDto, fromDate?: Date, toDate?: Date): Promise<{ total: number, salaries: Salary[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, salaries: [] };
+    const pageable = new Pageable(pageableDto);
+    const [total, salaries] = await Promise.all([
+      SalaryRepository.countSalaryByUserId(userId, fromDate, toDate),
+      SalaryRepository.findSalaryByUserId(userId, pageable, fromDate, toDate),
+    ]);
+    return { total, salaries };
   }
 }
 
