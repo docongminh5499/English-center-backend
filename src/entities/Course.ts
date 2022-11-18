@@ -7,7 +7,6 @@ import {
   ManyToOne,
 } from "typeorm";
 import {
-  IsBoolean,
   IsDate,
   IsNotEmpty,
   IsNumber,
@@ -82,10 +81,16 @@ export class Course extends MyBaseEntity {
   @Column({ length: 255, nullable: false })
   image: string;
 
+  @IsOptional()
+  @IsDate()
+  @Column({  type: "timestamp", precision: 6, nullable: true })
+  lockTime: Date | null;
+
   @IsNotEmpty()
-  @IsBoolean()
-  @Column({ type: "boolean", nullable: false, default: false })
-  isLocked: boolean;
+  @IsNumber()
+  @IsPositive()
+  @Column({ type: "integer", nullable: false })
+  sessionPerWeek: number;
 
   //Relation Cuorse--1--<has>==N==Document
   @OneToMany(() => Document, (document) => document.course)

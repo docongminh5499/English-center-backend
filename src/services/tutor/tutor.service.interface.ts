@@ -5,7 +5,6 @@ import { Salary } from "../../entities/Salary";
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
-import { UserEmployee } from "../../entities/UserEmployee";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTutor } from "../../entities/UserTutor";
 import Queryable from "../../utils/common/queryable.interface";
@@ -30,8 +29,6 @@ export default interface TutorService {
   getStudents: (userId: number, courseSlug: string, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
 
   getStudentDetailsInCourse: (userId: number, studentId: number, courseSlug: string) => Promise<{ student: UserStudent }>;
-
-  getEmployeeByBranch: (userId?: number, branchId?: number) => Promise<UserEmployee[]>;
 
   getStudySessions: (tutorId: number, courseSlug: string,
     pageableDto: PageableDto) => Promise<{ total: number, studySessions: StudySession[] }>;

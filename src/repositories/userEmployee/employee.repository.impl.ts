@@ -1,4 +1,6 @@
+import { Brackets } from "typeorm";
 import { UserEmployee } from "../../entities/UserEmployee";
+import Pageable from "../helpers/pageable";
 import EmployeeRepositoryInferface from "./employee.repository.interface";
 
 
@@ -21,15 +23,42 @@ class EmployeeRepositoryImpl implements EmployeeRepositoryInferface {
   }
 
 
-  async findUserEmployeeByBranch(branchId: number): Promise<UserEmployee[]> {
-    return await UserEmployee.createQueryBuilder("employee")
+
+  async findEmployeeByBranch(branchId: number, pageable: Pageable, query?: string): Promise<UserEmployee[]> {
+    let queryStmt = UserEmployee
+      .createQueryBuilder("tt")
       .setLock("pessimistic_read")
       .useTransaction(true)
-      .leftJoinAndSelect("employee.worker", "worker")
+      .leftJoinAndSelect("tt.worker", "worker")
       .leftJoinAndSelect("worker.user", "user")
       .leftJoinAndSelect("worker.branch", "branch")
       .where("branch.id = :branchId", { branchId })
-      .getMany();
+      .orderBy("user.fullName", "ASC");
+    if (query !== undefined && query.trim().length > 0)
+      queryStmt = queryStmt.andWhere(new Brackets(qb => {
+        qb.where("user.fullName LIKE :query", { query: '%' + query + '%' })
+          .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
+      }));
+    queryStmt = pageable.buildQuery(queryStmt);
+    return await queryStmt.getMany();
+  }
+
+
+  async countEmployeeByBranch(branchId: number, query?: string): Promise<number> {
+    let queryStmt = UserEmployee
+      .createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .where("branch.id = :branchId", { branchId });
+    if (query !== undefined && query.trim().length > 0)
+      queryStmt = queryStmt.andWhere(new Brackets(qb => {
+        qb.where("user.fullName LIKE :query", { query: '%' + query + '%' })
+          .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
+      }));
+    return await queryStmt.getCount();
   }
 }
 

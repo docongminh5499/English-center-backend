@@ -3,6 +3,8 @@ import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
 import { Curriculum } from "../../entities/Curriculum";
+import { Fee } from "../../entities/Fee";
+import { Refund } from "../../entities/Refund";
 import { Salary } from "../../entities/Salary";
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
@@ -71,7 +73,7 @@ export default interface EmployeeService {
 
     getStudentsParicipateCourse: (userId: number, courseSlug: string, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
 
-    getAllStudents: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, students: UserStudent[] }>;
+    getAllStudents: (userId: number, query: string, pageableDto: PageableDto, checkQuery?: boolean) => Promise<{ total: number, students: UserStudent[] }>;
 
     getStudentDetails: (userId: number, studentId: number) => Promise<{ student: UserStudent }>;
 
@@ -80,4 +82,20 @@ export default interface EmployeeService {
     modifyParent: (userId: number, parentId: number, studentId: number, version: number) => Promise<UserParent | null>;
 
     getPersonalSalaries: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
+
+    getFeeAmount: (userId: number, courseSlug: string) => Promise<number>;
+
+    addStudentParticipateCourse: (userId: number, courseSlug: string, studentId: number) => Promise<boolean>;
+
+    getSalariesByBranch: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
+
+    getFeeByBranch: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, fees: Fee[] }>;
+
+    getRefundByBranch: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, refunds: Refund[] }>;
+
+    getTeacherByBranch: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, teachers: UserTeacher[] }>;
+
+    getTutorByBranch: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, tutors: UserTutor[] }>;
+
+    getEmployeeByBranch: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, employees: UserEmployee[] }>;
 }

@@ -17,4 +17,8 @@ export default interface UserTeacherRepository {
     getTeacherByNotPreferedCurriculumAndBranch: (branchId: number, pageable: Pageable, query?: string) => Promise<UserTeacher[]>;
 
     countTeacherByNotPreferedCurriculumAndBranch: (branchId: number, query?: string) => Promise<number>;
+
+    findTeacherByBranch: (branchId: number, pageable: Pageable, query?: string) => Promise<UserTeacher[]>;
+
+    countTeacherByBranch: (branchId: number, query?: string) => Promise<number>;
 }

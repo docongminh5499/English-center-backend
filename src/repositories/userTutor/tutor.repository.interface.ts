@@ -1,5 +1,6 @@
 import { Shift } from "../../entities/Shift";
 import { UserTutor } from "../../entities/UserTutor";
+import Pageable from "../helpers/pageable";
 
 export default interface TutorRepository {
     findTutorsAvailable: (beginingDate: Date, shiftIds: number[], branchId?: number) => Promise<UserTutor[]>;
@@ -9,4 +10,8 @@ export default interface TutorRepository {
     findFreeShiftsOfTutor: (tutorId: number) => Promise<Shift[]>;
 
     findTutorById: (tutorId: number) => Promise<UserTutor | null>;
+
+    findTutorByBranch: (branchId: number, pageable: Pageable, query?: string) => Promise<UserTutor[]>;
+
+    countTutorByBranch: (branchId: number, query?: string) => Promise<number>;
 }

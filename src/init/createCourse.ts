@@ -48,7 +48,7 @@ export const createCourse = async (curriculums: Curriculum[], branches: Branch[]
       course.curriculum = curriculum;
       course.teacher = faker.helpers.arrayElement(teachersPreferCurriculum);
       course.branch = faker.helpers.arrayElement(branches);
-      course.isLocked = false;
+      course.lockTime = null;
       course = await course.save();
       courses.push(course);
     }

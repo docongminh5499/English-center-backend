@@ -7,4 +7,6 @@ export default class DecodeCredentialDto {
     role: AccountRole;
     exp: number;
     avatar: string;
+    isManager: boolean;
+    version: number;
 }

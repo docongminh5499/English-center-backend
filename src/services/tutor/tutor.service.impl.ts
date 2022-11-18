@@ -21,7 +21,6 @@ import { StudySession } from "../../entities/StudySession";
 import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import { UserStudent } from "../../entities/UserStudent";
 import StudentParticipateCourseRepository from "../../repositories/studentParticipateCourse/studentParticipateCourse.repository.impl";
-import EmployeeRepository from "../../repositories/userEmployee/employee.repository.impl";
 import { UserEmployee } from "../../entities/UserEmployee";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { MakeUpLession } from "../../entities/MakeUpLession";
@@ -203,6 +202,7 @@ class TutorServiceImpl implements TutorServiceInterface {
         role: account?.role,
         avatar: account?.user.avatar,
         isManager: false,
+        version: account?.version,
       }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
       return credentialDto;
     } catch (error) {
@@ -303,12 +303,6 @@ class TutorServiceImpl implements TutorServiceInterface {
       total: total,
       studySessions: result,
     };
-  }
-
-
-  async getEmployeeByBranch(userId?: number, branchId?: number): Promise<UserEmployee[]> {
-    if (userId === undefined || branchId === undefined) return [];
-    return await EmployeeRepository.findUserEmployeeByBranch(branchId);
   }
 
 

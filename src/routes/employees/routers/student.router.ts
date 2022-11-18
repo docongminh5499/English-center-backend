@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/get-students", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
-    const result = await EmployeeService.getAllStudents(req.user.userId, req.body.query, pageableDto);
+    const result = await EmployeeService.getAllStudents(req.user.userId, req.body.query, pageableDto, req.body.checkQuery);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

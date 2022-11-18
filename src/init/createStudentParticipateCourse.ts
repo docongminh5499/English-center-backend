@@ -8,6 +8,7 @@ import { Transaction } from "../entities/Transaction";
 import { TransactionConstants } from "../entities/TransactionConstants";
 import { UserEmployee } from "../entities/UserEmployee";
 import { UserStudent } from "../entities/UserStudent"
+import { TermCourse } from "../utils/constants/termCuorse.constant";
 import { TransactionType } from "../utils/constants/transaction.constant";
 
 
@@ -66,12 +67,31 @@ export const createStudentParticipateCourse = async (course: Course,
     // Giả định luôn đăng ký trước khi khóa học bắt đầu
     let isFirst = true;
     let isFinished = false;
-    let totalPaid = 0;
     let currentDate = new Date(course.openingDate);
     let feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
     if (feeDate <= currentDate) feeDate.setMonth(feeDate.getMonth() + 1);
     if (diffDays(feeDate, currentDate) < 10) feeDate.setMonth(feeDate.getMonth() + 1);
-    while (true) {
+    if (course.curriculum.type === TermCourse.LongTerm) {
+      const transaction = new Transaction();
+      transaction.transCode = faker.random.numeric(16)
+      transaction.content = `Tiền học phí khóa học "${course.name}"`;
+      transaction.amount = course.price;
+      transaction.type = TransactionType.Fee;
+      transaction.branch = course.branch;
+      transaction.payDate = faker.datatype.datetime({
+        min: (new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 10)).getTime(),
+        max: currentDate.getTime()
+      });
+      transaction.userEmployee = faker.helpers.arrayElement(sameBranchEmployees);
+      const savedTransaction = await Transaction.save(transaction);
+      // Create free
+      const fee = new Fee();
+      fee.transCode = savedTransaction;
+      fee.userStudent = students[index];
+      fee.course = course;
+      await Fee.save(fee);
+      feeDate = new Date(course.expectedClosingDate);
+    } else while (true) {
       if ((new Date()) < feeDate) isFinished = true;
       if (course.expectedClosingDate <= feeDate) {
         feeDate = new Date(course.expectedClosingDate);
@@ -81,8 +101,7 @@ export const createStudentParticipateCourse = async (course: Course,
         isFinished = true;
       }
       // Amount of fee
-      const amount = diffDays(feeDate, currentDate) / diffDays(course.expectedClosingDate, currentDate) * (course.price - totalPaid);
-      totalPaid += amount;
+      const amount = diffDays(feeDate, currentDate) / diffDays(course.expectedClosingDate, course.openingDate) * course.price;
       // Create transaction
       const transaction = new Transaction();
       transaction.transCode = faker.random.numeric(16)

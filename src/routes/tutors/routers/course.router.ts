@@ -70,16 +70,6 @@ router.post("/get-study-sessions", async (req: any, res: any, next: any) => {
 
 
 
-router.post("/get-employee-by-branch", async (req: any, res: any, next: any) => {
-  try {
-    return res.status(200).json(await TutorService.getEmployeeByBranch(req.user.userId, req.body.branchId));
-  } catch (err) {
-    console.log(err);
-    next(err);
-  }
-});
-
-
 router.post("/get-study-session-detail", async (req: any, res: any, next: any) => {
   try {
     const result = await TutorService.getStudySessionDetail(req.user.userId, req.body.studySessionId);

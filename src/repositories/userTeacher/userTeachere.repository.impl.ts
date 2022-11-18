@@ -201,6 +201,44 @@ class UserTeacherRepositoryImpl implements UserTeacherRepositoryInterface {
       }))
     return await queryStmt.getCount();
   }
+
+
+  async findTeacherByBranch(branchId: number, pageable: Pageable, query?: string): Promise<UserTeacher[]> {
+    let queryStmt = UserTeacher
+      .createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .where("branch.id = :branchId", { branchId })
+      .orderBy("user.fullName", "ASC");
+    if (query !== undefined && query.trim().length > 0)
+      queryStmt = queryStmt.andWhere(new Brackets(qb => {
+        qb.where("user.fullName LIKE :query", { query: '%' + query + '%' })
+          .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
+      }));
+    queryStmt = pageable.buildQuery(queryStmt);
+    return await queryStmt.getMany();
+  }
+
+
+  async countTeacherByBranch(branchId: number, query?: string): Promise<number> {
+    let queryStmt = UserTeacher
+      .createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .where("branch.id = :branchId", { branchId });
+    if (query !== undefined && query.trim().length > 0)
+      queryStmt = queryStmt.andWhere(new Brackets(qb => {
+        qb.where("user.fullName LIKE :query", { query: '%' + query + '%' })
+          .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
+      }));
+    return await queryStmt.getCount();
+  }
 }
 
 const UserTeacherRepository = new UserTeacherRepositoryImpl();

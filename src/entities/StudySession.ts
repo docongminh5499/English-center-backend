@@ -29,7 +29,7 @@ export class StudySession extends MyBaseEntity {
 
   //Relation Course--1--<include>==N==StudySession
   @IsNotEmpty()
-  @ManyToOne(() => Course, (course) => course.studySessions, { nullable: false, onDelete: "CASCADE", onUpdate: "CASCADE" })
+  @ManyToOne(() => Course, (course) => course.studySessions, { nullable: true, onDelete: "CASCADE", onUpdate: "CASCADE" })
   course: Course;
 
   //Relation StudySession==N==<belong to>--N--Shift

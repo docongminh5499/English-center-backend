@@ -10,7 +10,6 @@ import { MakeUpLession } from "../../entities/MakeUpLession";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
-import { UserEmployee } from "../../entities/UserEmployee";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
@@ -85,8 +84,6 @@ export default interface TeacherService {
     closeCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 
     getSchedule: (pageableDto: PageableDto, userId?: number, startDate?: Date, endDate?: Date) => Promise<{ total: number, studySessions: StudySession[] }>;
-
-    getEmployeeByBranch: (userId?: number, branchId?: number) => Promise<UserEmployee[]>;
 
     getCurriculumTags: (userId: number) => Promise<Tag[]>;
 

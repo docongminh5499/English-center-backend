@@ -11,4 +11,6 @@ export default interface UserService {
     signup: (user: User, account: Account) => any;
 
     checkOldEmail: (email: string) => Promise<Boolean>;
+
+    modifyAccount: (oldAccount: AccountDto, newAccount: AccountDto) => Promise<boolean>;
 }

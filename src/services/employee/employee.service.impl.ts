@@ -50,6 +50,10 @@ import { UserParent } from "../../entities/UserParent";
 import UserParentRepository from "../../repositories/userParent/userParent.repository.impl";
 import SalaryRepository from "../../repositories/salary/salary.repository.impl";
 import { Salary } from "../../entities/Salary";
+import { Fee } from "../../entities/Fee";
+import { Refund } from "../../entities/Refund";
+import FeeRepository from "../../repositories/fee/fee.repository.impl";
+import RefundRepository from "../../repositories/refund/refund.repository.impl";
 
 
 
@@ -139,6 +143,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         role: account?.role,
         avatar: account?.user.avatar,
         isManager: isManager,
+        version: account?.version,
       }, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
       return credentialDto;
     } catch (error) {
@@ -283,6 +288,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       createCourseDto.branch === undefined)
       return null;
 
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
@@ -375,7 +381,28 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("lower(course.name) = :name", { name: createCourseDto.name })
         .getCount();
       if (existedCourseBySlug > 0) slug = slug + "-" + existedCourseBySlug;
-
+      // Notification
+      const teacherNotificationDto = {} as NotificationDto;
+      teacherNotificationDto.userId = choseSchedule.choseTeacher.worker.user.id;
+      teacherNotificationDto.content = `Khoá học "${createCourseDto.name}" vừa được thêm và chỉ định cho bạn. Vui lòng vào trang web để kiểm tra thông tin.`;
+      const teacherNotificationResult = await this.sendNotification(queryRunner, teacherNotificationDto);
+      if (teacherNotificationResult.success && teacherNotificationResult.receiverSocketStatuses && teacherNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: teacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: teacherNotificationResult.notification
+        });
+      }
+      for (const tutor of choseSchedule.choseTutor) {
+        const notificationDto = { userId: tutor.worker.user.id } as NotificationDto;
+        notificationDto.content = `Khoá học "${createCourseDto.name}" vừa được thêm và chỉ định cho bạn. Vui lòng lên website kiểm tra lại thông tin.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
       // Create course;
       let course = new Course();
       course.name = createCourseDto.name;
@@ -388,7 +415,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       course.curriculum = curriculum;
       course.teacher = foundTeacher;
       course.branch = employee.worker.branch;
-      course.isLocked = false;
+      course.lockTime = null;
+      course.sessionPerWeek = choseSchedule.choseTutor.length;
       let savedCourse = await queryRunner.manager.save(course);
 
       // Start creating study session
@@ -464,9 +492,15 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const savedCourseValidateErrors = await validate(savedCourse);
       if (savedCourseValidateErrors.length) throw new ValidationError(savedCourseValidateErrors);
       savedCourse = await queryRunner.manager.save(savedCourse);
-
+      // Commit transaction
       await queryRunner.commitTransaction();
       await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
       return savedCourse;
     } catch (error) {
       console.log(error);
@@ -853,7 +887,15 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       openingDate.setMinutes(0);
       openingDate.setSeconds(0);
       openingDate.setMilliseconds(0);
-      if ((new Date(studySessionDto.date)).getTime() < openingDate.getTime())
+      // Current date
+      const currentDate = new Date();
+      currentDate.setHours(0);
+      currentDate.setMinutes(0);
+      currentDate.setSeconds(0);
+      currentDate.setMilliseconds(0);
+      // Max date
+      const maxDate = currentDate < openingDate ? openingDate : currentDate;
+      if ((new Date(studySessionDto.date)).getTime() < maxDate.getTime())
         throw new ValidationError([]);
       // Add study session
       const studySession = new StudySession();
@@ -870,11 +912,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (shifts.length !== studySession.course.curriculum.shiftsPerSession)
         throw new ValidationError([]);
       studySession.shifts = shifts;
-      // Update expectedClosingDate
-      if (new Date(studySession.course.expectedClosingDate) < studySession.date) {
-        studySession.course.expectedClosingDate = studySession.date;
-        await queryRunner.manager.save(studySession.course);
-      }
       // Add teacher
       const teacherNotificationDto = {} as NotificationDto;
       const teacher = await queryRunner.manager
@@ -1129,7 +1166,17 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       openingDate.setMinutes(0);
       openingDate.setSeconds(0);
       openingDate.setMilliseconds(0);
-      if ((new Date(studySessionDto.date)).getTime() < openingDate.getTime())
+      // Current date
+      const currentDate = new Date();
+      currentDate.setHours(0);
+      currentDate.setMinutes(0);
+      currentDate.setSeconds(0);
+      currentDate.setMilliseconds(0);
+      // Max date
+      const maxDate = currentDate < openingDate ? openingDate : currentDate;
+      if ((new Date(studySessionDto.date)).getTime() < maxDate.getTime())
+        throw new ValidationError([]);
+      if ((new Date(studySession.date)).getTime() < maxDate.getTime())
         throw new ValidationError([]);
       // Check change shifts and date
       let sameTime = true;
@@ -1166,11 +1213,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (shifts.length !== studySession.course.curriculum.shiftsPerSession)
         throw new ValidationError([]);
       studySession.shifts = shifts;
-      // Update expectedClosingDate
-      if (new Date(studySession.course.expectedClosingDate) < updatedDate) {
-        studySession.course.expectedClosingDate = updatedDate;
-        await queryRunner.manager.save(studySession.course);
-      }
       // Update teacher
       if (studySession.teacher.worker.user.id == studySessionDto.teacherId) {
         if (!sameTime || !sameClassroom) {
@@ -1482,6 +1524,21 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (employee.worker.branch.id !== studySession.course.branch.id) throw new ValidationError([]);
       // Check course isn't closed
       if (studySession.course.closingDate !== null) throw new ValidationError([]);
+      // Check date
+      const currentDate = new Date();
+      currentDate.setHours(0);
+      currentDate.setMinutes(0);
+      currentDate.setSeconds(0);
+      currentDate.setMilliseconds(0);
+      if ((new Date(studySession.date)).getTime() < currentDate.getTime())
+        throw new ValidationError([]);
+      // Check current study session number > curriculum lectures
+      const studySessionCount = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .leftJoinAndSelect("ss.course", "course")
+        .where("course.id = :courseId", { courseId: studySession.course.id })
+        .getCount();
+      if (studySession.course.curriculum.lectures.length >= studySessionCount) throw new ValidationError([]);
       // Teacher
       const teacherNotificationDto = {} as NotificationDto;
       teacherNotificationDto.userId = studySession.teacher.worker.user.id;
@@ -1762,8 +1819,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   }
 
 
-  async getAllStudents(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
+  async getAllStudents(userId: number, query: string, pageableDto: PageableDto, checkQuery?: boolean): Promise<{ total: number, students: UserStudent[] }> {
     if (userId === undefined || pageableDto === null || pageableDto === undefined)
+      return { total: 0, students: [] };
+    if (checkQuery && (query === undefined || query.trim().length === 0))
       return { total: 0, students: [] };
     const pageable = new Pageable(pageableDto);
     const [result, total] = await Promise.all([
@@ -1854,6 +1913,161 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       SalaryRepository.findSalaryByUserId(userId, pageable, fromDate, toDate),
     ]);
     return { total, salaries };
+  }
+
+
+  // private diffDays(date1: Date, date2: Date): number {
+  //   const diffTime: number = Math.abs(date2.getTime() - date1.getTime());
+  //   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  //   return diffDays;
+  // }
+
+
+  // private async caculateFeeAmount(course: Course): Promise<number> {
+  //   let openingDate = new Date(course.openingDate);
+  //   let expectedClosingDate = new Date(course.expectedClosingDate);
+  //   let currentDate = new Date();
+  //   if (currentDate <= openingDate) currentDate = openingDate;
+  //   if (expectedClosingDate < currentDate) return 0;
+  //   // Find constants
+  //   const constants = await TransactionConstants.createQueryBuilder('c').getOne();
+  //   if (constants === null) throw new NotFoundError();
+  //   // Calculate feeDate
+  //   let feeDate = null;
+  //   if (course.curriculum.type = TermCourse.LongTerm)
+  //     feeDate = new Date(course.expectedClosingDate);
+  //   else {
+  //     // Find feeDate
+  //     feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
+  //     if (feeDate <= currentDate)
+  //       feeDate.setMonth(feeDate.getMonth() + 1);
+  //     if (this.diffDays(feeDate, currentDate) < 10)
+  //       feeDate.setMonth(feeDate.getMonth() + 1);
+  //     if (course.expectedClosingDate <= feeDate)
+  //       feeDate = new Date(course.expectedClosingDate);
+  //     else if (this.diffDays(course.expectedClosingDate, feeDate) < 10)
+  //       feeDate = new Date(course.expectedClosingDate);
+  //   }
+  //   const amount = diffDays(feeDate, currentDate) / diffDays(course.expectedClosingDate, currentDate) * (course.price - totalPaid);
+  // }
+
+
+  async getFeeAmount(userId: number, courseSlug: string): Promise<number> {
+    if (userId === undefined || courseSlug === undefined) throw new NotFoundError();
+    // Find employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Find course
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+    // Check branch of course and employee
+    if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+    // Check course is not closed
+    if (course.closingDate !== null) throw new ValidationError([]);
+    // Calculating
+    // return await this.caculateFeeAmount(course);
+    return 0;
+  }
+
+
+  async addStudentParticipateCourse(userId: number, courseSlug: string, studentId: number): Promise<boolean> {
+    return true;
+  }
+
+
+  async getSalariesByBranch(userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date): Promise<{ total: number, salaries: Salary[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, salaries: [] };
+    // Check is manager
+    const isManager = BranchRepository.checkIsManager(userId);
+    if (!isManager) return { total: 0, salaries: [] };
+    // Find branch by employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [total, salaries] = await Promise.all([
+      SalaryRepository.countSalaryByBranch(employee.worker.branch.id, fromDate, toDate),
+      SalaryRepository.findSalaryByBranch(employee.worker.branch.id, pageable, fromDate, toDate),
+    ]);
+    return { total, salaries };
+  }
+
+
+  async getFeeByBranch(userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date): Promise<{ total: number, fees: Fee[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, fees: [] };
+    // Find branch by employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [total, fees] = await Promise.all([
+      FeeRepository.countFeeByBranch(employee.worker.branch.id, fromDate, toDate),
+      FeeRepository.findFeeByBranch(employee.worker.branch.id, pageable, fromDate, toDate),
+    ]);
+    return { total, fees };
+  }
+
+
+  async getRefundByBranch(userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date): Promise<{ total: number, refunds: Refund[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, refunds: [] };
+    // Find branch by employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [total, refunds] = await Promise.all([
+      RefundRepository.countRefundByBranch(employee.worker.branch.id, fromDate, toDate),
+      RefundRepository.findRefundByBranch(employee.worker.branch.id, pageable, fromDate, toDate),
+    ]);
+    return { total, refunds };
+  }
+
+
+  async getTeacherByBranch(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, teachers: UserTeacher[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, teachers: [] };
+    // Find branch by employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [total, teachers] = await Promise.all([
+      UserTeacherRepository.countTeacherByBranch(employee.worker.branch.id, query),
+      UserTeacherRepository.findTeacherByBranch(employee.worker.branch.id, pageable, query),
+    ]);
+    return { total, teachers };
+  }
+
+
+  async getTutorByBranch(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, tutors: UserTutor[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, tutors: [] };
+    // Find branch by employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [total, tutors] = await Promise.all([
+      TutorRepository.countTutorByBranch(employee.worker.branch.id, query),
+      TutorRepository.findTutorByBranch(employee.worker.branch.id, pageable, query),
+    ]);
+    return { total, tutors };
+  }
+
+
+  async getEmployeeByBranch(userId: number, query: string, pageableDto: PageableDto): Promise<{ total: number, employees: UserEmployee[] }> {
+    if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, employees: [] };
+    // Check is manager
+    const isManager = BranchRepository.checkIsManager(userId);
+    if (!isManager) return { total: 0, employees: [] };
+    // Find branch by employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query data
+    const pageable = new Pageable(pageableDto);
+    const [total, employees] = await Promise.all([
+      EmployeeRepository.countEmployeeByBranch(employee.worker.branch.id, query),
+      EmployeeRepository.findEmployeeByBranch(employee.worker.branch.id, pageable, query),
+    ]);
+    return { total, employees };
   }
 }
 

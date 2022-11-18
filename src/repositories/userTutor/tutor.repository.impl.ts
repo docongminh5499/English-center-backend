@@ -1,7 +1,9 @@
 import moment = require("moment");
+import { Brackets } from "typeorm";
 import { Shift } from "../../entities/Shift";
 import { StudySession } from "../../entities/StudySession";
 import { UserTutor } from "../../entities/UserTutor";
+import Pageable from "../helpers/pageable";
 import TutorRepositoryInterface from "./tutor.repository.interface";
 
 class TutorRepositoryImpl implements TutorRepositoryInterface {
@@ -113,6 +115,44 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
       .leftJoinAndSelect("teacherManagerWorker.user", "teacherManagerUser")
       .where("user.id = :userId", { userId: tutorId })
       .getOne();
+  }
+
+
+  async findTutorByBranch(branchId: number, pageable: Pageable, query?: string): Promise<UserTutor[]> {
+    let queryStmt = UserTutor
+      .createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .where("branch.id = :branchId", { branchId })
+      .orderBy("user.fullName", "ASC");
+    if (query !== undefined && query.trim().length > 0)
+      queryStmt = queryStmt.andWhere(new Brackets(qb => {
+        qb.where("user.fullName LIKE :query", { query: '%' + query + '%' })
+          .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
+      }));
+    queryStmt = pageable.buildQuery(queryStmt);
+    return await queryStmt.getMany();
+  }
+
+
+  async countTutorByBranch(branchId: number, query?: string): Promise<number> {
+    let queryStmt = UserTutor
+      .createQueryBuilder("tt")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("tt.worker", "worker")
+      .leftJoinAndSelect("worker.user", "user")
+      .leftJoinAndSelect("worker.branch", "branch")
+      .where("branch.id = :branchId", { branchId });
+    if (query !== undefined && query.trim().length > 0)
+      queryStmt = queryStmt.andWhere(new Brackets(qb => {
+        qb.where("user.fullName LIKE :query", { query: '%' + query + '%' })
+          .orWhere("user.id LIKE :query", { query: '%' + query + '%' })
+      }));
+    return await queryStmt.getCount();
   }
 }
 

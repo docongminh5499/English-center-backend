@@ -139,6 +139,7 @@ export async function createStudySession(course: Course, teachers: UserTeacher[]
 
     if (index === numberOfLectures - 1) {
       course.expectedClosingDate = new Date(date.getTime());
+      course.sessionPerWeek = choseSchedule.choseTutor.length;
       if (date <= new Date()) {
         const lastShift = studySession.shifts[studySession.shifts.length - 1];
         const closedHour = faker.datatype.number({ min: lastShift.endTime.getHours() + 1, max: 24 });
