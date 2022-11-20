@@ -3,4 +3,5 @@ export default class MaskedComment {
     starPoint: number | null;
     userFullName: string | null;
     commentDate: Date | null;
+    avatar?: string | null;
 }

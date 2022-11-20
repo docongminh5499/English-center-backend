@@ -15,4 +15,6 @@ export default interface StudentParticipateCourseRepository {
     getCommentsByCourseSlug: (courseSlug: string, pageable: Pageable) => Promise<StudentParticipateCourse[]>;
 
     checkStudentParticipateCourse: (studentId: number, courseSlug: string) => Promise<boolean>;
+
+    getTopComments: () => Promise<StudentParticipateCourse[]>;
 }

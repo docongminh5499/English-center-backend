@@ -7,6 +7,7 @@ import StudentRouter from "./routes/students";
 import EmployeeRouter from "./routes/employees";
 import ParentRouter from "./routes/parents";
 import TutorRouter from "./routes/tutors";
+import GuestRouter from "./routes/guest";
 import { json, urlencoded } from "body-parser";
 import { NotFoundError } from "./utils/errors/notFound.error";
 import { handlerError } from "./middlewares/handlerError";
@@ -27,6 +28,7 @@ app.use("/api/students", StudentRouter);
 app.use("/api/employees", EmployeeRouter);
 app.use("/api/tutors", TutorRouter);
 app.use("/api/parents", ParentRouter);
+app.use("/api/guests", GuestRouter);
 
 app.all("*", async (req: any, res: any, next: any) => {
   return next(new NotFoundError());

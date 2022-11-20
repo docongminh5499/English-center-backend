@@ -1,8 +1,10 @@
 import moment = require("moment");
 import { Pageable, Selectable, Sortable } from "..";
 import { Course } from "../../entities/Course";
+import { Lecture } from "../../entities/Lecture";
 import { StudySession } from "../../entities/StudySession";
 import Queryable from "../../utils/common/queryable.interface";
+import { CurriculumLevel } from "../../utils/constants/curriculum.constant";
 import CourseRepositoryInterface from "./course.repository.interface";
 
 class CourseRepositoryImpl implements CourseRepositoryInterface {
@@ -227,6 +229,100 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         query = sortable.buildQuery(query);
         query = pageable.buildQuery(query);
         return query.getMany()
+    }
+
+
+    async countCompletedCourse(): Promise<number> {
+        return await Course.createQueryBuilder("c")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .where("c.lockTime IS NULL")
+            .andWhere("c.closingDate IS NOT NULL")
+            .getCount();
+
+    }
+
+
+    async getCoursesForGuest(pageable: Pageable, level?: CurriculumLevel, curriculumTag?: string, branchId?: number): Promise<Course[]> {
+        let query = Course.createQueryBuilder("c")
+            .leftJoinAndSelect("c.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "user")
+            .leftJoinAndSelect("c.curriculum", "curriculum")
+            .leftJoinAndSelect("c.branch", "branch")
+            .where("c.openingDate > CURDATE()")
+            .andWhere("c.lockTime IS NULL")
+            .orderBy("c.openingDate", "DESC");
+        if (level !== undefined && level !== null)
+            query = query.andWhere("curriculum.level = :level", { level })
+        if (curriculumTag !== undefined && curriculumTag !== null)
+            query = query.andWhere((qb) => {
+                const subQuery = qb
+                    .subQuery()
+                    .select("course.id")
+                    .distinct(true)
+                    .from(Course, "course")
+                    .leftJoin("course.curriculum", "curriculum")
+                    .leftJoin("curriculum.tags", "tags")
+                    .where("tags.name = :curriculumTag")
+                    .getQuery()
+                return "c.id IN " + subQuery
+            }).setParameter("curriculumTag", curriculumTag);
+        if (branchId !== undefined && branchId !== null)
+            query = query.andWhere("branch.id = :branchId", { branchId });
+        query = pageable.buildQuery(query);
+        const result: Course[] = await query.getMany();
+        for (const course of result)
+            course.curriculum.lectures = await Lecture.createQueryBuilder("l")
+                .where("l.curriculumId = :curriculumId", { curriculumId: course.curriculum.id })
+                .getMany();
+        return result;
+    }
+
+
+
+    async countCoursesForGuest(level?: CurriculumLevel, curriculumTag?: string, branchId?: number): Promise<number> {
+        let query = Course.createQueryBuilder("c")
+            .leftJoinAndSelect("c.curriculum", "curriculum")
+            .leftJoinAndSelect("c.branch", "branch")
+            .where("c.openingDate > CURDATE()")
+            .andWhere("c.lockTime IS NULL");
+        if (level !== undefined && level !== null)
+            query = query.andWhere("curriculum.level = :level", { level })
+        if (curriculumTag !== undefined && curriculumTag !== null)
+            query = query.andWhere((qb) => {
+                const subQuery = qb
+                    .subQuery()
+                    .select("course.id")
+                    .distinct(true)
+                    .from(Course, "course")
+                    .leftJoin("course.curriculum", "curriculum")
+                    .leftJoin("curriculum.tags", "tags")
+                    .where("tags.name = :curriculumTag")
+                    .getQuery()
+                return "c.id IN " + subQuery
+            }).setParameter("curriculumTag", curriculumTag);
+        if (branchId !== undefined && branchId !== null)
+            query = query.andWhere("branch.id = :branchId", { branchId });
+        return await query.getCount();
+    }
+
+
+    async getCourseDetailForGuest(courseSlug: string): Promise<Course | null> {
+        let result = Course.createQueryBuilder("course")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("course.branch", "branch")
+            .leftJoinAndSelect("course.teacher", "teacher")
+            .leftJoinAndSelect("teacher.worker", "worker")
+            .leftJoinAndSelect("worker.user", "userTeacher")
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .leftJoinAndSelect("curriculum.lectures", "lectures")
+            .leftJoinAndSelect("curriculum.tags", "tags")
+            .where("course.slug = :courseSlug", { courseSlug })
+            .orderBy({ "lectures.order": "ASC" })
+            .getOne();
+        return await result;
     }
 }
 

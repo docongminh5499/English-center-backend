@@ -115,6 +115,23 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
       .getCount();
     return count > 0;
   }
+
+
+
+  async getTopComments () : Promise<StudentParticipateCourse[]> {
+    let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+    .setLock("pessimistic_read")
+    .useTransaction(true)
+    .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+    .leftJoinAndSelect("student.user", "userStudent")
+    .where("userStudent.avatar IS NOT NULL")
+    .andWhere("studentPaticipateCourses.isIncognito = false")
+    .andWhere("starPoint = 5")
+    .orderBy({ "studentPaticipateCourses.commentDate": "DESC" })
+    .skip(0)
+    .limit(3);
+  return await queryStmt.getMany();
+  }
 }
 
 
