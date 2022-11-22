@@ -3,8 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  Index,
 } from "typeorm";
-import { IsNotEmpty, IsNumber, IsString, Length, Min } from "class-validator";
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Length, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Curriculum } from "./Curriculum";
 
@@ -13,6 +14,7 @@ export class Lecture extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @IsNotEmpty()
   @IsNumber()
   @Min(1)
@@ -26,6 +28,7 @@ export class Lecture extends MyBaseEntity {
   name: string;
 
   //Description
+  @IsOptional()
   @IsString()
   @Column({ type: "text", nullable: true })
   desc: string | null;

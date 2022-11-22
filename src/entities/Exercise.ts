@@ -7,7 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { IsDate, IsNotEmpty, IsNumber, IsString, Length } from "class-validator";
+import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Question } from "./Question";
 import { Course } from "./Course";
@@ -23,16 +23,19 @@ export class Exercise extends MyBaseEntity {
   @Column({ length: 255, nullable: false })
   name: string;
 
+  @IsOptional()
   @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: true })
   openTime: Date | null;
 
+  @IsOptional()
   @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: true })
   endTime: Date | null;
 
+  @IsOptional()
   @IsNumber()
-  @Column({ type: "integer", nullable: true, default: 3 })
+  @Column({ type: "integer", default: 3 })
   maxTime: number | null;
 
   @ManyToMany(() => Question, { onDelete: "CASCADE", onUpdate: "CASCADE" })

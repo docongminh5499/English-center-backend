@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
 import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryColumn } from "typeorm";
 import { Course } from "./Course";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -22,10 +22,12 @@ export class UserTeacher extends MyBaseEntity {
   @JoinColumn({ name: "teacherId" })
   worker: Worker;
 
+  @IsOptional()
   @IsString()
   @Column({ type: "text", nullable: true })
   experience: string | null;
 
+  @IsOptional()
   @IsString()
   @Column({ type: "text", nullable: true })
   shortDesc: string | null;

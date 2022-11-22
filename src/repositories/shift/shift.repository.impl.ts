@@ -16,10 +16,11 @@ class ShiftRepositoryImpl implements ShiftRepositoryInterface {
 
 
 
-  async findAvailableShiftsOfTeacher(teacherId: number, beginingDate: Date): Promise<Shift[]> {
-    const busyShiftIdsOfTeacherQuery = StudySession.createQueryBuilder("ss")
+  async findAvailableShiftsOfTeacher(teacherId: number, beginingDate: Date, closingDate?: Date, courseSlug?: string): Promise<Shift[]> {
+    let busyShiftIdsOfTeacherQuery = StudySession.createQueryBuilder("ss")
       .setLock("pessimistic_read")
       .useTransaction(true)
+      .leftJoinAndSelect("ss.course", "course")
       .leftJoinAndSelect("ss.shifts", "shifts")
       .leftJoinAndSelect("ss.teacher", "teacher")
       .leftJoinAndSelect("teacher.worker", "worker")
@@ -27,7 +28,13 @@ class ShiftRepositoryImpl implements ShiftRepositoryInterface {
       .select("shifts.id", "id")
       .distinct(true)
       .where("userTeacher.id = :teacherId", { teacherId })
-      .andWhere("ss.date >= :beginingDate", { beginingDate: moment(beginingDate).format("YYYY-MM-DD") })
+      .andWhere("ss.date >= :beginingDate", { beginingDate: moment(beginingDate).format("YYYY-MM-DD") });
+    if (closingDate !== undefined)
+      busyShiftIdsOfTeacherQuery = busyShiftIdsOfTeacherQuery
+        .andWhere("ss.date <= :closingDate", { closingDate: moment(closingDate).format("YYYY-MM-DD") })
+    if (courseSlug !== undefined)
+      busyShiftIdsOfTeacherQuery = busyShiftIdsOfTeacherQuery
+        .andWhere("course.slug <> :courseSlug", { courseSlug });
     const availableShiftsQuery = Shift.createQueryBuilder("s")
       .setLock("pessimistic_read")
       .useTransaction(true)

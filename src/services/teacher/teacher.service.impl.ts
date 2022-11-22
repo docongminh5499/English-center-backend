@@ -341,6 +341,10 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           userAttendStudySession.studySession = result.studySession;
           userAttendStudySession.commentOfTeacher = "";
           userAttendStudySession.isAttend = true;
+          // Validation
+          const validateErrors = await validate(userAttendStudySession);
+          if (validateErrors.length) throw new ValidationError(validateErrors);
+          // Save data
           await queryRunner.manager.save(userAttendStudySession);
         }
         current = current + participations.length;
@@ -395,6 +399,10 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (foundStudySession.version !== studySession.version)
         throw new InvalidVersionColumnError();
       foundStudySession.notes = studySession.notes;
+      // Validation
+      const validateErrors = await validate(foundStudySession);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
+      // Save data
       const savedStudySession = await queryRunner.manager.save(foundStudySession);
       if (savedStudySession.version !== studySession.version + 1
         && savedStudySession.version !== studySession.version)
@@ -640,6 +648,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           const tagEntity = new Tag();
           tagEntity.name = tag;
           tagEntity.type = TagsType.Curriculum;
+          // Validation
+          const validateErrors = await validate(tagEntity);
+          if (validateErrors.length) throw new ValidationError(validateErrors);
           return await queryRunner.manager.save(tagEntity);
         })
       );
@@ -687,15 +698,23 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         }
         await queryRunner.manager.remove(foundCurriculum);
       } else {
+        // Validation
+        const validateErrors = await validate(foundCurriculum);
+        if (validateErrors.length) throw new ValidationError(validateErrors);
         await queryRunner.manager.save(foundCurriculum);
       }
-
+      // Validation
+      const validateErrors = await validate(newCurriculum);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
       if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
       for (const prefer of prefers) {
         const preferEntity = new TeacherPreferCurriculum();
         preferEntity.curriculum = savedCurriculum;
         preferEntity.teacher = prefer.teacher;
+        // Validation
+        const validateErrors = await validate(preferEntity);
+        if (validateErrors.length) throw new ValidationError(validateErrors);
         await queryRunner.manager.save(preferEntity);
       }
       for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
@@ -756,6 +775,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           const tagEntity = new Tag();
           tagEntity.name = tag;
           tagEntity.type = TagsType.Curriculum;
+          // Validation
+          const validateErrors = await validate(tagEntity);
+          if (validateErrors.length) throw new ValidationError(validateErrors);
           return await queryRunner.manager.save(tagEntity);
         })
       );
@@ -1189,6 +1211,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     const prefer = new TeacherPreferCurriculum();
     prefer.curriculum = curriculum;
     prefer.teacher = teacher;
+    // Validation
+    const validateErrors = await validate(prefer);
+    if (validateErrors.length) throw new ValidationError(validateErrors);
     await prefer.save();
     return true;
   }

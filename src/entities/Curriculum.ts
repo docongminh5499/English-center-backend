@@ -5,6 +5,7 @@ import {
   OneToMany,
   ManyToMany,
   JoinTable,
+  Index,
 } from "typeorm";
 import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsString, Length, Min } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -46,6 +47,7 @@ export class Curriculum extends MyBaseEntity {
   })
   type: TermCourse;
 
+  @Index()
   @IsNotEmpty()
   @IsBoolean()
   @Column({ type: "boolean", nullable: false })

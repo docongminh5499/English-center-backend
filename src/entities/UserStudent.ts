@@ -8,6 +8,7 @@ import {
 import { User } from "./UserEntity";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { UserParent } from "./UserParent";
+import { IsOptional } from "class-validator";
 
 @Entity()
 export class UserStudent extends MyBaseEntity {
@@ -16,6 +17,7 @@ export class UserStudent extends MyBaseEntity {
   @JoinColumn({ name: "studentId" })
   user: User;
 
+  @IsOptional()
   @ManyToOne(() => UserParent, (userParent) => userParent.userStudents, {
     nullable: true,
   })

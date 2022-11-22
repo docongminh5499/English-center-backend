@@ -30,8 +30,6 @@ export function getStudySessionState(studySession: StudySession): StudySessionSt
       endTime.setMonth(currentDate.getMonth());
       endTime.setFullYear(currentDate.getFullYear());
   
-      console.log(currentDate, startTime, endTime)
-  
       if (startTime.getTime() > currentDate.getTime())
         return StudySessionState.Ready;
       else if (endTime.getTime() < currentDate.getTime())

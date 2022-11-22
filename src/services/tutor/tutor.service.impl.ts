@@ -352,6 +352,9 @@ class TutorServiceImpl implements TutorServiceInterface {
           userAttendStudySession.studySession = result.studySession;
           userAttendStudySession.commentOfTeacher = "";
           userAttendStudySession.isAttend = true;
+          // Validation
+          const validateErrors = await validate(userAttendStudySession);
+          if (validateErrors.length) throw new ValidationError(validateErrors);
           await queryRunner.manager.save(userAttendStudySession);
         }
         current = current + participations.length;

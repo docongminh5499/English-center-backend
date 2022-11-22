@@ -26,9 +26,11 @@ export default class CourseDetailDto {
     studentPaticipateCourses: {
         student: UserStudent;
         course: Course;
-        billingDate: Date | null;
+        billingDate: Date;
     }[];
     maskedComments: MaskedComment[];
     branch: Branch;
     teacher: UserTeacher;
+    lockTime: Date | null;
+    sessionPerWeek: number;
 }

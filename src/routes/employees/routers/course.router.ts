@@ -27,7 +27,9 @@ router.post("/get-teacher-free-shift", async (req: any, res: any, next: any) => 
     const result = await EmployeeService.getTeacherFreeShifts(
       req.user.userId,
       req.body.teacherId,
-      req.body.beginingDate
+      req.body.beginingDate,
+      req.body.closingDate,
+      req.body.courseSlug,
     );
     return res.status(200).json(result);
   } catch (err) {
@@ -43,7 +45,9 @@ router.post("/get-available-tutors", async (req: any, res: any, next: any) => {
       req.user.userId,
       req.body.beginingDate,
       req.body.shiftIds,
-      req.body.branchId
+      req.body.branchId,
+      req.body.closingDate,
+      req.body.courseSlug,
     );
     return res.status(200).json(result);
   } catch (err) {
@@ -59,7 +63,9 @@ router.post("/get-available-classrooms", async (req: any, res: any, next: any) =
       req.user.userId,
       req.body.beginingDate,
       req.body.shiftIds,
-      req.body.branchId
+      req.body.branchId,
+      req.body.closingDate,
+      req.body.courseSlug,
     );
     return res.status(200).json(result);
   } catch (err) {
@@ -150,6 +156,25 @@ router.post("/create-course", upload.single('image'), async (req: any, res: any,
   }
 })
 
+
+router.post("/modify-course", upload.single('image'), async (req: any, res: any, next: any) => {
+  try {
+    const createCourseDto = CreateCourseDtoMapper.mapToDto({ ...req.body, file: req.file });
+    const result = await EmployeeService.modifyCourse(req.user.userId, req.body.courseSlug, createCourseDto);
+    if (result === null && req.file && req.file.filename) {
+      const filePath = path.join(process.cwd(), COURSE_DESTINATION, req.file.filename);
+      fs.unlinkSync(filePath);
+    }
+    return res.status(200).json({ success: result !== null, course: result });
+  } catch (err) {
+    if (req.file && req.file.filename) {
+      const filePath = path.join(process.cwd(), COURSE_DESTINATION, req.file.filename);
+      fs.unlinkSync(filePath);
+    }
+    console.log(err);
+    next(err);
+  }
+})
 
 router.post("/reopen-course", async (req: any, res: any, next: any) => {
   try {
@@ -300,6 +325,54 @@ router.post("/get-students", async (req: any, res: any, next: any) => {
   try {
     const pageableDto = PageableMapper.mapToDto(req.body);
     const result = await EmployeeService.getStudentsParicipateCourse(req.user.userId, req.body.courseSlug, req.body.query, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
+router.post("/get-left-money-amount", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.getFeeAmount(req.user.userId, req.body.courseSlug);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+router.post("/check-student-participate-course", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.checkStudentParticipateCourse(req.user.userId, req.body.courseSlug, req.body.studentId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+router.post("/add-participation", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.addStudentParticipateCourse(req.user.userId, req.body.courseSlug, req.body.studentId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+router.post("/remove-participation", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.removeStudentParticipateCourse(req.user.userId, req.body.courseSlug, req.body.studentId);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

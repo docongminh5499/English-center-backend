@@ -33,6 +33,7 @@ export class Document extends MyBaseEntity {
   @Column({ type: "integer", nullable: true })
   pubYear: number | null;
 
+  @IsOptional()
   @IsString()
   @Length(0, 255)
   @Column({ type: 'varchar', length: 255, nullable: true })

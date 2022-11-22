@@ -15,4 +15,5 @@ export default class CreateCourseDto {
         branchId: number;
     }[];
     shifts?: number[][];
+    version?: number;
 }

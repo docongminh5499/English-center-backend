@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, Index } from "typeorm";
 import { IsEnum, IsNotEmpty } from "class-validator";
 import { Weekday } from "../utils/constants/weekday.constant";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -6,15 +6,18 @@ import { StudySession } from "./StudySession";
 import { UserTutor } from "./UserTutor";
 
 @Entity()
+@Index(["weekDay", "startTime"])
 export class Shift extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @IsNotEmpty()
   @IsEnum(Weekday)
   @Column({ type: "enum", enum: Weekday, nullable: false })
   weekDay: Weekday;
 
+  @Index()
   @IsNotEmpty()
   @Column({
     type: "time", nullable: false,
@@ -32,6 +35,7 @@ export class Shift extends MyBaseEntity {
   })
   startTime: Date;
 
+  @Index()
   @IsNotEmpty()
   @Column({
     type: "time",

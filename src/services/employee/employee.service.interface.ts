@@ -26,11 +26,11 @@ export default interface EmployeeService {
 
     getTeacherByBranchAndPreferedCurriculum: (userId?: number, branchId?: number, curriculumId?: number) => Promise<UserTeacher[]>;
 
-    getTeacherFreeShifts: (userId?: number, teacherId?: number, beginingDate?: Date) => Promise<Shift[]>;
+    getTeacherFreeShifts: (userId?: number, teacherId?: number, beginingDate?: Date, closingDate?: Date, courseSlug?: string) => Promise<Shift[]>;
 
-    getAvailableTutors: (userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number) => Promise<UserTutor[]>;
+    getAvailableTutors: (userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number, closingDate?: Date, courseSlug?: string) => Promise<UserTutor[]>;
 
-    getAvailableClassroom: (userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number) => Promise<Classroom[]>;
+    getAvailableClassroom: (userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number, closingDate?: Date, courseSlug?: string) => Promise<Classroom[]>;
 
     getCoursesByBranch: (employeeId: number, pageableDto: PageableDto, queryable: Queryable<Course>) => Promise<CourseListDto>;
 
@@ -40,6 +40,12 @@ export default interface EmployeeService {
         pageableDto: PageableDto, query?: string) => Promise<{ total: number, studySessions: StudySession[] }>;
 
     createCourse: (userId?: number, createCourseDto?: CreateCourseDto) => Promise<Course | null>;
+
+    modifyCourse: (userId?: number, courseSlug?: string, courseDto?: CreateCourseDto) => Promise<Course | null>;
+
+    lockCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+
+    unLockCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 
     closeCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 
@@ -87,6 +93,8 @@ export default interface EmployeeService {
 
     addStudentParticipateCourse: (userId: number, courseSlug: string, studentId: number) => Promise<boolean>;
 
+    removeStudentParticipateCourse: (userId: number, courseSlug: string, studentId: number) => Promise<boolean>;
+
     getSalariesByBranch: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
 
     getFeeByBranch: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, fees: Fee[] }>;
@@ -98,4 +106,6 @@ export default interface EmployeeService {
     getTutorByBranch: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, tutors: UserTutor[] }>;
 
     getEmployeeByBranch: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, employees: UserEmployee[] }>;
+
+    checkStudentParticipateCourse: (userId: number, courseSlug: string, studentId: number) => Promise<boolean>;
 }

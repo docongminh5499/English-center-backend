@@ -5,6 +5,7 @@ import {
   OneToMany,
   JoinColumn,
   ManyToOne,
+  Index,
 } from "typeorm";
 import {
   IsDate,
@@ -35,6 +36,7 @@ export class Course extends MyBaseEntity {
   @Column({ length: 255, nullable: false, unique: true })
   slug: string;
 
+  @Index()
   @IsNotEmpty()
   @IsString()
   @Length(0, 255)
@@ -60,16 +62,19 @@ export class Course extends MyBaseEntity {
   })
   price: number;
 
+  @Index()
   @IsNotEmpty()
   @IsDate()
   @Column({ type: "date", nullable: false })
   openingDate: Date;
 
+  @Index()
   @IsOptional()
   @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: true })
   closingDate: Date | null;
 
+  @Index()
   @IsNotEmpty()
   @IsDate()
   @Column({ type: "date", nullable: false })
@@ -81,6 +86,7 @@ export class Course extends MyBaseEntity {
   @Column({ length: 255, nullable: false })
   image: string;
 
+  @Index()
   @IsOptional()
   @IsDate()
   @Column({  type: "timestamp", precision: 6, nullable: true })

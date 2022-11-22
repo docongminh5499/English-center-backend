@@ -6,10 +6,11 @@ import Pageable from "../helpers/pageable";
 import ClassroomRepositoryInterface from "./classroom.repository.interface";
 
 class ClassroomRepositoryImpl implements ClassroomRepositoryInterface {
-  async findClassroomAvailable(branchId: number, beginingDate: Date, shiftIds: number[]): Promise<Classroom[]> {
-    const busyClassroomIdsOfClassroomQuery = StudySession.createQueryBuilder("ss")
+  async findClassroomAvailable(branchId: number, beginingDate: Date, shiftIds: number[], closingDate?: Date, courseSlug?: string): Promise<Classroom[]> {
+    let busyClassroomIdsOfClassroomQuery = StudySession.createQueryBuilder("ss")
       .setLock("pessimistic_read")
       .useTransaction(true)
+      .leftJoinAndSelect("ss.course", "course")
       .leftJoinAndSelect("ss.shifts", "shifts")
       .leftJoinAndSelect("ss.classroom", "classroom")
       .leftJoinAndSelect("classroom.branch", "branch")
@@ -18,6 +19,12 @@ class ClassroomRepositoryImpl implements ClassroomRepositoryInterface {
       .distinct(true)
       .where("ss.date >= :beginingDate", { beginingDate: moment(beginingDate).format("YYYY-MM-DD") })
       .andWhere(`shifts.id IN (:...ids)`, { ids: shiftIds });
+    if (closingDate !== undefined)
+      busyClassroomIdsOfClassroomQuery = busyClassroomIdsOfClassroomQuery
+        .andWhere("ss.date <= :closingDate", { closingDate: moment(closingDate).format("YYYY-MM-DD") })
+    if (courseSlug !== undefined)
+      busyClassroomIdsOfClassroomQuery = busyClassroomIdsOfClassroomQuery
+        .andWhere("course.slug <> :courseSlug", { courseSlug });
 
     const classroomQuery = Classroom.createQueryBuilder("cr")
       .setLock("pessimistic_read")

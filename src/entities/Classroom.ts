@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, JoinColumn, ManyToOne } from "typeorm";
+import { Entity, Column, PrimaryColumn, JoinColumn, ManyToOne, Index } from "typeorm";
 import { IsEnum, IsNotEmpty, IsNumber, IsPositive, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Branch } from "./Branch";
@@ -22,6 +22,7 @@ export class Classroom extends MyBaseEntity {
   @PrimaryColumn({ type: "int", name: "branchId" })
   branch: Branch;
 
+  @Index()
   @IsNotEmpty()
   @IsEnum(ClassroomFunction)
   @Column({ type: "enum", enum: ClassroomFunction, nullable: false })

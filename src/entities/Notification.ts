@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Index } from "typeorm";
 import { IsBoolean, IsDate, IsNotEmpty, IsString } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { User } from "./UserEntity";
@@ -13,6 +13,7 @@ export class Notification extends MyBaseEntity {
   @Column({ type: "text", nullable: false })
   content: string;
 
+  @Index()
   @IsBoolean()
   @Column({ type: "bool", default: false })
   read: boolean;
@@ -22,6 +23,6 @@ export class Notification extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: true })
+  @Column({ type: "timestamp", precision: 6, nullable: false })
   createdAt: Date;
 }

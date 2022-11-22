@@ -7,10 +7,11 @@ import Pageable from "../helpers/pageable";
 import TutorRepositoryInterface from "./tutor.repository.interface";
 
 class TutorRepositoryImpl implements TutorRepositoryInterface {
-  async findTutorsAvailable(beginingDate: Date, shiftIds: number[], branchId?: number): Promise<UserTutor[]> {
-    const busyTutorIdsQuery = StudySession.createQueryBuilder("ss")
+  async findTutorsAvailable(beginingDate: Date, shiftIds: number[], branchId?: number, closingDate?: Date, courseSlug?: string): Promise<UserTutor[]> {
+    let busyTutorIdsQuery = StudySession.createQueryBuilder("ss")
       .setLock("pessimistic_read")
       .useTransaction(true)
+      .leftJoinAndSelect("ss.course", "course")
       .leftJoinAndSelect("ss.shifts", "shifts")
       .leftJoinAndSelect("ss.tutor", "tutor")
       .leftJoinAndSelect("tutor.worker", "worker")
@@ -19,6 +20,12 @@ class TutorRepositoryImpl implements TutorRepositoryInterface {
       .distinct(true)
       .where("ss.date >= :beginingDate", { beginingDate: moment(beginingDate).format("YYYY-MM-DD") })
       .andWhere(`shifts.id IN (:...ids)`, { ids: shiftIds });
+    if (closingDate !== undefined)
+      busyTutorIdsQuery = busyTutorIdsQuery
+        .andWhere("ss.date <= :closingDate", { closingDate: moment(closingDate).format("YYYY-MM-DD") })
+    if (courseSlug !== undefined)
+      busyTutorIdsQuery = busyTutorIdsQuery
+        .andWhere("course.slug <> :courseSlug", { courseSlug });
 
     const freeTutorsIdQuery = UserTutor.createQueryBuilder("tt")
       .setLock("pessimistic_read")

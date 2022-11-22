@@ -1,5 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, JoinColumn } from "typeorm";
-import { IsDate, IsNotEmpty, IsString, Length } from "class-validator";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, JoinColumn, Index } from "typeorm";
+import { IsDate, IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Course } from "./Course";
 import { Shift } from "./Shift";
@@ -8,6 +8,9 @@ import { Classroom } from "./Classroom";
 import { UserTeacher } from "./UserTeacher";
 
 @Entity()
+@Index(["date", "tutor"])
+@Index(["date", "teacher"])
+@Index(["date", "course"])
 export class StudySession extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,17 +21,19 @@ export class StudySession extends MyBaseEntity {
   @Column({ length: 255, nullable: false })
   name: string;
 
+  @Index()
   @IsNotEmpty()
   @IsDate()
   @Column({ type: "date", nullable: false })
   date: Date;
 
+  @IsOptional()
   @IsString()
   @Column({ type: "text", nullable: true })
   notes: string | null;
 
   //Relation Course--1--<include>==N==StudySession
-  @IsNotEmpty()
+  @IsOptional()
   @ManyToOne(() => Course, (course) => course.studySessions, { nullable: true, onDelete: "CASCADE", onUpdate: "CASCADE" })
   course: Course;
 

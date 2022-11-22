@@ -54,6 +54,11 @@ import { Fee } from "../../entities/Fee";
 import { Refund } from "../../entities/Refund";
 import FeeRepository from "../../repositories/fee/fee.repository.impl";
 import RefundRepository from "../../repositories/refund/refund.repository.impl";
+import { TransactionConstants } from "../../entities/TransactionConstants";
+import { TermCourse } from "../../utils/constants/termCuorse.constant";
+import { Transaction } from "../../entities/Transaction";
+import { TransactionType } from "../../utils/constants/transaction.constant";
+import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 
 
 
@@ -175,23 +180,23 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   }
 
 
-  async getTeacherFreeShifts(userId?: number, teacherId?: number, beginingDate?: Date): Promise<Shift[]> {
+  async getTeacherFreeShifts(userId?: number, teacherId?: number, beginingDate?: Date, closingDate?: Date, courseSlug?: string): Promise<Shift[]> {
     if (userId === undefined || teacherId === undefined ||
       beginingDate === undefined || beginingDate === null) return [];
-    return await ShiftRepository.findAvailableShiftsOfTeacher(teacherId, beginingDate);
+    return await ShiftRepository.findAvailableShiftsOfTeacher(teacherId, beginingDate, closingDate, courseSlug);
   }
 
 
-  async getAvailableTutors(userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number): Promise<UserTutor[]> {
+  async getAvailableTutors(userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number, closingDate?: Date, courseSlug?: string): Promise<UserTutor[]> {
     if (userId === undefined || shiftIds === undefined || beginingDate === undefined || beginingDate === null) return [];
-    return await TutorRepository.findTutorsAvailable(beginingDate, shiftIds, branchId);
+    return await TutorRepository.findTutorsAvailable(beginingDate, shiftIds, branchId, closingDate, courseSlug);
   }
 
 
-  async getAvailableClassroom(userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number): Promise<Classroom[]> {
+  async getAvailableClassroom(userId?: number, beginingDate?: Date, shiftIds?: number[], branchId?: number, closingDate?: Date, courseSlug?: string): Promise<Classroom[]> {
     if (userId === undefined || shiftIds === undefined ||
       beginingDate === undefined || beginingDate === null || branchId === undefined) return [];
-    return await ClassroomRepository.findClassroomAvailable(branchId, beginingDate, shiftIds);
+    return await ClassroomRepository.findClassroomAvailable(branchId, beginingDate, shiftIds, closingDate, courseSlug);
   }
 
 
@@ -250,6 +255,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     courseDetail.curriculum = course.curriculum;
     courseDetail.branch = course.branch;
     courseDetail.teacher = course.teacher;
+    courseDetail.lockTime = course.lockTime;
+    courseDetail.sessionPerWeek = course.sessionPerWeek;
     return courseDetail;
   }
 
@@ -470,7 +477,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         let studySession = new StudySession();
         studySession.name = `Tuần ${week}, Buổi ${dayName}`;
         studySession.date = date;
-        studySession.notes = faker.lorem.paragraphs();
+        studySession.notes = "";
         studySession.course = course;
         studySession.shifts = choseSchedule.choseShifts[sheduleIndex];
         studySession.tutor = choseSchedule.choseTutor[sheduleIndex];
@@ -509,6 +516,480 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       return null;
     }
   }
+
+
+  private getName(oldName: string, newName: string) {
+    if (oldName.trim() === newName.trim()) return '"' + oldName.trim() + '"';
+    return `"${newName}" (tên cũ: "${oldName}")`;
+  }
+
+
+  async modifyCourse(userId?: number, courseSlug?: string, courseDto?: CreateCourseDto): Promise<Course | null> {
+    if (userId === undefined || courseSlug === undefined || courseDto === undefined || courseDto === null)
+      return null;
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      if (courseDto.curriculum !== undefined) throw new ValidationError([]);
+      // Course
+      const course = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getOne();
+      if (course === null) throw new NotFoundError();
+      course.openingDate = new Date(course.openingDate);
+      course.expectedClosingDate = new Date(course.expectedClosingDate);
+      const courseName = this.getName(course.name, courseDto.name || "");
+      // Course shouldn't be closed
+      if (course.closingDate !== null && course.closingDate !== undefined)
+        throw new ValidationError([]);
+      // Employee
+      const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+      if (employee === null) throw new NotFoundError();
+      // Check branch
+      if (employee.worker.branch.id !== course.branch.id)
+        throw new ValidationError([]);
+      // Version
+      if (course.version != courseDto.version)
+        throw new InvalidVersionColumnError();
+      // Find participations
+      const participationCount = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, "p")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("p.course", "course")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getCount();
+      // Course name
+      const oldSlug = course.slug;
+      if (courseDto.name !== undefined) {
+        course.name = courseDto.name;
+        let slug = slugify(course.name);
+        const existedCourseNameCount = await queryRunner.manager
+          .createQueryBuilder(Course, "c")
+          .setLock("pessimistic_read")
+          .useTransaction(true)
+          .where("c.name = :name", { name: course.name })
+          .andWhere("c.id <> :id", { id: course.id })
+          .getCount();
+        if (existedCourseNameCount > 0) slug = slug + "-" + existedCourseNameCount;
+        course.slug = slug;
+      }
+      // Max student counts
+      if (courseDto.maxNumberOfStudent !== undefined) {
+        if (courseDto.maxNumberOfStudent < participationCount)
+          throw new ValidationError([]);
+        course.maxNumberOfStudent = courseDto.maxNumberOfStudent;
+      }
+      // Price
+      if (courseDto.price !== undefined) {
+        if (participationCount > 0) throw new ValidationError([]);
+        course.price = courseDto.price;
+      }
+      // Image
+      let oldImageSrc = undefined;
+      if (courseDto.image && courseDto.image.filename) {
+        oldImageSrc = course.image;
+        course.image = COURSE_DESTINATION_SRC + courseDto.image.filename;
+      }
+      // ChoseSchedule
+      const choseSchedule = {
+        choseTeacher: course.teacher,
+        choseShifts: [] as Shift[][],
+        choseClassroom: [] as Classroom[],
+        choseTutor: [] as UserTutor[],
+      }
+      // Change study session
+      let isChangeStudySession = false;
+      const oldOpeningDate = new Date(course.openingDate);
+      // Change openingDate
+      if (courseDto.openingDate !== undefined) {
+        if ((course.closingDate === null || course.closingDate === undefined) &&
+          moment().diff(moment(course.openingDate)) < 0 &&
+          courseDto.teacher !== undefined) {
+          // Participations
+          const participations = await queryRunner.manager
+            .createQueryBuilder(StudentParticipateCourse, "p")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("p.course", "course")
+            .where("course.slug = :courseSlug", { courseSlug })
+            .getMany();
+          // Change opening date and closing date
+          let days = this.diffDays(course.openingDate, courseDto.openingDate);
+          if ((new Date(courseDto.openingDate)).getTime() < (new Date(course.openingDate)).getTime())
+            days = days * (-1);
+          const expectedClosingDate = new Date(course.expectedClosingDate);
+          expectedClosingDate.setDate(expectedClosingDate.getDate() + days);
+          course.openingDate = new Date(courseDto.openingDate);
+          course.expectedClosingDate = expectedClosingDate;
+          // Update billingDate
+          for (const participation of participations) {
+            const billingDate = new Date(participation.billingDate);
+            billingDate.setDate(billingDate.getDate() + days);
+            participation.billingDate = billingDate;
+            await queryRunner.manager.upsert(StudentParticipateCourse, participation, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+          }
+          isChangeStudySession = true;
+        } else throw new ValidationError([]);
+      }
+      // Teacher
+      if (courseDto.teacher !== undefined) {
+        // Check teacher want to teach the course
+        const preferedTeachers = await queryRunner.manager
+          .createQueryBuilder(UserTeacher, "teacher")
+          .setLock("pessimistic_read")
+          .useTransaction(true)
+          .leftJoinAndSelect("teacher.worker", "worker")
+          .leftJoinAndSelect("worker.user", "user")
+          .innerJoinAndSelect("teacher.preferredCurriculums", "preferredCurriculums")
+          .innerJoinAndSelect("preferredCurriculums.curriculum", "curriculums")
+          .where("curriculums.id = :curriculumId", { curriculumId: course.curriculum.id })
+          .andWhere("curriculums.latest = true")
+          .getMany();
+        const foundTeacher = preferedTeachers.find(teacher => teacher.worker.user.id === courseDto.teacher);
+        if (!foundTeacher) throw new ValidationError([]);
+        // Check number of session per week
+        if (courseDto.tutors === undefined ||
+          courseDto.classrooms === undefined ||
+          courseDto.shifts === undefined ||
+          courseDto.tutors.length === 0 ||
+          courseDto.classrooms.length === 0 ||
+          courseDto.shifts.length === 0 ||
+          courseDto.shifts.length !== courseDto.classrooms.length ||
+          courseDto.shifts.length !== courseDto.tutors.length ||
+          courseDto.classrooms.length !== courseDto.tutors.length ||
+          courseDto.tutors.length !== course.sessionPerWeek)
+          throw new ValidationError([]);
+        // Check shifts 
+        const availableShiftsofTeacher = await ShiftRepository.findAvailableShiftsOfTeacher(courseDto.teacher, course.openingDate, course.expectedClosingDate, oldSlug);
+        let currentShiftsPerSession = course.curriculum.shiftsPerSession;
+        courseDto.shifts.forEach(shiftArray => {
+          if (shiftArray.length !== currentShiftsPerSession) throw new ValidationError([]);
+          const shifts: Shift[] = [];
+          shiftArray.forEach(shiftId => {
+            const foundShift = availableShiftsofTeacher.find(shift => shift.id === shiftId);
+            if (!foundShift) throw new ValidationError([]);
+            else shifts.push(foundShift);
+          });
+          choseSchedule.choseShifts.push(shifts);
+        })
+        // Check classroom
+        for (let index = 0; index < courseDto.classrooms.length; index++) {
+          const classroom = courseDto.classrooms[index];
+          // Classroom need to be the same branch
+          if (classroom.branchId !== course.branch.id)
+            throw new ValidationError([]);
+          // Check classroom is available or not
+          const availableClassrooms = await ClassroomRepository
+            .findClassroomAvailable(course.branch.id, course.openingDate, courseDto.shifts[index], course.expectedClosingDate, oldSlug);
+          const foundClassroom = availableClassrooms.find(c =>
+            c.branch.id === classroom.branchId && c.name.toLowerCase() === classroom.name.toLowerCase());
+          if (!foundClassroom)
+            throw new ValidationError([]);
+          if (foundClassroom.capacity < course.maxNumberOfStudent)
+            throw new ValidationError([]);
+          choseSchedule.choseClassroom.push(foundClassroom);
+        }
+        // Check tutors
+        for (let index = 0; index < courseDto.tutors.length; index++) {
+          const tutor = courseDto.tutors[index];
+          // Check tutor is available or not
+          const availableTutors = await TutorRepository
+            .findTutorsAvailable(course.openingDate, courseDto.shifts[index], undefined, course.expectedClosingDate, oldSlug);
+          const foundTtutor = availableTutors.find(t => t.worker.user.id === tutor);
+          if (!foundTtutor)
+            throw new ValidationError([]);
+          else choseSchedule.choseTutor.push(foundTtutor);
+        }
+        if (course.teacher.worker.user.id != choseSchedule.choseTeacher.worker.user.id) {
+          // Old teacher's notification
+          const teacherNotificationDto = {} as NotificationDto;
+          teacherNotificationDto.userId = course.teacher.worker.user.id;
+          teacherNotificationDto.content = `Khoá học ${courseName} vừa được chỉ định cho giáo viên khác. Vui lòng vào trang web để kiểm tra thông tin.`;
+          const teacherNotificationResult = await this.sendNotification(queryRunner, teacherNotificationDto);
+          if (teacherNotificationResult.success && teacherNotificationResult.receiverSocketStatuses && teacherNotificationResult.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: teacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: teacherNotificationResult.notification
+            });
+          }
+          // Assign teacher
+          course.teacher = choseSchedule.choseTeacher;
+          // New teacher's notification
+          const newTeacherNotificationDto = {} as NotificationDto;
+          newTeacherNotificationDto.userId = course.teacher.worker.user.id;
+          newTeacherNotificationDto.content = `Khoá học ${courseName} vừa được thay đổi và chỉ định cho bạn. Vui lòng vào trang web để kiểm tra thông tin.`;
+          const newTeacherNotificationResult = await this.sendNotification(queryRunner, newTeacherNotificationDto);
+          if (newTeacherNotificationResult.success && newTeacherNotificationResult.receiverSocketStatuses && newTeacherNotificationResult.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: newTeacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: newTeacherNotificationResult.notification
+            });
+          }
+        } else {
+          const teacherNotificationDto = {} as NotificationDto;
+          teacherNotificationDto.userId = course.teacher.worker.user.id;
+          teacherNotificationDto.content = `Khoá học ${courseName} vừa được chỉnh sửa. Vui lòng vào trang web để kiểm tra thông tin.`;
+          const teacherNotificationResult = await this.sendNotification(queryRunner, teacherNotificationDto);
+          if (teacherNotificationResult.success && teacherNotificationResult.receiverSocketStatuses && teacherNotificationResult.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: teacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: teacherNotificationResult.notification
+            });
+          }
+          // Assign teacher
+          course.teacher = choseSchedule.choseTeacher;
+        }
+        // Tutors' notification
+        for (const tutor of choseSchedule.choseTutor) {
+          const notificationDto = { userId: tutor.worker.user.id } as NotificationDto;
+          notificationDto.content = `Khoá học ${courseName} vừa được chỉnh sửa và chỉ định cho bạn. Vui lòng lên website kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
+        }
+        // Mark change ss
+        isChangeStudySession = true;
+      } else {
+        const teacherNotificationDto = {} as NotificationDto;
+        teacherNotificationDto.userId = course.teacher.worker.user.id;
+        teacherNotificationDto.content = `Khoá học ${courseName} vừa được chỉnh sửa. Vui lòng vào trang web để kiểm tra thông tin.`;
+        const teacherNotificationResult = await this.sendNotification(queryRunner, teacherNotificationDto);
+        if (teacherNotificationResult.success && teacherNotificationResult.receiverSocketStatuses && teacherNotificationResult.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: teacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: teacherNotificationResult.notification
+          });
+        }
+      }
+      // Old opening date
+      const openingDate = new Date(oldOpeningDate);
+      openingDate.setHours(0);
+      openingDate.setMinutes(0);
+      openingDate.setSeconds(0);
+      openingDate.setMilliseconds(0);
+      // New opening date
+      const newOpeningDate = new Date(course.openingDate);
+      newOpeningDate.setHours(0);
+      newOpeningDate.setMinutes(0);
+      newOpeningDate.setSeconds(0);
+      newOpeningDate.setMilliseconds(0);
+      // Current date
+      const currentDate = new Date();
+      currentDate.setHours(0);
+      currentDate.setMinutes(0);
+      currentDate.setSeconds(0);
+      currentDate.setMilliseconds(0);
+      // Max date
+      const teacherIds = [];
+      const tutorIds = [];
+      const studentIds: number[] = [];
+      const startDate = currentDate < openingDate ? openingDate : currentDate;
+      const newStartDate = currentDate < newOpeningDate ? newOpeningDate : currentDate;
+      // Study session left 
+      const studySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "teacherWorker")
+        .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+        .leftJoinAndSelect("ss.tutor", "tutor")
+        .leftJoinAndSelect("tutor.worker", "tutorWorker")
+        .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .andWhere("ss.date >= :date", { date: moment(startDate).format("YYYY-MM-DD") })
+        .getMany();
+      // Update study sessions
+      if (isChangeStudySession && studySessions.length > 0) {
+        for (const studySession of studySessions) {
+          if (teacherIds.find(id => id === studySession.teacher.worker.user.id) === undefined)
+            teacherIds.push(studySession.teacher.worker.user.id);
+          if (tutorIds.find(id => id === studySession.tutor.worker.user.id) === undefined)
+            tutorIds.push(studySession.tutor.worker.user.id);
+          const makeups = await queryRunner.manager
+            .createQueryBuilder(MakeUpLession, "m")
+            .setLock("pessimistic_read")
+            .useTransaction(true)
+            .leftJoinAndSelect("m.student", "student")
+            .leftJoinAndSelect("student.user", "user")
+            .where("m.studySessionId = :ssId", { ssId: studySession.id })
+            .orWhere("m.targetStudySessionId = :ssId", { ssId: studySession.id })
+            .getMany();
+          makeups.forEach(makeup => {
+            if (studentIds.find(id => id === makeup.student.user.id) === undefined)
+              studentIds.push(makeup.student.user.id);
+          })
+          await queryRunner.manager.remove(studySession);
+        }
+        for (const tutorId of tutorIds) {
+          const notificationDto = { userId: tutorId } as NotificationDto;
+          notificationDto.content = `Khoá học "${course.name}" vừa được chỉnh sửa và có thể thay đổi trợ giảng. Vui lòng lên website kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
+        }
+        for (const teacherId of teacherIds) {
+          const notificationDto = { userId: teacherId } as NotificationDto;
+          notificationDto.content = `Khoá học ${courseName} vừa được chỉnh sửa và có thể thay đổi giáo viên. Vui lòng lên website kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
+        }
+        for (const studentId of studentIds) {
+          const notificationDto = { userId: studentId } as NotificationDto;
+          notificationDto.content = `Khoá học ${courseName} vừa được chỉnh sửa và do đó, đăng ký học bù của bạn đã bị hủy. Vui lòng lên website kiểm tra lại thông tin.`;
+          const result = await this.sendNotification(queryRunner, notificationDto);
+          if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+            notifications.push({
+              socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+              notification: result.notification
+            });
+          }
+        }
+        // Start creating study session
+        const numberOfSessionsPerWeek = course.sessionPerWeek;
+        const sortedScheduleIndex: number[] = Array(numberOfSessionsPerWeek).fill(0).map((_, index) => index);
+        sortedScheduleIndex.sort((prevIndex: number, nextIndex: number) => {
+          if (cvtWeekDay2Num(choseSchedule.choseShifts[prevIndex][0].weekDay) >
+            cvtWeekDay2Num(choseSchedule.choseShifts[nextIndex][0].weekDay))
+            return 1;
+          else if (cvtWeekDay2Num(choseSchedule.choseShifts[prevIndex][0].weekDay) <
+            cvtWeekDay2Num(choseSchedule.choseShifts[nextIndex][0].weekDay))
+            return -1;
+          else return 0;
+        });
+
+        choseSchedule.choseShifts = sortedScheduleIndex.map(index => choseSchedule.choseShifts[index]);
+        choseSchedule.choseClassroom = sortedScheduleIndex.map(index => choseSchedule.choseClassroom[index]);
+        choseSchedule.choseTutor = sortedScheduleIndex.map(index => choseSchedule.choseTutor[index]);
+
+        let sheduleIndex = -1;
+        let firstDayOfSession = new Date();
+
+        for (let index = 0; index < numberOfSessionsPerWeek; index++) {
+          const openingDate = new Date(newStartDate);
+          const openingDateOffset = openingDate.getDay() == 0 ? 7 : openingDate.getDay()
+          const offset = cvtWeekDay2Num(choseSchedule.choseShifts[index][0].weekDay) - 2;
+          const date = openingDate.getDate() - openingDateOffset + offset + 1;
+          const firstDay = new Date(openingDate.setDate(date));
+
+          if (firstDay >= newStartDate) {
+            sheduleIndex = index;
+            firstDayOfSession = firstDay;
+            break;
+          }
+        }
+
+        if (sheduleIndex === -1) {
+          const openingDate = new Date(newStartDate);
+          const openingDateOffset = openingDate.getDay() == 0 ? 7 : openingDate.getDay()
+          const offset = cvtWeekDay2Num(choseSchedule.choseShifts[0][0].weekDay) - 2;
+          const date = openingDate.getDate() - openingDateOffset + offset + 8;
+          firstDayOfSession = new Date(openingDate.setDate(date));
+          sheduleIndex = 0;
+        }
+
+        for (let index = 0; index < studySessions.length; index++) {
+          const date = new Date(firstDayOfSession.getTime());
+          let studySession = new StudySession();
+          studySession.name = studySessions[index].name;
+          studySession.date = date;
+          studySession.notes = "";
+          studySession.course = course;
+          studySession.shifts = choseSchedule.choseShifts[sheduleIndex];
+          studySession.tutor = choseSchedule.choseTutor[sheduleIndex];
+          studySession.teacher = choseSchedule.choseTeacher;
+          studySession.classroom = choseSchedule.choseClassroom[sheduleIndex];
+          const validateErrors = await validate(studySession);
+          if (validateErrors.length) throw new ValidationError(validateErrors);
+          await queryRunner.manager.save(studySession);
+          if (index === studySessions.length - 1)
+            break;
+          const lastSchedultIndex = sheduleIndex;
+          sheduleIndex = (sheduleIndex + 1) % numberOfSessionsPerWeek;
+          let offset = cvtWeekDay2Num(choseSchedule.choseShifts[sheduleIndex][0].weekDay) - cvtWeekDay2Num(choseSchedule.choseShifts[lastSchedultIndex][0].weekDay);
+          offset = offset <= 0 ? offset + 7 : offset;
+          firstDayOfSession = new Date(firstDayOfSession.setDate(firstDayOfSession.getDate() + offset));
+        }
+      }
+      // Participations
+      const participations = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, "p")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("p.course", "course")
+        .leftJoinAndSelect("p.student", "student")
+        .leftJoinAndSelect("student.user", "user")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      // Notification of students
+      for (const participation of participations) {
+        const notificationDto = { userId: participation.student.user.id } as NotificationDto;
+        notificationDto.content = `Khoá học ${courseName} vừa được chỉnh sửa. Vui lòng lên website kiểm tra lại thông tin.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Commit transaction
+      const savedCourseValidateErrors = await validate(course);
+      if (savedCourseValidateErrors.length) throw new ValidationError(savedCourseValidateErrors);
+      const savedCourse = await queryRunner.manager.save(course);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      // Remove old image
+      if (oldImageSrc && oldImageSrc.length > 0) {
+        const filePath = path.join(process.cwd(), "public", oldImageSrc);
+        fs.unlinkSync(filePath);
+      }
+      // Return data
+      return savedCourse;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return null;
+    }
+  }
+
+
+  lockCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+
+
+  unLockCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
 
 
   async repoenCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
@@ -1081,6 +1562,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           });
         }
       }
+      // Validate entity
+      const validateErrors = await validate(studySession);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
       // Commit transaction
       await queryRunner.manager.save(studySession);
       await queryRunner.commitTransaction();
@@ -1143,6 +1627,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("ss.id = :studySessionId", { studySessionId: studySessionDto.id })
         .getOne();
       if (studySession === null) throw new NotFoundError();
+      const studySessionName = this.getName(studySession.name, studySessionDto.name);
       // Check course belong to branch
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -1217,7 +1702,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (studySession.teacher.worker.user.id == studySessionDto.teacherId) {
         if (!sameTime || !sameClassroom) {
           const notificationDto = { userId: studySessionDto.teacherId } as NotificationDto;
-          notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
+          notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
           const result = await this.sendNotification(queryRunner, notificationDto);
           if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
             notifications.push({
@@ -1229,7 +1714,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       } else {
         // Old teacher notification
         const notificationDto = { userId: studySession.teacher.worker.user.id } as NotificationDto;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" đã được chuyển cho giáo viên khác. Vui lòng vào trang web để kiểm tra lại thông tin.`;
+        notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" đã được chuyển cho giáo viên khác. Vui lòng vào trang web để kiểm tra lại thông tin.`;
         let result = await this.sendNotification(queryRunner, notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
           notifications.push({
@@ -1278,7 +1763,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySession.teacher = teacher;
         // New teacher notification
         notificationDto.userId = studySession.teacher.worker.user.id;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" đã được chuyển cho bạn để dạy thay, giáo viên cũ không thể dạy buổi học này. Vui lòng vào trang web để kiểm tra thông tin.`;
+        notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" đã được chuyển cho bạn để dạy thay, giáo viên cũ không thể dạy buổi học này. Vui lòng vào trang web để kiểm tra thông tin.`;
         result = await this.sendNotification(queryRunner, notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
           notifications.push({
@@ -1291,7 +1776,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (studySession.tutor.worker.user.id == studySessionDto.tutorId) {
         if (!sameTime || !sameClassroom) {
           const notificationDto = { userId: studySessionDto.tutorId } as NotificationDto;
-          notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
+          notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng vào trang web để kiểm tra lại thông tin.`;
           const result = await this.sendNotification(queryRunner, notificationDto);
           if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
             notifications.push({
@@ -1303,7 +1788,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       } else {
         // Old tutor notification
         const notificationDto = { userId: studySession.tutor.worker.user.id } as NotificationDto;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" đã được chuyển cho trợ giảng khác. Vui lòng vào trang web để kiểm tra lại thông tin.`;
+        notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" đã được chuyển cho trợ giảng khác. Vui lòng vào trang web để kiểm tra lại thông tin.`;
         let result = await this.sendNotification(queryRunner, notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
           notifications.push({
@@ -1361,7 +1846,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySession.tutor = tutor;
         // New tutor notification
         notificationDto.userId = studySession.tutor.worker.user.id;
-        notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" đã được chuyển cho bạn để dạy thay,trợ giảng cũ không thể dạy buổi học này. Vui lòng vào trang web để kiểm tra thông tin.`;
+        notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" đã được chuyển cho bạn để dạy thay,trợ giảng cũ không thể dạy buổi học này. Vui lòng vào trang web để kiểm tra thông tin.`;
         result = await this.sendNotification(queryRunner, notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
           notifications.push({
@@ -1421,7 +1906,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         const notificationDto = { userId: makeupLesson.student.user.id } as NotificationDto;
         if (!sameTime) {
           await queryRunner.manager.remove(makeupLesson);
-          notificationDto.content = `Buổi học bù "${studySession.name}", khoá học "${studySession.course.name}" đã bị hủy, vui lòng lên website và đăng ký lại buổi học khác.`;
+          notificationDto.content = `Buổi học bù ${studySessionName}, khoá học "${studySession.course.name}" đã bị hủy, vui lòng lên website và đăng ký lại buổi học khác.`;
           const result = await this.sendNotification(queryRunner, notificationDto);
           if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
             notifications.push({
@@ -1430,7 +1915,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             });
           }
         } else if (!sameClassroom) {
-          notificationDto.content = `Buổi học bù "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
+          notificationDto.content = `Buổi học bù ${studySessionName}, khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
           const result = await this.sendNotification(queryRunner, notificationDto);
           if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
             notifications.push({
@@ -1450,7 +1935,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       for (const participation of participations) {
         if (!sameTime || !sameClassroom) {
           const notificationDto = { userId: participation.student.user.id } as NotificationDto;
-          notificationDto.content = `Buổi học "${studySession.name}", khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
+          notificationDto.content = `Buổi học ${studySessionName}, khoá học "${studySession.course.name}" có sự cập nhật. Vui lòng lên website kiểm tra lại thông tin.`;
           const result = await this.sendNotification(queryRunner, notificationDto);
           if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
             notifications.push({
@@ -1460,6 +1945,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           }
         }
       }
+      // Validate entity
+      const validateErrors = await validate(studySession);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
       // Commit transaction
       await queryRunner.manager.save(studySession);
       await queryRunner.commitTransaction();
@@ -1673,6 +2161,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       classroom.branch = employee.worker.branch;
       classroom.function = classroomDto.function;
       classroom.capacity = classroomDto.capacity;
+      // Validate entity
+      const validateErrors = await validate(classroom);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
       // Commit transaction
       const savedClassroom = await queryRunner.manager.save(classroom);
       await queryRunner.commitTransaction();
@@ -1728,6 +2219,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       existedClassroom.branch = employee.worker.branch;
       existedClassroom.function = classroomDto.function;
       existedClassroom.capacity = classroomDto.capacity;
+      // Validate entity
+      const validateErrors = await validate(existedClassroom);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
       // Commit transaction
       await queryRunner.manager.update(Classroom, {
         name: classroomDto.oldName, branch: classroomDto.branch
@@ -1916,40 +2410,43 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   }
 
 
-  // private diffDays(date1: Date, date2: Date): number {
-  //   const diffTime: number = Math.abs(date2.getTime() - date1.getTime());
-  //   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  //   return diffDays;
-  // }
+  private diffDays(date1: Date, date2: Date): number {
+    const diffTime: number = Math.abs((new Date(date2)).getTime() - (new Date(date1)).getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }
 
 
-  // private async caculateFeeAmount(course: Course): Promise<number> {
-  //   let openingDate = new Date(course.openingDate);
-  //   let expectedClosingDate = new Date(course.expectedClosingDate);
-  //   let currentDate = new Date();
-  //   if (currentDate <= openingDate) currentDate = openingDate;
-  //   if (expectedClosingDate < currentDate) return 0;
-  //   // Find constants
-  //   const constants = await TransactionConstants.createQueryBuilder('c').getOne();
-  //   if (constants === null) throw new NotFoundError();
-  //   // Calculate feeDate
-  //   let feeDate = null;
-  //   if (course.curriculum.type = TermCourse.LongTerm)
-  //     feeDate = new Date(course.expectedClosingDate);
-  //   else {
-  //     // Find feeDate
-  //     feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
-  //     if (feeDate <= currentDate)
-  //       feeDate.setMonth(feeDate.getMonth() + 1);
-  //     if (this.diffDays(feeDate, currentDate) < 10)
-  //       feeDate.setMonth(feeDate.getMonth() + 1);
-  //     if (course.expectedClosingDate <= feeDate)
-  //       feeDate = new Date(course.expectedClosingDate);
-  //     else if (this.diffDays(course.expectedClosingDate, feeDate) < 10)
-  //       feeDate = new Date(course.expectedClosingDate);
-  //   }
-  //   const amount = diffDays(feeDate, currentDate) / diffDays(course.expectedClosingDate, currentDate) * (course.price - totalPaid);
-  // }
+  private async caculateFeeAmount(course: Course): Promise<{ feeDate: Date, amount: number }> {
+    let openingDate = new Date(course.openingDate);
+    let expectedClosingDate = new Date(course.expectedClosingDate);
+    let currentDate = new Date();
+    if (currentDate <= openingDate) currentDate = openingDate;
+    if (expectedClosingDate < currentDate) return { feeDate: expectedClosingDate, amount: 0 };
+    // Find constants
+    const constants = await TransactionConstants.createQueryBuilder('c').getOne();
+    if (constants === null) throw new NotFoundError();
+    // Calculate feeDate
+    let feeDate = null;
+    if (course.curriculum.type == TermCourse.LongTerm)
+      feeDate = new Date(course.expectedClosingDate);
+    else {
+      // Find feeDate
+      feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
+      if (feeDate <= currentDate)
+        feeDate.setMonth(feeDate.getMonth() + 1);
+      if (this.diffDays(feeDate, currentDate) < 10)
+        feeDate.setMonth(feeDate.getMonth() + 1);
+      if (course.expectedClosingDate <= feeDate)
+        feeDate = new Date(course.expectedClosingDate);
+      else if (this.diffDays(course.expectedClosingDate, feeDate) < 10)
+        feeDate = new Date(course.expectedClosingDate);
+    }
+    return {
+      feeDate: feeDate,
+      amount: this.diffDays(feeDate, currentDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price,
+    };
+  }
 
 
   async getFeeAmount(userId: number, courseSlug: string): Promise<number> {
@@ -1965,13 +2462,347 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     // Check course is not closed
     if (course.closingDate !== null) throw new ValidationError([]);
     // Calculating
-    // return await this.caculateFeeAmount(course);
-    return 0;
+    return (await this.caculateFeeAmount(course)).amount;
   }
 
 
   async addStudentParticipateCourse(userId: number, courseSlug: string, studentId: number): Promise<boolean> {
-    return true;
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+
+    try {
+      if (userId === undefined || courseSlug === undefined || studentId === undefined)
+        throw new NotFoundError();
+      // Find employee
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError();
+      // Find course
+      const course = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getOne();
+      if (course === null) throw new NotFoundError();
+      // Find student
+      const student = await queryRunner.manager
+        .createQueryBuilder(UserStudent, "student")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("student.user", "user")
+        .where("user.id = :studentId", { studentId })
+        .getOne();
+      if (student === null) throw new NotFoundError();
+      // Check branch of course and employee
+      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+      // Check course is not closed
+      if (course.closingDate !== null) throw new ValidationError([]);
+      //Check student participate course
+      const participations = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+        .leftJoinAndSelect("student.user", "userStudent")
+        .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      const found = participations.find(s => s.student.user.id === studentId)
+      if (found) throw new DuplicateError();
+      // Check max student number
+      if (course.maxNumberOfStudent <= participations.length)
+        throw new ValidationError([]);
+      // Add participation
+      const studentParticipateCourse = new StudentParticipateCourse();
+      studentParticipateCourse.student = student;
+      studentParticipateCourse.course = course;
+      // Transaction
+      const resultFee = await this.caculateFeeAmount(course);
+      if (resultFee.amount > 0) {
+        const transaction = new Transaction();
+        transaction.transCode = faker.random.numeric(16);
+        transaction.content = `Tiền học phí tháng ${resultFee.feeDate.getMonth() + 1}`;
+        transaction.amount = resultFee.amount;
+        transaction.type = TransactionType.Fee;
+        transaction.branch = course.branch;
+        transaction.payDate = new Date();
+        transaction.userEmployee = employee;
+        // Validate entity
+        const transValidateErrors = await validate(transaction);
+        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+        // Save data
+        const savedTransaction = await queryRunner.manager.save(transaction);
+        // Create free
+        const fee = new Fee();
+        fee.transCode = savedTransaction;
+        fee.userStudent = student;
+        fee.course = course;
+        // Validate entity
+        const feeValidateErrors = await validate(fee);
+        if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
+        // Save data
+        await queryRunner.manager.save(fee);
+      }
+      studentParticipateCourse.billingDate = new Date(resultFee.feeDate);
+      // Add user attend study session
+      const attendanceQuery = queryRunner.manager
+        .createQueryBuilder(UserAttendStudySession, "uas")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .select("studySession.id", "id")
+        .distinct(true)
+        .innerJoin("uas.studySession", "studySession")
+        .innerJoin("studySession.course", "course")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .andWhere("studySession.date > CURDATE()");
+      const studySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .where(`ss.id IN (${attendanceQuery.getQuery()})`)
+        .setParameters(attendanceQuery.getParameters())
+        .getMany();
+      for (const studySession of studySessions) {
+        const attendance = new UserAttendStudySession();
+        attendance.student = student;
+        attendance.studySession = studySession;
+        attendance.commentOfTeacher = "";
+        attendance.isAttend = true;
+        // Validate
+        const validateErrors = await validate(attendance);
+        if (validateErrors.length) throw new ValidationError(validateErrors);
+        // Save
+        await queryRunner.manager.save(attendance);
+      }
+      // Teacher notification
+      const teacherNotificationDto = {} as NotificationDto;
+      teacherNotificationDto.userId = course.teacher.worker.user.id;
+      teacherNotificationDto.content = `Học viên ${student.user.fullName} vừa được thêm vào khoá học "${course.name}". Vui lòng vào trang web để kiểm tra thông tin.`;
+      const teacherNotificationResult = await this.sendNotification(queryRunner, teacherNotificationDto);
+      if (teacherNotificationResult.success && teacherNotificationResult.receiverSocketStatuses && teacherNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: teacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: teacherNotificationResult.notification
+        });
+      }
+      // Student notification
+      const studentNotificationDto = {} as NotificationDto;
+      studentNotificationDto.userId = student.user.id;
+      studentNotificationDto.content = `Bạn vừa được thêm vào khoá học "${course.name}". Vui lòng vào trang web để kiểm tra thông tin.`;
+      const studentNotificationResult = await this.sendNotification(queryRunner, studentNotificationDto);
+      if (studentNotificationResult.success && studentNotificationResult.receiverSocketStatuses && studentNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: studentNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: studentNotificationResult.notification
+        });
+      }
+      // Validation
+      const validateErrors = await validate(studentParticipateCourse);
+      if (validateErrors.length) throw new ValidationError(validateErrors);
+      // Commit 
+      await queryRunner.manager.save(studentParticipateCourse);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
+  }
+
+
+  async removeStudentParticipateCourse(userId: number, courseSlug: string, studentId: number): Promise<boolean> {
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+
+    try {
+      if (userId === undefined || courseSlug === undefined || studentId === undefined)
+        throw new NotFoundError();
+      // Find employee
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError();
+      // Find course
+      const course = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getOne();
+      if (course === null) throw new NotFoundError();
+      // Find student
+      const student = await queryRunner.manager
+        .createQueryBuilder(UserStudent, "student")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("student.user", "user")
+        .where("user.id = :studentId", { studentId })
+        .getOne();
+      if (student === null) throw new NotFoundError();
+      // Check branch of course and employee
+      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+      // Check course is not closed
+      if (course.closingDate !== null) throw new ValidationError([]);
+      //Check student participate course
+      const participations = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+        .leftJoinAndSelect("student.user", "userStudent")
+        .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      const found = participations.find(s => s.student.user.id === studentId)
+      if (!found) throw new NotFoundError();
+      // Remove participation
+      await queryRunner.manager.remove(found);
+      // Transaction
+      const resultLeftAmountMoney = await this.caculateFeeAmount(course);
+      if (resultLeftAmountMoney.amount > 0) {
+        const transaction = new Transaction();
+        transaction.transCode = faker.random.numeric(16);
+        transaction.content = `Hoàn phí khóa học "${course.name}"`;
+        transaction.amount = resultLeftAmountMoney.amount;
+        transaction.type = TransactionType.Refund;
+        transaction.branch = course.branch;
+        transaction.payDate = new Date();
+        transaction.userEmployee = employee;
+        // Validation
+        const transValidateErrors = await validate(transaction);
+        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+        const savedTransaction = await queryRunner.manager.save(transaction);
+        // Last fee
+        const lastedFee = await queryRunner.manager
+          .createQueryBuilder(Fee, "fee")
+          .innerJoinAndSelect("fee.userStudent", "userStudent")
+          .innerJoinAndSelect("userStudent.user", "user")
+          .innerJoinAndSelect("fee.course", "course")
+          .innerJoinAndSelect("fee.transCode", "transCode")
+          .setLock("pessimistic_read")
+          .useTransaction(true)
+          .where("user.id = :studentId", { studentId })
+          .andWhere("course.slug = :courseSlug", { courseSlug })
+          .orderBy("transCode.payDate", "DESC")
+          .getOne();
+        if (lastedFee === null) throw new NotFoundError();
+        if (lastedFee.transCode.amount < resultLeftAmountMoney.amount) throw new ValidationError([]);
+        // Create Refund
+        const refund = new Refund();
+        refund.transCode = savedTransaction;
+        refund.fee = lastedFee;
+        // Validation
+        const refundValidateErrors = await validate(transaction);
+        if (refundValidateErrors.length) throw new ValidationError(refundValidateErrors);
+        await queryRunner.manager.save(refund);
+      }
+      // Remove user attend study session
+      const attendances = await queryRunner.manager
+        .createQueryBuilder(UserAttendStudySession, "uas")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .innerJoinAndSelect("uas.studySession", "studySession")
+        .innerJoinAndSelect("studySession.course", "course")
+        .innerJoinAndSelect("uas.student", "student")
+        .innerJoinAndSelect("student.user", "user")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .andWhere("user.id = :studentId", { studentId })
+        .andWhere("studySession.date >= CURDATE()")
+        .getMany();
+      for (const attendance of attendances) {
+        await queryRunner.manager.remove(attendance);
+      }
+      // Remove makeup study session
+      const makeups = await queryRunner.manager
+        .createQueryBuilder(MakeUpLession, "mul")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .innerJoinAndSelect("mul.studySession", "studySession")
+        .innerJoinAndSelect("studySession.course", "course")
+        .innerJoinAndSelect("mul.student", "student")
+        .innerJoinAndSelect("student.user", "user")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .andWhere("user.id = :studentId", { studentId })
+        .andWhere("studySession.date >= CURDATE()")
+        .getMany();
+      for (const makeup of makeups) {
+        await queryRunner.manager.remove(makeup);
+      }
+      // Teacher notification
+      const teacherNotificationDto = {} as NotificationDto;
+      teacherNotificationDto.userId = course.teacher.worker.user.id;
+      teacherNotificationDto.content = `Học viên ${student.user.fullName} vừa được xóa khỏi khoá học "${course.name}". Vui lòng vào trang web để kiểm tra thông tin.`;
+      const teacherNotificationResult = await this.sendNotification(queryRunner, teacherNotificationDto);
+      if (teacherNotificationResult.success && teacherNotificationResult.receiverSocketStatuses && teacherNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: teacherNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: teacherNotificationResult.notification
+        });
+      }
+      // Student notification
+      const studentNotificationDto = {} as NotificationDto;
+      studentNotificationDto.userId = student.user.id;
+      studentNotificationDto.content = `Bạn vừa được xóa khỏi khoá học "${course.name}". Vui lòng vào trang web để kiểm tra thông tin.`;
+      const studentNotificationResult = await this.sendNotification(queryRunner, studentNotificationDto);
+      if (studentNotificationResult.success && studentNotificationResult.receiverSocketStatuses && studentNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: studentNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: studentNotificationResult.notification
+        });
+      }
+      // Commit 
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
   }
 
 
@@ -2068,6 +2899,24 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       EmployeeRepository.findEmployeeByBranch(employee.worker.branch.id, pageable, query),
     ]);
     return { total, employees };
+  }
+
+
+  async checkStudentParticipateCourse(userId: number, courseSlug: string, studentId: number): Promise<boolean> {
+    if (userId === undefined || courseSlug === undefined || studentId === undefined)
+      throw new NotFoundError();
+    // Find employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Find course
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+    // Find student
+    const student = await UserStudentRepository.findStudentById(studentId);
+    if (student === null) throw new NotFoundError();
+    // Check branch of course and employee
+    if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+    return await StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug);
   }
 }
 

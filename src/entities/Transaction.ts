@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, Column, PrimaryColumn, JoinColumn } from "typeorm";
+import { Entity, ManyToOne, Column, PrimaryColumn, JoinColumn, Index } from "typeorm";
 import {
   IsNotEmpty,
   IsNumber,
@@ -44,12 +44,14 @@ export class Transaction extends MyBaseEntity {
   amount: number;
 
 
+  @Index()
   @IsNotEmpty()
   @IsEnum(TransactionType)
   @Column({ type: "enum", enum: TransactionType, nullable: false })
   type: TransactionType;
 
-
+  
+  @Index()
   @IsNotEmpty()
   @IsDate()
   @Column({ type: "timestamp", precision: 6, nullable: false })
