@@ -1,4 +1,3 @@
-import { IsString, Length } from "class-validator";
 import { Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Fee } from "./Fee";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -10,8 +9,6 @@ export class Refund extends MyBaseEntity {
     id: number;
 
 
-    @IsString()
-    @Length(0, 50)
     @OneToOne(() => Transaction, { nullable: false, onUpdate: "CASCADE", onDelete: "RESTRICT" })
     @JoinColumn()
     transCode: Transaction;

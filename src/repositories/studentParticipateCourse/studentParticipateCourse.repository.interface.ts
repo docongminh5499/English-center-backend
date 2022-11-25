@@ -17,4 +17,8 @@ export default interface StudentParticipateCourseRepository {
     checkStudentParticipateCourse: (studentId: number, courseSlug: string) => Promise<boolean>;
 
     getTopComments: () => Promise<StudentParticipateCourse[]>;
+
+    findUnpaidFeeByStudentAndBranch: (studentId: number, branchId: number) => Promise<StudentParticipateCourse[]>;
+
+    findByStudentAndCourse: (studentId: number, courseSlug: string) => Promise<StudentParticipateCourse | null>;
 }

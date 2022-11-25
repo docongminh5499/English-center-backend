@@ -8,6 +8,7 @@ import EmployeeRouter from "./routes/employees";
 import ParentRouter from "./routes/parents";
 import TutorRouter from "./routes/tutors";
 import GuestRouter from "./routes/guest";
+import PaymentRouter from "./routes/payment";
 import { json, urlencoded } from "body-parser";
 import { NotFoundError } from "./utils/errors/notFound.error";
 import { handlerError } from "./middlewares/handlerError";
@@ -29,6 +30,7 @@ app.use("/api/employees", EmployeeRouter);
 app.use("/api/tutors", TutorRouter);
 app.use("/api/parents", ParentRouter);
 app.use("/api/guests", GuestRouter);
+app.use("/api/payments", PaymentRouter);
 
 app.all("*", async (req: any, res: any, next: any) => {
   return next(new NotFoundError());

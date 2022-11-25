@@ -87,5 +87,16 @@ router.post("/get-course-detail", async (req: any, res: any, next: any) => {
 
 
 
+router.post("/check-attend-course", async (req: any, res: any, next: any) => {
+  try {
+    const result = await GuestService.checkAttendCourse(req.body.studentId, req.body.courseSlug);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
 
 export default router;

@@ -1,6 +1,9 @@
+import moment = require("moment");
 import { Brackets } from "typeorm";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
+import { NotFoundError } from "../../utils/errors/notFound.error";
 import Pageable from "../helpers/pageable";
+import TransactionConstantsRepository from "../transactionConstants/transactionConstants.repository.impl";
 import StudentParticipateCourseRepositoryInterface from "./studentParticipateCourse.repository.interface";
 
 class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourseRepositoryInterface {
@@ -118,19 +121,58 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
 
 
 
-  async getTopComments () : Promise<StudentParticipateCourse[]> {
+  async getTopComments(): Promise<StudentParticipateCourse[]> {
     let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
-    .setLock("pessimistic_read")
-    .useTransaction(true)
-    .leftJoinAndSelect("studentPaticipateCourses.student", "student")
-    .leftJoinAndSelect("student.user", "userStudent")
-    .where("userStudent.avatar IS NOT NULL")
-    .andWhere("studentPaticipateCourses.isIncognito = false")
-    .andWhere("starPoint = 5")
-    .orderBy({ "studentPaticipateCourses.commentDate": "DESC" })
-    .skip(0)
-    .limit(3);
-  return await queryStmt.getMany();
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+      .leftJoinAndSelect("student.user", "userStudent")
+      .where("userStudent.avatar IS NOT NULL")
+      .andWhere("studentPaticipateCourses.isIncognito = false")
+      .andWhere("starPoint = 5")
+      .orderBy({ "studentPaticipateCourses.commentDate": "DESC" })
+      .skip(0)
+      .limit(3);
+    return await queryStmt.getMany();
+  }
+
+
+  async findUnpaidFeeByStudentAndBranch(studentId: number, branchId: number): Promise<StudentParticipateCourse[]> {
+    const constants = await TransactionConstantsRepository.find();
+    if (constants === null) throw new NotFoundError();
+    // Find latest fee due date
+    const today = new Date();
+    // Calculate fee date
+    const feeDate = new Date(today.getFullYear(), today.getMonth(), constants.feeDay);
+    if (feeDate < today)
+      feeDate.setMonth(feeDate.getMonth() + 1);
+    let queryStmt = StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+      .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+      .leftJoinAndSelect("course.branch", "branch")
+      .where("branch.id = :branchId", { branchId })
+      .andWhere("userStudent.id = :studentId", { studentId })
+      .andWhere("studentPaticipateCourses.billingDate < course.expectedClosingDate")
+      .andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
+    return await queryStmt.getMany();
+  }
+
+
+  async findByStudentAndCourse(studentId: number, courseSlug: string): Promise<StudentParticipateCourse | null> {
+    return await StudentParticipateCourse
+      .createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+      .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+      .leftJoinAndSelect("course.branch", "branch")
+      .where("course.slug = :courseSlug", { courseSlug })
+      .andWhere("userStudent.id = :studentId", { studentId })
+      .getOne();
   }
 }
 

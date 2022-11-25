@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { validate } from "class-validator";
 import moment = require("moment");
 import { QueryRunner } from "typeorm";
-import { ClassroomDto, CourseDetailDto, CourseListDto, CreateCourseDto, CredentialDto, FileDto, NotificationDto, NotificationResponseDto, PageableDto, StudySessionDto } from "../../dto";
+import { ClassroomDto, CourseDetailDto, CourseListDto, CreateCourseDto, CredentialDto, FileDto, NotificationDto, NotificationResponseDto, PageableDto, StudySessionDto, UnpaidDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
@@ -17,7 +17,7 @@ import { User } from "../../entities/UserEntity";
 import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import { UserTutor } from "../../entities/UserTutor";
-import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Selectable, SocketStatusRepository, Sortable } from "../../repositories";
 import BranchRepository from "../../repositories/branch/branch.repository.impl";
 import ClassroomRepository from "../../repositories/classroom/classroom.repository.impl";
 import CurriculumRepository from "../../repositories/curriculum/curriculum.repository.impl";
@@ -54,11 +54,13 @@ import { Fee } from "../../entities/Fee";
 import { Refund } from "../../entities/Refund";
 import FeeRepository from "../../repositories/fee/fee.repository.impl";
 import RefundRepository from "../../repositories/refund/refund.repository.impl";
-import { TransactionConstants } from "../../entities/TransactionConstants";
 import { TermCourse } from "../../utils/constants/termCuorse.constant";
 import { Transaction } from "../../entities/Transaction";
 import { TransactionType } from "../../utils/constants/transaction.constant";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
+import { Lecture } from "../../entities/Lecture";
+import TransactionConstantsRepository from "../../repositories/transactionConstants/transactionConstants.repository.impl";
+import { TransactionConstants } from "../../entities/TransactionConstants";
 
 
 
@@ -210,7 +212,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       .add("closingDate", "closingDate")
       .add("Course.name", "name")
       .add("openingDate", "openingDate")
-      .add("slug", "slug");
+      .add("slug", "slug")
+      .add("lockTime", "lockTime");
     const sortable = new Sortable()
       .add("openingDate", "DESC")
       .add("name", "ASC");
@@ -453,7 +456,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         const date = openingDate.getDate() - openingDateOffset + offset + 1;
         const firstDay = new Date(openingDate.setDate(date));
 
-        if (firstDay >= course.openingDate) {
+        if (firstDay >= openingDate) {
           sheduleIndex = index;
           firstDayOfSession = firstDay;
           break;
@@ -613,8 +616,18 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const oldOpeningDate = new Date(course.openingDate);
       // Change openingDate
       if (courseDto.openingDate !== undefined) {
+        // Check new openingDate
+        const newOpeningDate = new Date(courseDto.openingDate);
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        tomorrow.setHours(0);
+        tomorrow.setMinutes(0);
+        tomorrow.setSeconds(0);
+        tomorrow.setMilliseconds(0);
+        if (newOpeningDate < tomorrow) throw new ValidationError([]);
+        // Update
         if ((course.closingDate === null || course.closingDate === undefined) &&
-          moment().diff(moment(course.openingDate)) < 0 &&
+          (new Date() < oldOpeningDate) &&
           courseDto.teacher !== undefined) {
           // Participations
           const participations = await queryRunner.manager
@@ -642,6 +655,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           isChangeStudySession = true;
         } else throw new ValidationError([]);
       }
+      // Calculate end date for finding available teacher, tutor, classroom
+      const endDate: Date = new Date(course.expectedClosingDate);
+      endDate.setDate(endDate.getDate() + 7);
       // Teacher
       if (courseDto.teacher !== undefined) {
         // Check teacher want to teach the course
@@ -671,7 +687,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           courseDto.tutors.length !== course.sessionPerWeek)
           throw new ValidationError([]);
         // Check shifts 
-        const availableShiftsofTeacher = await ShiftRepository.findAvailableShiftsOfTeacher(courseDto.teacher, course.openingDate, course.expectedClosingDate, oldSlug);
+        const availableShiftsofTeacher = await ShiftRepository.findAvailableShiftsOfTeacher(courseDto.teacher, course.openingDate, endDate, oldSlug);
         let currentShiftsPerSession = course.curriculum.shiftsPerSession;
         courseDto.shifts.forEach(shiftArray => {
           if (shiftArray.length !== currentShiftsPerSession) throw new ValidationError([]);
@@ -691,7 +707,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             throw new ValidationError([]);
           // Check classroom is available or not
           const availableClassrooms = await ClassroomRepository
-            .findClassroomAvailable(course.branch.id, course.openingDate, courseDto.shifts[index], course.expectedClosingDate, oldSlug);
+            .findClassroomAvailable(course.branch.id, course.openingDate, courseDto.shifts[index], endDate, oldSlug);
           const foundClassroom = availableClassrooms.find(c =>
             c.branch.id === classroom.branchId && c.name.toLowerCase() === classroom.name.toLowerCase());
           if (!foundClassroom)
@@ -705,7 +721,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           const tutor = courseDto.tutors[index];
           // Check tutor is available or not
           const availableTutors = await TutorRepository
-            .findTutorsAvailable(course.openingDate, courseDto.shifts[index], undefined, course.expectedClosingDate, oldSlug);
+            .findTutorsAvailable(course.openingDate, courseDto.shifts[index], undefined, endDate, oldSlug);
           const foundTtutor = availableTutors.find(t => t.worker.user.id === tutor);
           if (!foundTtutor)
             throw new ValidationError([]);
@@ -986,10 +1002,40 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   }
 
 
-  lockCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+  async lockCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
+    if (userId === undefined || courseSlug === undefined) return null;
+    // Find course
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+    // Find employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Check permission
+    if (employee.worker.branch.id !== course.branch.id) return null;
+    // Check lock status
+    if (course.lockTime !== null && course.lockTime !== undefined) return null;
+    course.lockTime = new Date();
+    const savedCourse = await course.save();
+    return savedCourse;
+  }
 
 
-  unLockCourse: (userId?: number, courseSlug?: string) => Promise<Course | null>;
+  async unLockCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
+    if (userId === undefined || courseSlug === undefined) return null;
+    // Find course
+    const course = await CourseRepository.findCourseBySlug(courseSlug);
+    if (course === null) throw new NotFoundError();
+    // Find employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Check permission
+    if (employee.worker.branch.id !== course.branch.id) return null;
+    // Check lock status
+    if (course.lockTime === null || course.lockTime === undefined) return null;
+    course.lockTime = null;
+    const savedCourse = await course.save();
+    return savedCourse;
+  }
 
 
   async repoenCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
@@ -1027,6 +1073,19 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
       if (course === null) throw new NotFoundError();
+      // Participations
+      const participations = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, "p")
+        .leftJoinAndSelect("p.student", "student")
+        .leftJoinAndSelect("student.user", "user")
+        .leftJoinAndSelect("p.course", "course")
+        .where("course.id = :courseId", { courseId: course.id })
+        .getMany();
+      // Check lock
+      if (course.lockTime === null || course.lockTime === undefined)
+        throw new ValidationError([]);
+      if (participations.length > 0)
+        throw new ValidationError([]);
       // Check course belong to branch
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -1080,17 +1139,19 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           notification: teacherNotificationResult.notification
         });
       }
-      // Participations
-      const participations = await queryRunner.manager
-        .createQueryBuilder(StudentParticipateCourse, "p")
-        .leftJoinAndSelect("p.student", "student")
+      // Makeup
+      const makeups = await queryRunner.manager
+        .createQueryBuilder(MakeUpLession, "m")
+        .leftJoinAndSelect("m.student", "student")
         .leftJoinAndSelect("student.user", "user")
-        .leftJoinAndSelect("p.course", "course")
-        .where("course.id = :courseId", { courseId: course.id })
+        .leftJoinAndSelect("m.targetStudySession", "targetSs")
+        .leftJoinAndSelect("targetSs.course", "targetCourse")
+        .where("targetCourse.slug = :targetCourseSlug", { targetCourseSlug: courseSlug })
         .getMany();
-      for (const participation of participations) {
-        const notificationDto = { userId: participation.student.user.id } as NotificationDto;
-        notificationDto.content = `Khoá học "${course.name}" đã bị hủy. Vui lòng lên website kiểm tra lại thông tin.`;
+
+      for (const makeup of makeups) {
+        const notificationDto = { userId: makeup.student.user.id } as NotificationDto;
+        notificationDto.content = `Khoá học "${course.name}" đã bị hủy và do đó, buổi học bù của bạn sẽ bị xóa. Dữ liệu buổi học bù đã thực hiện sẽ được hiển thị trong buổi học chính. Vui lòng lên website kiểm tra lại thông tin.`;
         const result = await this.sendNotification(queryRunner, notificationDto);
         if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
           notifications.push({
@@ -1098,7 +1159,46 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             notification: result.notification
           });
         }
+        await queryRunner.manager.remove(makeup);
       }
+      // StudySession
+      const studySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.course", "course")
+        .where("ss.date < :date", { date: moment(course.lockTime).format("YYYY-MM-DD") })
+        .andWhere("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      for (const studySession of studySessions) {
+        // TODO
+        // studySession.course = null;
+        await queryRunner.manager.save(studySession);
+      }
+
+      // StudySession
+      const sameDayStudySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("ss.shifts", "shifts")
+        .where("ss.date = :date", { date: moment(course.lockTime).format("YYYY-MM-DD") })
+        .andWhere("course.slug = :courseSlug", { courseSlug })
+        .orderBy({
+          "shifts.weekDay": "ASC",
+          "shifts.startTime": "ASC",
+        })
+        .getMany();
+      for (const studySession of sameDayStudySessions) {
+        const lockTime = new Date(course.lockTime);
+        if (lockTime.getHours() >= studySession.shifts[0].startTime.getHours()) {
+          // TODO
+          // studySession.course = null;
+          await queryRunner.manager.save(studySession);
+        }
+      }
+      // Remove image
       if (course.image) {
         const filePath = path.join(process.cwd(), "public", course.image);
         fs.unlinkSync(filePath);
@@ -2424,11 +2524,11 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (currentDate <= openingDate) currentDate = openingDate;
     if (expectedClosingDate < currentDate) return { feeDate: expectedClosingDate, amount: 0 };
     // Find constants
-    const constants = await TransactionConstants.createQueryBuilder('c').getOne();
+    const constants = await TransactionConstantsRepository.find();
     if (constants === null) throw new NotFoundError();
     // Calculate feeDate
     let feeDate = null;
-    if (course.curriculum.type == TermCourse.LongTerm)
+    if (course.curriculum.type == TermCourse.ShortTerm)
       feeDate = new Date(course.expectedClosingDate);
     else {
       // Find feeDate
@@ -2449,7 +2549,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   }
 
 
-  async getFeeAmount(userId: number, courseSlug: string): Promise<number> {
+  async getFeeAmount(userId: number, courseSlug: string, studentId?: number): Promise<number> {
     if (userId === undefined || courseSlug === undefined) throw new NotFoundError();
     // Find employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
@@ -2462,7 +2562,44 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     // Check course is not closed
     if (course.closingDate !== null) throw new ValidationError([]);
     // Calculating
-    return (await this.caculateFeeAmount(course)).amount;
+    if (studentId === undefined)
+      return (await this.caculateFeeAmount(course)).amount;
+    // Participation
+    const participation = await StudentParticipateCourse.createQueryBuilder('studentPaticipateCourses')
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+      .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+      .where("course.slug = :courseSlug", { courseSlug })
+      .andWhere("userStudent.id = :studentId", { studentId })
+      .getOne();
+    if (participation === null) throw new NotFoundError();
+    // Last fee
+    const lastedFee = await Fee
+      .createQueryBuilder("fee")
+      .innerJoinAndSelect("fee.userStudent", "userStudent")
+      .innerJoinAndSelect("userStudent.user", "user")
+      .innerJoinAndSelect("fee.course", "course")
+      .innerJoinAndSelect("fee.transCode", "transCode")
+      .setLock("pessimistic_read")
+      .useTransaction(true)
+      .where("user.id = :studentId", { studentId })
+      .andWhere("course.slug = :courseSlug", { courseSlug })
+      .orderBy("transCode.payDate", "DESC")
+      .getOne();
+    if (lastedFee === null) throw new NotFoundError();
+    // Check đóng tiền
+    const today = new Date();
+    const openingDate = new Date(course.openingDate);
+    const billingDate = new Date(participation.billingDate);
+    if (billingDate < today)
+      throw new ValidationError([]); // "Học sinh cần thanh toán tiền phí nợ trước"
+    // If course hasn't opened
+    if (today < openingDate) return lastedFee.transCode.amount;
+    // If course opened
+    const amount = this.diffDays(billingDate, today) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price;
+    return amount;
   }
 
 
@@ -2695,20 +2832,13 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Remove participation
       await queryRunner.manager.remove(found);
       // Transaction
-      const resultLeftAmountMoney = await this.caculateFeeAmount(course);
-      if (resultLeftAmountMoney.amount > 0) {
-        const transaction = new Transaction();
-        transaction.transCode = faker.random.numeric(16);
-        transaction.content = `Hoàn phí khóa học "${course.name}"`;
-        transaction.amount = resultLeftAmountMoney.amount;
-        transaction.type = TransactionType.Refund;
-        transaction.branch = course.branch;
-        transaction.payDate = new Date();
-        transaction.userEmployee = employee;
-        // Validation
-        const transValidateErrors = await validate(transaction);
-        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
-        const savedTransaction = await queryRunner.manager.save(transaction);
+      const today = new Date();
+      const openingDate = new Date(course.openingDate);
+      const billingDate = new Date(found.billingDate);
+      const currentDate = today < openingDate ? openingDate : today;
+      const amount = this.diffDays(billingDate, currentDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price;
+
+      if (amount > 0) {
         // Last fee
         const lastedFee = await queryRunner.manager
           .createQueryBuilder(Fee, "fee")
@@ -2723,7 +2853,23 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .orderBy("transCode.payDate", "DESC")
           .getOne();
         if (lastedFee === null) throw new NotFoundError();
-        if (lastedFee.transCode.amount < resultLeftAmountMoney.amount) throw new ValidationError([]);
+        // Amount
+        const refundAmount = today < openingDate ? lastedFee.transCode.amount : amount;
+        // Transaction
+        const transaction = new Transaction();
+        transaction.transCode = faker.random.numeric(16);
+        transaction.content = `Hoàn phí khóa học "${course.name}"`;
+        transaction.amount = refundAmount;
+        transaction.type = TransactionType.Refund;
+        transaction.branch = course.branch;
+        transaction.payDate = new Date();
+        transaction.userEmployee = employee;
+        // Validation
+        const transValidateErrors = await validate(transaction);
+        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+        const savedTransaction = await queryRunner.manager.save(transaction);
+
+        if (lastedFee.transCode.amount < refundAmount) throw new ValidationError([]);
         // Create Refund
         const refund = new Refund();
         refund.transCode = savedTransaction;
@@ -2917,6 +3063,514 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     // Check branch of course and employee
     if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
     return await StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug);
+  }
+
+
+  async createSalary(userId: number): Promise<boolean> {
+    // Create
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      if (userId === undefined) throw new NotFoundError();
+      // Check is manager
+      const isManager = BranchRepository.checkIsManager(userId);
+      if (!isManager) throw new ValidationError([]);
+      // Find branch by employee
+      const manager = await EmployeeRepository.findUserEmployeeByid(userId);
+      if (manager === null) throw new NotFoundError();
+      // Constants
+      const constants = await queryRunner.manager
+        .createQueryBuilder(TransactionConstants, "c")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .getOne();
+      if (constants === null) throw new NotFoundError();
+      // Employees
+      const employees = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "em")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("em.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("branch.id = :branchId", { branchId: manager.worker.branch.id })
+        .getMany();
+      for (const employee of employees) {
+        let currentDate = new Date(employee.worker.salaryDate);
+        let salaryDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.salaryDay);
+        if (salaryDate <= currentDate) salaryDate.setMonth(salaryDate.getMonth() + 1);
+        while (true) {
+          if ((new Date()) < salaryDate) break;
+          let amount = constants.baseSalary / 30 * this.diffDays(salaryDate, currentDate) * employee.worker.coefficients;
+          // Create transaction
+          const transaction = new Transaction();
+          transaction.transCode = faker.random.numeric(16)
+          transaction.content = `Tiền lương tháng ${salaryDate.getMonth() + 1}`;
+          transaction.amount = amount;
+          transaction.type = TransactionType.Salary;
+          transaction.branch = employee.worker.branch;
+          transaction.payDate = new Date();
+          transaction.userEmployee = manager;
+          // Validation
+          const transValidateErrors = await validate(transaction);
+          if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+          const savedTransaction = await queryRunner.manager.save(transaction);
+          // Create salary
+          const salary = new Salary();
+          salary.transCode = savedTransaction;
+          salary.worker = employee.worker;
+          // Validation
+          const salaryValidateErrors = await validate(transaction);
+          if (salaryValidateErrors.length) throw new ValidationError(salaryValidateErrors);
+          await queryRunner.manager.save(salary);
+          // Reset data
+          currentDate = new Date(salaryDate);
+          salaryDate.setMonth(salaryDate.getMonth() + 1);
+        }
+        employee.worker.salaryDate = new Date(currentDate);
+        await queryRunner.manager.save(employee.worker);
+        await queryRunner.manager.upsert(UserEmployee, employee, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+      }
+      // Teacher
+      const teachers = await queryRunner.manager
+        .createQueryBuilder(UserTeacher, "em")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("em.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("branch.id = :branchId", { branchId: manager.worker.branch.id })
+        .getMany();
+      for (const teacher of teachers) {
+        let currentDate = new Date(teacher.worker.salaryDate);
+        let salaryDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.salaryDay);
+        if (salaryDate <= currentDate) salaryDate.setMonth(salaryDate.getMonth() + 1);
+        while (true) {
+          if ((new Date()) < salaryDate) break;
+          // Query all study session
+          const studySessions = await queryRunner.manager
+            .createQueryBuilder(StudySession, 'ss')
+            .setLock("pessimistic_write")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .where("ss.date >= :beginingDate", { beginingDate: moment(currentDate).format("YYYY-MM-DD") })
+            .andWhere("ss.date < :endingDate", { endingDate: moment(salaryDate).format("YYYY-MM-DD") })
+            .andWhere("ss.teacherWorker = :teacherId", { teacherId: teacher.worker.user.id })
+            .getMany();
+          // Amount of fee
+          let amount = 0;
+          for (const ss of studySessions) {
+            const [studentPaticipateCourseCount, lectureCount] = await Promise.all([
+              queryRunner.manager
+                .createQueryBuilder(StudentParticipateCourse, "spc")
+                .setLock("pessimistic_read")
+                .useTransaction(true)
+                .where("spc.courseId = :courseId", { courseId: ss.course.id })
+                .getCount(),
+              queryRunner.manager
+                .createQueryBuilder(Lecture, "lecture")
+                .setLock("pessimistic_read")
+                .useTransaction(true)
+                .where("curriculumId = :curriculumId", { curriculumId: ss.course.curriculum.id })
+                .getCount()
+            ])
+            const totalPrice = ss.course.price * studentPaticipateCourseCount;
+            const numberOfSessions = lectureCount;  // Not count addition study sessions
+            const pricePerSession = totalPrice / numberOfSessions;
+            amount = amount + pricePerSession * constants.tutorProportion;
+          }
+          amount = amount + constants.baseSalary / 30 * this.diffDays(salaryDate, currentDate) * teacher.worker.coefficients;
+          // Create transaction
+          const transaction = new Transaction();
+          transaction.transCode = faker.random.numeric(16)
+          transaction.content = `Tiền lương tháng ${salaryDate.getMonth() + 1}`;
+          transaction.amount = amount;
+          transaction.type = TransactionType.Salary;
+          transaction.branch = teacher.worker.branch;
+          transaction.userEmployee = manager;
+          transaction.payDate = new Date();
+          // Validation
+          const transValidateErrors = await validate(transaction);
+          if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+          const savedTransaction = await queryRunner.manager.save(transaction);
+          // Create salary
+          const salary = new Salary();
+          salary.transCode = savedTransaction;
+          salary.worker = teacher.worker;
+          // Validation
+          const salaryValidateErrors = await validate(transaction);
+          if (salaryValidateErrors.length) throw new ValidationError(salaryValidateErrors);
+          await queryRunner.manager.save(salary);
+          // Reset data
+          currentDate = new Date(salaryDate);
+          salaryDate.setMonth(salaryDate.getMonth() + 1);
+        }
+        teacher.worker.salaryDate = new Date(currentDate);
+        await queryRunner.manager.save(teacher.worker);
+        await queryRunner.manager.upsert(UserTeacher, teacher, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+      }
+      // Tutors
+      const tutors = await queryRunner.manager
+        .createQueryBuilder(UserTutor, "em")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("em.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("branch.id = :branchId", { branchId: manager.worker.branch.id })
+        .getMany();
+      for (const tutor of tutors) {
+        let currentDate = new Date(tutor.worker.salaryDate);
+        let salaryDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.salaryDay);
+        if (salaryDate <= currentDate) salaryDate.setMonth(salaryDate.getMonth() + 1);
+        while (true) {
+          if ((new Date()) < salaryDate) break;
+          // Query all study session
+          const studySessions = await queryRunner.manager
+            .createQueryBuilder(StudySession, 'ss')
+            .setLock("pessimistic_write")
+            .useTransaction(true)
+            .leftJoinAndSelect("ss.course", "course")
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .where("ss.date >= :beginingDate", { beginingDate: moment(currentDate).format("YYYY-MM-DD") })
+            .andWhere("ss.date < :endingDate", { endingDate: moment(salaryDate).format("YYYY-MM-DD") })
+            .andWhere("ss.tutorWorker = :tutorId", { tutorId: tutor.worker.user.id })
+            .getMany();
+          // Amount of fee
+          let amount = 0;
+          for (const ss of studySessions) {
+            const [studentPaticipateCourseCount, lectureCount] = await Promise.all([
+              queryRunner.manager
+                .createQueryBuilder(StudentParticipateCourse, "spc")
+                .setLock("pessimistic_read")
+                .useTransaction(true)
+                .where("spc.courseId = :courseId", { courseId: ss.course.id })
+                .getCount(),
+              queryRunner.manager
+                .createQueryBuilder(Lecture, "lecture")
+                .setLock("pessimistic_read")
+                .useTransaction(true)
+                .where("curriculumId = :curriculumId", { curriculumId: ss.course.curriculum.id })
+                .getCount()
+            ])
+            const totalPrice = ss.course.price * studentPaticipateCourseCount;
+            const numberOfSessions = lectureCount;  // Not count addition study sessions
+            const pricePerSession = totalPrice / numberOfSessions;
+            amount = amount + pricePerSession * constants.tutorProportion;
+          }
+          amount = amount + constants.baseSalary / 30 * this.diffDays(salaryDate, currentDate) * tutor.worker.coefficients;
+          // Create transaction
+          const transaction = new Transaction();
+          transaction.transCode = faker.random.numeric(16)
+          transaction.content = `Tiền lương tháng ${salaryDate.getMonth() + 1}`;
+          transaction.amount = amount;
+          transaction.type = TransactionType.Salary;
+          transaction.branch = tutor.worker.branch;
+          transaction.payDate = new Date();
+          transaction.userEmployee = manager;
+          // Validation
+          const transValidateErrors = await validate(transaction);
+          if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+          const savedTransaction = await queryRunner.manager.save(transaction);
+          // Create salary
+          const salary = new Salary();
+          salary.transCode = savedTransaction;
+          salary.worker = tutor.worker;
+          // Validation
+          const salaryValidateErrors = await validate(transaction);
+          if (salaryValidateErrors.length) throw new ValidationError(salaryValidateErrors);
+          await queryRunner.manager.save(salary);
+          // Reset data
+          currentDate = new Date(salaryDate);
+          salaryDate.setMonth(salaryDate.getMonth() + 1);
+        }
+        tutor.worker.salaryDate = new Date(currentDate);
+        await queryRunner.manager.save(tutor.worker);
+        await queryRunner.manager.upsert(UserTutor, tutor, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+        await tutor.reload();
+      }
+      // Remove study session
+      let currentDate = new Date();
+      let salaryDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.salaryDay);
+      if (salaryDate > currentDate) salaryDate.setMonth(salaryDate.getMonth() - 1);
+      const studySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, 'ss')
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "teacherWorker")
+        .leftJoinAndSelect("ss.tutor", "tutor")
+        .leftJoinAndSelect("tutor.worker", "tutorWorker")
+        .where("ss.courseId IS NULL")
+        .andWhere("ss.date < :endingDate", { endingDate: moment(salaryDate).format("YYYY-MM-DD") })
+        .andWhere("teacherWorker.salaryDate >= :teacherSalaryDate", { teacherSalaryDate: moment(salaryDate).format("YYYY-MM-DD") })
+        .andWhere("tutorWorker.salaryDate >= :tutorSalaryDate", { tutorSalaryDate: moment(salaryDate).format("YYYY-MM-DD") })
+        .getMany();
+      for (const studySession of studySessions)
+        await queryRunner.manager.remove(studySession);
+      // Commit data
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send data
+      const socketStatuses = await SocketStatusRepository.findAllSocketConnByUser(userId);
+      socketStatuses.forEach(ss => {
+        io.to(ss.socketId).emit("create_salary_completed");
+      });
+      // Return
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      if (userId) {
+        const socketStatuses = await SocketStatusRepository.findAllSocketConnByUser(userId);
+        socketStatuses.forEach(ss => {
+          io.to(ss.socketId).emit("create_salary_failed");
+        });
+      }
+      return false;
+    }
+  }
+
+
+  async getLateFeeStudent(userId: number, pageableDto: PageableDto): Promise<{ total: number, students: UserStudent[] }> {
+    if (userId === undefined || pageableDto === null || pageableDto === undefined)
+      return { total: 0, students: [] };
+    // Check employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Query
+    const pageable = new Pageable(pageableDto);
+    const [total, result] = await Promise.all([
+      UserStudentRepository.countLateFeeStudent(employee.worker.branch.id),
+      UserStudentRepository.getLateFeeStudent(employee.worker.branch.id, pageable),
+    ]);
+    return {
+      total: total,
+      students: result,
+    };
+  }
+
+
+  async notifyLateFeeStudent(userId: number, studentId?: number): Promise<boolean> {
+    if (userId === undefined) return false;
+    // Check employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Notifications container
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    // Query runner
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      // Send notifications
+      if (studentId !== undefined) {
+        const notificationDto = { userId: studentId } as NotificationDto;
+        notificationDto.content = `Bạn đang nợ học phí trung tâm. Vui lòng thanh toán sớm nhất có thể.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      } else {
+        const total = await UserStudentRepository.countLateFeeStudent(employee.worker.branch.id);
+        let current = 0;
+        while (current < total) {
+          const pageable = new Pageable({ skip: current, limit: 12 });
+          const students = await UserStudentRepository.getLateFeeStudent(employee.worker.branch.id, pageable);
+          current = current + students.length;
+          for (const student of students) {
+            const notificationDto = { userId: student.user.id } as NotificationDto;
+            notificationDto.content = `Bạn đang nợ học phí trung tâm. Vui lòng thanh toán sớm nhất có thể.`;
+            const result = await this.sendNotification(queryRunner, notificationDto);
+            if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+              notifications.push({
+                socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+                notification: result.notification
+              });
+            }
+          }
+        }
+      }
+      // Commit transactions
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return true;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
+  }
+
+
+  async getUnpaidFee(userId: number, studentId: number): Promise<UnpaidDto[]> {
+    if (userId === undefined) throw new NotFoundError();
+    // Check employee
+    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
+    if (employee === null) throw new NotFoundError();
+    // Get transaction constants
+    const constants = await TransactionConstantsRepository.find();
+    if (constants === null) throw new NotFoundError();
+    // Calculate unpaid fee
+    const result: UnpaidDto[] = []
+    const participations = await StudentParticipateCourseRepository.findUnpaidFeeByStudentAndBranch(studentId, employee.worker.branch.id);
+    for (const participation of participations) {
+      let isFinished = false;
+      const expectedClosingDate = new Date(participation.course.expectedClosingDate);
+      let currentDate = new Date(participation.billingDate);
+      currentDate.setHours(0);
+      currentDate.setMinutes(0);
+      currentDate.setSeconds(0);
+      currentDate.setMilliseconds(0);
+
+      let feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
+      if (feeDate <= currentDate) feeDate.setMonth(feeDate.getMonth() + 1);
+      if (this.diffDays(feeDate, currentDate) < 10) feeDate.setMonth(feeDate.getMonth() + 1);
+      while (true) {
+        if ((new Date()) < feeDate) isFinished = true;
+        if (expectedClosingDate <= feeDate) {
+          feeDate = new Date(expectedClosingDate);
+          feeDate.setHours(0);
+          feeDate.setMinutes(0);
+          feeDate.setSeconds(0);
+          feeDate.setMilliseconds(0);
+          isFinished = true;
+        } else if (this.diffDays(expectedClosingDate, feeDate) < 10) {
+          feeDate = new Date(expectedClosingDate);
+          feeDate.setHours(0);
+          feeDate.setMinutes(0);
+          feeDate.setSeconds(0);
+          feeDate.setMilliseconds(0);
+          isFinished = true;
+        }
+        const amount = this.diffDays(feeDate, currentDate) / this.diffDays(
+          expectedClosingDate, participation.course.openingDate) * participation.course.price;
+        if (amount > 0) {
+          const unpaid = new UnpaidDto();
+          unpaid.amount = amount;
+          unpaid.course = participation.course;
+          unpaid.student = participation.student;
+          unpaid.fromDate = new Date(currentDate);
+          unpaid.toDate = new Date(feeDate);
+          result.push(unpaid);
+        }
+
+        if (isFinished) break;
+        currentDate = new Date(feeDate);
+        feeDate.setMonth(feeDate.getMonth() + 1);
+      }
+    }
+    result.sort((a, b) => {
+      if (a.fromDate < b.fromDate) return -1;
+      if (a.fromDate > b.fromDate) return 1;
+      return 0;
+    })
+    return result;
+  }
+
+
+  async payFee(userId: number, studentId: number,
+    courseSlug: string, fromDate: Date, toDate: Date, amount: number): Promise<boolean> {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      if (userId === undefined || studentId === undefined ||
+        courseSlug === undefined || fromDate === undefined ||
+        toDate === undefined || amount === undefined) throw new NotFoundError();
+      // Check employee
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError();
+      // Course participation
+      const participation = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+        .leftJoinAndSelect("student.user", "userStudent")
+        .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+        .leftJoinAndSelect("course.branch", "branch")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .andWhere("userStudent.id = :studentId", { studentId })
+        .getOne();
+      if (participation === null) throw new NotFoundError();
+      // Check branch
+      if (employee.worker.branch.id !== participation.course.branch.id)
+        throw new ValidationError([]);
+      // Check billingDate
+      const billingDate = new Date(participation.billingDate);
+      const expectedClosingDate = new Date(participation.course.expectedClosingDate);
+      const fromDateDto = new Date(fromDate);
+      const toDateDto = new Date(toDate);
+      if (billingDate.getFullYear() !== fromDateDto.getFullYear() ||
+        billingDate.getMonth() !== fromDateDto.getMonth() ||
+        billingDate.getDate() !== fromDateDto.getDate())
+        throw new ValidationError([]);
+      if (expectedClosingDate < toDateDto)
+        throw new ValidationError([]);
+      // Check amount
+      const expectedAmount = this.diffDays(fromDateDto, toDateDto) / this.diffDays(
+        participation.course.expectedClosingDate, participation.course.openingDate) * participation.course.price;
+      if (Math.ceil(expectedAmount) !== Math.ceil(amount))
+        throw new ValidationError([]);
+      // Create transaction
+      if (expectedAmount > 0) {
+        const transaction = new Transaction();
+        transaction.transCode = faker.random.numeric(16);
+        transaction.content = `Tiền học phí tháng ${toDateDto.getMonth() + 1}`;
+        transaction.amount = expectedAmount;
+        transaction.type = TransactionType.Fee;
+        transaction.branch = participation.course.branch;
+        transaction.payDate = new Date();
+        transaction.userEmployee = employee;
+        // Validate entity
+        const transValidateErrors = await validate(transaction);
+        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+        // Save data
+        const savedTransaction = await queryRunner.manager.save(transaction);
+        // Create free
+        const fee = new Fee();
+        fee.transCode = savedTransaction;
+        fee.userStudent = participation.student;
+        fee.course = participation.course;
+        // Validate entity
+        const feeValidateErrors = await validate(fee);
+        if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
+        // Save data
+        await queryRunner.manager.save(fee)
+      }
+      participation.billingDate = new Date(toDateDto);
+      await queryRunner.manager.upsert(StudentParticipateCourse, participation, { conflictPaths: [], skipUpdateIfNoValuesChanged: true })
+
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return false;
+    }
   }
 }
 

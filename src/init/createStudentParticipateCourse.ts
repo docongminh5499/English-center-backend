@@ -71,7 +71,7 @@ export const createStudentParticipateCourse = async (course: Course,
     let feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
     if (feeDate <= currentDate) feeDate.setMonth(feeDate.getMonth() + 1);
     if (diffDays(feeDate, currentDate) < 10) feeDate.setMonth(feeDate.getMonth() + 1);
-    if (course.curriculum.type === TermCourse.LongTerm) {
+    if (course.curriculum.type === TermCourse.ShortTerm) {
       const transaction = new Transaction();
       transaction.transCode = faker.random.numeric(16)
       transaction.content = `Tiền học phí khóa học "${course.name}"`;

@@ -19,4 +19,6 @@ export default interface GuestService {
     getCourses: (pageableDto: PageableDto, level?: CurriculumLevel, curriculumTag?: string, branchId?: number) => Promise<{ total: number, courses: Course[] }>;
 
     getCourseDetail: (courseSlug: string) => Promise<Course | null>;
+
+    checkAttendCourse: (userId?: number, courseSlug?: string) => Promise<boolean>;
 }

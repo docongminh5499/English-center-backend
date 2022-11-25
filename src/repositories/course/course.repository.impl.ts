@@ -319,8 +319,13 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .leftJoinAndSelect("curriculum.lectures", "lectures")
             .leftJoinAndSelect("curriculum.tags", "tags")
+            .leftJoinAndSelect("course.studySessions", "studySessions")
+            .leftJoinAndSelect("studySessions.shifts", "shifts")
             .where("course.slug = :courseSlug", { courseSlug })
-            .orderBy({ "lectures.order": "ASC" })
+            .orderBy({
+                "lectures.order": "ASC",
+                "studySessions.date": "ASC"
+            })
             .getOne();
         return await result;
     }

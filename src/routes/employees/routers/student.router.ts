@@ -54,5 +54,55 @@ router.post("/modify-parent", async (req: any, res: any, next: any) => {
 
 
 
+router.post("/get-late-fee-students", async (req: any, res: any, next: any) => {
+  try {
+    const pageableDto = PageableMapper.mapToDto(req.body);
+    const result = await EmployeeService.getLateFeeStudent(req.user.userId, pageableDto);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
+router.post("/notify-late-fee-students", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.notifyLateFeeStudent(req.user.userId, req.body.studentId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
+router.post("/get-unpaid-fee", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.getUnpaidFee(req.user.userId, req.body.studentId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
+router.post("/pay-fee", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.payFee(req.user.userId,
+      req.body.studentId, req.body.courseSlug, req.body.fromDate, req.body.toDate, req.body.amount);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
 
 export { router as EmployeeStudentRouter };

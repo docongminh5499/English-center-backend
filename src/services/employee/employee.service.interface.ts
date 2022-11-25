@@ -1,4 +1,4 @@
-import { ClassroomDto, CourseDetailDto, CourseListDto, CreateCourseDto, CredentialDto, FileDto, PageableDto, StudySessionDto } from "../../dto";
+import { ClassroomDto, CourseDetailDto, CourseListDto, CreateCourseDto, CredentialDto, FileDto, PageableDto, StudySessionDto, UnpaidDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
 import { Course } from "../../entities/Course";
@@ -89,7 +89,7 @@ export default interface EmployeeService {
 
     getPersonalSalaries: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
 
-    getFeeAmount: (userId: number, courseSlug: string) => Promise<number>;
+    getFeeAmount: (userId: number, courseSlug: string, studentId?: number) => Promise<number>;
 
     addStudentParticipateCourse: (userId: number, courseSlug: string, studentId: number) => Promise<boolean>;
 
@@ -108,4 +108,14 @@ export default interface EmployeeService {
     getEmployeeByBranch: (userId: number, query: string, pageableDto: PageableDto) => Promise<{ total: number, employees: UserEmployee[] }>;
 
     checkStudentParticipateCourse: (userId: number, courseSlug: string, studentId: number) => Promise<boolean>;
+
+    createSalary: (userId: number) => Promise<boolean>;
+
+    getLateFeeStudent: (userId: number, pageableDto: PageableDto) => Promise<{total: number, students: UserStudent[]}>;
+
+    notifyLateFeeStudent: (userId: number, studentId?: number) => Promise<boolean>;
+
+    getUnpaidFee: (userId: number, studentId: number) => Promise<UnpaidDto[]>;
+
+    payFee: (userId: number, studentId: number, courseSlug: string, fromDate: Date, toDate: Date, amount: number) => Promise<boolean>;
 }

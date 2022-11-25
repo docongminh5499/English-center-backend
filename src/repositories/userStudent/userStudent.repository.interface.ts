@@ -9,4 +9,8 @@ export default interface UserStudentRepository {
     findStudents: (pageable: Pageable, query?: string) => Promise<UserStudent[]>;
     
     countStudents: (query?: string) => Promise<number>;
+    
+    getLateFeeStudent: (branchId: number, pageable: Pageable) => Promise<UserStudent[]>;
+
+    countLateFeeStudent: (branchId: number) => Promise<number>;
 }

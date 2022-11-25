@@ -197,6 +197,29 @@ router.post("/close-course", async (req: any, res: any, next: any) => {
 });
 
 
+router.post("/lock-course", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.lockCourse(req.user.userId, req.body.courseSlug);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
+router.post("/unlock-course", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.unLockCourse(req.user.userId, req.body.courseSlug);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
 
 router.post("/get-shifts", async (req: any, res: any, next: any) => {
   try {
@@ -336,7 +359,7 @@ router.post("/get-students", async (req: any, res: any, next: any) => {
 
 router.post("/get-left-money-amount", async (req: any, res: any, next: any) => {
   try {
-    const result = await EmployeeService.getFeeAmount(req.user.userId, req.body.courseSlug);
+    const result = await EmployeeService.getFeeAmount(req.user.userId, req.body.courseSlug, req.body.studentId);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

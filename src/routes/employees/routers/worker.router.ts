@@ -44,4 +44,16 @@ router.post("/get-tutors", async (req: any, res: any, next: any) => {
 
 
 
+router.post("/create-salary", async (req: any, res: any, next: any) => {
+  try {
+    EmployeeService.createSalary(req.user.userId);
+    return res.status(200).json(true);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+
+
 export { router as EmployeeWorkerRouter };

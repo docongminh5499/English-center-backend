@@ -64,6 +64,13 @@ class GuestServiceImpl implements GuestServiceInterface {
     if ((new Date()) >= new Date(result.openingDate)) return null;
     return result;
   }
+
+
+  async checkAttendCourse(userId?: number, courseSlug?: string): Promise<boolean> {
+    if (userId === undefined || courseSlug === undefined) return false;
+    return await StudentParticipateCourseRepository.checkStudentParticipateCourse(userId, courseSlug);
+
+  }
 }
 
 const GuestService = new GuestServiceImpl();

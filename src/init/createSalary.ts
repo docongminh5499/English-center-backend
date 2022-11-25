@@ -10,6 +10,15 @@ import { StudySession } from "../entities/StudySession";
 import moment = require("moment");
 import { StudentParticipateCourse } from "../entities/StudentParticipateCourse";
 import { Lecture } from "../entities/Lecture";
+import { Worker } from "../entities/Worker";
+
+
+
+const diffDays = (date1: Date, date2: Date) => {
+  const diffTime: number = Math.abs(date2.getTime() - date1.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
 
 
 export const createSalary = async (teachers: UserTeacher[],
@@ -48,7 +57,7 @@ export const createSalary = async (teachers: UserTeacher[],
         const pricePerSession = totalPrice / numberOfSessions;
         amount = amount + pricePerSession * constants.tutorProportion;
       }
-      amount = amount + constants.baseSalary * teacher.worker.coefficients;
+      amount = amount + constants.baseSalary / 30 * diffDays(salaryDate, currentDate) * teacher.worker.coefficients;
       // Create transaction
       const transaction = new Transaction();
       transaction.transCode = faker.random.numeric(16)
@@ -69,6 +78,7 @@ export const createSalary = async (teachers: UserTeacher[],
       salaryDate.setMonth(salaryDate.getMonth() + 1);
     }
     teacher.worker.salaryDate = new Date(currentDate);
+    await Worker.upsert(teacher.worker, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
     await UserTeacher.upsert(teacher, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
     await teacher.reload();
   }
@@ -106,7 +116,7 @@ export const createSalary = async (teachers: UserTeacher[],
         const pricePerSession = totalPrice / numberOfSessions;
         amount = amount + pricePerSession * constants.tutorProportion;
       }
-      amount = amount + constants.baseSalary * tutor.worker.coefficients;
+      amount = amount + constants.baseSalary / 30 * diffDays(salaryDate, currentDate) * tutor.worker.coefficients;
       // Create transaction
       const transaction = new Transaction();
       transaction.transCode = faker.random.numeric(16)
@@ -127,6 +137,7 @@ export const createSalary = async (teachers: UserTeacher[],
       salaryDate.setMonth(salaryDate.getMonth() + 1);
     }
     tutor.worker.salaryDate = new Date(currentDate);
+    await Worker.upsert(tutor.worker, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
     await UserTutor.upsert(tutor, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
     await tutor.reload();
   }
@@ -137,7 +148,7 @@ export const createSalary = async (teachers: UserTeacher[],
     if (salaryDate <= currentDate) salaryDate.setMonth(salaryDate.getMonth() + 1);
     while (true) {
       if ((new Date()) < salaryDate) break;
-      let amount = constants.baseSalary * employee.worker.coefficients;
+      let amount = constants.baseSalary / 30 * diffDays(salaryDate, currentDate) * employee.worker.coefficients;
       // Create transaction
       const transaction = new Transaction();
       transaction.transCode = faker.random.numeric(16)
@@ -158,6 +169,7 @@ export const createSalary = async (teachers: UserTeacher[],
       salaryDate.setMonth(salaryDate.getMonth() + 1);
     }
     employee.worker.salaryDate = new Date(currentDate);
+    await Worker.upsert(employee.worker, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
     await UserEmployee.upsert(employee, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
     await employee.reload();
   }

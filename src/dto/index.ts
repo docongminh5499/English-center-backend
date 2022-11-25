@@ -24,6 +24,7 @@ import NotificationDto from "./responses/notification.dto";
 import NotificationListDto from "./responses/notificationList.dto";
 import NotificationResponseDto from "./responses/notification.response.dto";
 import CourseDetailDto from "./responses/courseDetail.dto";
+import UnpaidDto from "./responses/unpaidFee.dto";
 
 export {
     // Request DTO
@@ -52,5 +53,6 @@ export {
     NotificationDto,
     NotificationListDto,
     NotificationResponseDto,
-    CourseDetailDto
+    CourseDetailDto,
+    UnpaidDto,
 };
