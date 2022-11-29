@@ -52,6 +52,8 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         const studentCourses = await Course.createQueryBuilder("course")
             .setLock("pessimistic_read")
             .useTransaction(true)
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .leftJoinAndSelect("course.branch", "branch")
             .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
             .leftJoinAndSelect("studentPaticipateCourses.student", "userStudent")
             .innerJoinAndSelect("userStudent.user", "user", "user.id = :studentId", { studentId: studentId })
@@ -61,6 +63,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
             .orderBy({
                 "course.openingDate": "ASC",
+                "studySessions.date": "ASC",
                 "shifts.startTime": "ASC",
             })
             .getMany();

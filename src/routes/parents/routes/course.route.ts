@@ -22,17 +22,34 @@ router.get("/get-pageable-student-courses", async (req: any, res: any, next: any
       }
 });
 
-// router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
-//   try {
-//       // TODO: Admin get all courses, not depending on teacher id
-//       console.log("STUDENT GET COURSE DETAIL");
-//       const course = await ParentService.getCourseDetail(req.user.userId, req.params.courseSlug);
-//       // console.log(course);
-//       return res.status(200).json(course);
-//     } catch (err) {
-//       console.log(err);
-//       next(err);
-//     }
-// });
+router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+      // TODO: Admin get all courses, not depending on teacher id
+      console.log("PARENT GET COURSE DETAIL");
+      const course = await ParentService.getCourseDetail(req.query.studentId, req.params.courseSlug);
+      console.log(course);
+      console.log(req.query.studentId);
+      return res.status(200).json(course);
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+});
+
+router.get("/attendance-course/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+
+      // TODO: Admin get all courses, not depending on teacher id
+      console.log("PARENT ATTENDANCE ROUTE");
+      const studentId = req.query.studentId;
+      const courseSlug = req.params.courseSlug;
+      // console.log(req.params.courseSlug);
+      const result = await ParentService.getAttendance(studentId, courseSlug);
+      return res.status(200).json(result);
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+});
 
 export { router as CourseRouter };
