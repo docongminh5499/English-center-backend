@@ -78,9 +78,12 @@ export const createStudentParticipateCourse = async (course: Course,
       transaction.amount = course.price;
       transaction.type = TransactionType.Fee;
       transaction.branch = course.branch;
+      // Calculate pay date
+      const today = new Date();
+      const payDate = today < currentDate ? today : currentDate;
       transaction.payDate = faker.datatype.datetime({
-        min: (new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 10)).getTime(),
-        max: currentDate.getTime()
+        min: (new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate() - 10)).getTime(),
+        max: payDate.getTime()
       });
       transaction.userEmployee = faker.helpers.arrayElement(sameBranchEmployees);
       const savedTransaction = await Transaction.save(transaction);
@@ -109,10 +112,13 @@ export const createStudentParticipateCourse = async (course: Course,
       transaction.amount = amount;
       transaction.type = TransactionType.Fee;
       transaction.branch = course.branch;
+      // Calculate pay date
+      const today = new Date();
+      const payDate = today < currentDate ? today : currentDate;
       transaction.payDate = isFirst
         ? faker.datatype.datetime({
-          min: (new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 10)).getTime(),
-          max: currentDate.getTime()
+          min: (new Date(payDate.getFullYear(), payDate.getMonth(), payDate.getDate() - 10)).getTime(),
+          max: payDate.getTime()
         })
         : faker.datatype.datetime({
           min: currentDate.getTime(),
