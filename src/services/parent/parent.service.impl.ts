@@ -1,7 +1,11 @@
 import { CourseListDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
+import { Exercise } from "../../entities/Exercise";
+import { StudentDoExercise } from "../../entities/StudentDoExercise";
+import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { UserParent } from "../../entities/UserParent";
 import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import UserParentRepository from "../../repositories/userParent/userParent.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
 import { NotFoundError } from "../../utils/errors/notFound.error";
@@ -52,6 +56,53 @@ class ParentServiceImpl implements ParentServiceInterface {
 
         return courseListDto;
 	}
+
+    async getCourseDetail(studentId: number, courseSlug: string) : Promise<Course | null>{
+        const course = await CourseRepository.findBriefCourseBySlug(courseSlug);
+        if(course === null)
+            return null;
+        course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
+        if (course?.studentPaticipateCourses.filter(value => value.student.user.id == studentId).length === 0) 
+            return null;
+        return course;
+    }
+
+    async getAttendance(studentId: number, courseSlug: string) : Promise<UserAttendStudySession[]>{
+        console.log("STUDENT ATTENDANCE SERVICE");
+        const attendance = await StudySessionRepository.findStudySessionByStudent(studentId, courseSlug);
+        // console.log(attendance);
+        return attendance!;
+    }
+
+    async getAllExercises(courseId: number) : Promise<Exercise[] | null>{
+        try{
+            console.log(courseId);
+            const exercise = await Exercise.createQueryBuilder("exercise")
+                                    .where("courseId = :courseId", {courseId: courseId})
+                                    .getMany();
+            return exercise;
+        } catch(error){
+            console.log(error);
+            return null;
+        }
+    }
+
+    async getStudentDoExercise(studentId: number, courseId: number) : Promise<StudentDoExercise[] | null>{
+        try{
+            const studentDoExercise = StudentDoExercise.createQueryBuilder("studentDoExercise")
+                                                       .leftJoinAndSelect("studentDoExercise.student", "student")
+                                                       .leftJoinAndSelect("student.user", "user")
+                                                       .leftJoinAndSelect("studentDoExercise.exercise", "exercise")
+                                                       .leftJoinAndSelect("exercise.course", "course")
+                                                       .where("user.id = :studentId", {studentId})
+                                                       .andWhere("course.id = :courseId", {courseId})
+                                                       .getMany();
+            return studentDoExercise;
+        } catch(error){
+            console.log(error);
+            return null;
+        }
+    }
 }
 
 const ParentService = new ParentServiceImpl();
