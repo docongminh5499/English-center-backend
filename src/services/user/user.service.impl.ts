@@ -13,6 +13,8 @@ import { DuplicateError } from "../../utils/errors/duplicate.error";
 import BranchRepository from "../../repositories/branch/branch.repository.impl";
 import { AppDataSource } from "../../utils/functions/dataSource";
 import { io } from "../../socket";
+import { UserStudent } from "../../entities/UserStudent";
+import { UserParent } from "../../entities/UserParent";
 
 
 class UserServiceImpl implements UserServiceInterface {
@@ -54,16 +56,24 @@ class UserServiceImpl implements UserServiceInterface {
 		throw new NotFoundError();
 	}
 
-	async signup(user: User, account: Account) {
+	async signup(user: User, account: Account, userType: UserStudent | UserParent) {
 		const isOld = await AccountRepository.findByUserName(account.username);
 		if (isOld) {
 			throw new DuplicateError();
 		}
+		const queryRunner = AppDataSource.createQueryRunner();
+		await queryRunner.connect();
+		await queryRunner.startTransaction();
 		try {
-			await User.save(user);
-			await Account.save(account);
+			await queryRunner.manager.save(user);
+			await queryRunner.manager.save(account);
+			await queryRunner.manager.save(userType);
+			await queryRunner.commitTransaction();
 		} catch (err) {
-
+			console.log(err);
+			await queryRunner.rollbackTransaction();
+		}finally {
+			await queryRunner.release();
 		}
 	}
 

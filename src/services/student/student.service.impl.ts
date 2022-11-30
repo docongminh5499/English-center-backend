@@ -251,7 +251,7 @@ class StudentServiceImpl implements StudentServiceInterface {
         makeupLession.studySession = studySession;
         makeupLession.targetStudySession = targetStudySession;
         makeupLession.commentOfTeacher = "";
-        makeupLession.isAttend = false;
+        makeupLession.isAttend = true;
 
         await MakeUpLession.save(makeupLession);
 

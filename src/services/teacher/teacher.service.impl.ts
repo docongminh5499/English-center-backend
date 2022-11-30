@@ -900,25 +900,31 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       exercise.maxTime = basicInfo.maxTime;
       exercise.questions = [];
 
-      const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
-      const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
-      console.log(dateDoExercise)
+      // const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
+      // const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
+      // console.log(dateDoExercise)
+      //Set openTime
+      const startDate = new Date(basicInfo.startDate);
+      const startTime = new Date(basicInfo.startTime);
       exercise.openTime = new Date(
-        dateDoExercise[0].getFullYear(),
-        dateDoExercise[0].getMonth(),
-        dateDoExercise[0].getDate(),
-        timeDoExercise[0].getHours(),
-        timeDoExercise[0].getMinutes(),
-        timeDoExercise[0].getSeconds(),
-      );
+        startDate.getFullYear(), 
+        startDate.getMonth(), 
+        startDate.getDate(), 
+        startTime.getHours(),
+        startTime.getMinutes(),
+        startTime.getSeconds(),
+      )
+      //Set EndTime
+      const endDate = new Date(basicInfo.endDate);
+      const endTime = new Date(basicInfo.endTime);
       exercise.endTime = new Date(
-        dateDoExercise[1].getFullYear(),
-        dateDoExercise[1].getMonth(),
-        dateDoExercise[1].getDate(),
-        timeDoExercise[1].getHours(),
-        timeDoExercise[1].getMinutes(),
-        timeDoExercise[1].getSeconds(),
-      );
+        endDate.getFullYear(), 
+        endDate.getMonth(), 
+        endDate.getDate(), 
+        endTime.getHours(),
+        endTime.getMinutes(),
+        endTime.getSeconds(),
+      )
 
       //Create Question
       for (const question of questions) {
@@ -998,9 +1004,13 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (exercise === null)
       throw new NotFoundError();
     // TODO:Commented for testing
-    // if (exercise.course.closingDate !== null){
-    //   throw new Error("Khóa học đã kết thúc, không thể chỉnh sửa bài tập.");
-    // }
+    if (exercise.course.closingDate !== null){
+      throw new Error("Khóa học đã kết thúc, không thể chỉnh sửa bài tập.");
+    }
+    const now = new Date()
+    if (exercise.openTime!.getTime() < now.getTime()){
+      throw new Error("Bài tập đã diễn ra, không thể sửa.");
+    }
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -1008,25 +1018,31 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       exercise.name = basicInfo.nameExercise;
       exercise.maxTime = basicInfo.maxTime;
 
-      const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
-      const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
+      // const dateDoExercise: Date[] = [new Date(basicInfo.dateDoExercise[0]), new Date(basicInfo.dateDoExercise[1])];
+      // const timeDoExercise: Date[] = [new Date(basicInfo.timeDoExercise[0]), new Date(basicInfo.timeDoExercise[1])];
 
+      //Update OpenTime
+      const startDate = new Date(basicInfo.startDate);
+      const startTime = new Date(basicInfo.startTime);
       exercise.openTime = new Date(
-        dateDoExercise[0].getFullYear(),
-        dateDoExercise[0].getMonth(),
-        dateDoExercise[0].getDate(),
-        timeDoExercise[0].getHours(),
-        timeDoExercise[0].getMinutes(),
-        timeDoExercise[0].getSeconds(),
-      );
+        startDate.getFullYear(), 
+        startDate.getMonth(), 
+        startDate.getDate(), 
+        startTime.getHours(),
+        startTime.getMinutes(),
+        startTime.getSeconds(),
+      )
+      //Update EndTime
+      const endDate = new Date(basicInfo.endDate);
+      const endTime = new Date(basicInfo.endTime);
       exercise.endTime = new Date(
-        dateDoExercise[1].getFullYear(),
-        dateDoExercise[1].getMonth(),
-        dateDoExercise[1].getDate(),
-        timeDoExercise[1].getHours(),
-        timeDoExercise[1].getMinutes(),
-        timeDoExercise[1].getSeconds(),
-      );
+        endDate.getFullYear(), 
+        endDate.getMonth(), 
+        endDate.getDate(), 
+        endTime.getHours(),
+        endTime.getMinutes(),
+        endTime.getSeconds(),
+      )
 
       if (exercise.questions === null)
         exercise.questions = [];
