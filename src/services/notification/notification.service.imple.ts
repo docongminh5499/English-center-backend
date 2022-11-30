@@ -13,11 +13,11 @@ import NotificationServiceInterface from "./notification.service.interface";
 class NotificationServiceImpl implements NotificationServiceInterface {
   async getNotification(user: UserDto, pageableDto: PageableDto): Promise<NotificationListDto> {
     if (user.id === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
 
     const foundUser = await UserRepository.findUserByid(user.id);
     if (foundUser == null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
 
     const sortable = new Sortable().add("notification.createdAt", "DESC");
     const pageable = new Pageable(pageableDto);
@@ -44,12 +44,12 @@ class NotificationServiceImpl implements NotificationServiceInterface {
 
   async sendNotification(notificationDto: NotificationDto): Promise<NotificationResponseDto> {
     if (notificationDto.userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
     if (notificationDto.content === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Nội dung thông báo không hợp lệ."]);
 
     const foundUser = await UserRepository.findUserByid(notificationDto.userId);
-    if (foundUser == null) throw new NotFoundError();
+    if (foundUser == null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
 
     const response = new NotificationResponseDto();
     const savedNotification = await NotificationRepository.saveNotification(foundUser, notificationDto.content);
@@ -70,9 +70,9 @@ class NotificationServiceImpl implements NotificationServiceInterface {
 
   async readNotification(notificationDto: NotificationDto): Promise<NotificationResponseDto> {
     if (notificationDto.userId === undefined || notificationDto.id === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
     const foundUser = await UserRepository.findUserByid(notificationDto.userId);
-    if (foundUser == null) throw new NotFoundError();
+    if (foundUser == null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
 
     const response = new NotificationResponseDto();
     const updated = await NotificationRepository.readNotification(notificationDto.id);
@@ -88,27 +88,27 @@ class NotificationServiceImpl implements NotificationServiceInterface {
 
   async getUnreadNotificationCount(user: UserDto): Promise<number> {
     if (user.id === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
     const userEntity = await UserRepository.findUserByid(user.id);
     if (userEntity === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
     return NotificationRepository.getUnreadNotificationCount(userEntity);
   }
 
 
   async sendCourseNotification(courseNotificationDto: CourseNotificationDto): Promise<NotificationResponseDto[]> {
     if (courseNotificationDto.teacherId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn, vui lòng kiểm tra lại");
     if (courseNotificationDto.courseId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin khóa học, vui lòng kiểm tra lại");
     if (courseNotificationDto.content === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Nội dung thông báo không hợp lệ, vui lòng kiểm tra lại"]);
 
     const course = await CourseRepository.findCourseById(courseNotificationDto.courseId);
     if (course == null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin khóa học, vui lòng kiểm tra lại");
     if (course.teacher.worker.user.id !== courseNotificationDto.teacherId)
-      throw new NotEnoughPermissionError();
+      throw new NotEnoughPermissionError("Bạn không có quyền để thực hiện tác vụ gửi thông báo tới lớp học này.");
 
     let response: NotificationResponseDto[] = [];
     const queryRunner = AppDataSource.createQueryRunner();
@@ -129,7 +129,7 @@ class NotificationServiceImpl implements NotificationServiceInterface {
         const validateErrors = await validate(notification);
         if (validateErrors.length) throw new ValidationError(validateErrors);
         const savedNotification = await queryRunner.manager.save(notification);
-        if (savedNotification.id === undefined) throw new SystemError();
+        if (savedNotification.id === undefined) throw new SystemError("Gửi thông báo thất bại, vui lòng thử lại");
 
         notificationRepsonse.success = true;
         notificationRepsonse.notification = savedNotification;

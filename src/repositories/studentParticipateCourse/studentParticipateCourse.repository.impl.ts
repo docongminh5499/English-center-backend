@@ -127,9 +127,11 @@ class StudentParticipateCourseRepositoryImpl implements StudentParticipateCourse
       .useTransaction(true)
       .leftJoinAndSelect("studentPaticipateCourses.student", "student")
       .leftJoinAndSelect("student.user", "userStudent")
+      .leftJoinAndSelect("studentPaticipateCourses.course", "course")
       .where("userStudent.avatar IS NOT NULL")
       .andWhere("studentPaticipateCourses.isIncognito = false")
       .andWhere("starPoint = 5")
+      .andWhere("course.lockTime IS NULL")
       .orderBy({ "studentPaticipateCourses.commentDate": "DESC" })
       .skip(0)
       .limit(3);

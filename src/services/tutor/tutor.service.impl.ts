@@ -71,7 +71,7 @@ class TutorServiceImpl implements TutorServiceInterface {
 
   async updateFreeShifts(tutorId?: number, shiftIds?: number[]): Promise<void> {
     if (tutorId === undefined || shiftIds === undefined || shiftIds === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
@@ -83,7 +83,7 @@ class TutorServiceImpl implements TutorServiceInterface {
         .leftJoinAndSelect("tt.shifts", "shifts")
         .where("tt.tutorId = :id", { id: tutorId })
         .getOne();
-      if (tutor === null) throw new NotFoundError();
+      if (tutor === null) throw new NotFoundError("Không tìm thấy thông tin trợ giảng.");
       const shifts = await queryRunner.manager
         .createQueryBuilder(Shift, "s")
         .setLock("pessimistic_write")
@@ -107,10 +107,10 @@ class TutorServiceImpl implements TutorServiceInterface {
 
   async getPersonalInformation(userId: number): Promise<UserTutor> {
     if (userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn");
     const userTutor = await TutorRepository.findTutorById(userId);
     if (userTutor === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn");
     return userTutor;
   }
 
@@ -129,7 +129,7 @@ class TutorServiceImpl implements TutorServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (persistenceUserTutor === null) throw new NotFoundError();
+      if (persistenceUserTutor === null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
       const oldAvatarSrc = persistenceUserTutor.worker.user.avatar;
 
       persistenceUserTutor.worker.user.fullName = userTutor.worker.user.fullName;
@@ -158,11 +158,11 @@ class TutorServiceImpl implements TutorServiceInterface {
       persistenceUserTutor.slug = slug;
 
       if (persistenceUserTutor.version !== userTutor.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (persistenceUserTutor.worker.version !== userTutor.worker.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (persistenceUserTutor.worker.user.version !== userTutor.worker.user.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
 
       const userValidateErrors = await validate(persistenceUserTutor.worker.user);
       if (userValidateErrors.length) throw new ValidationError(userValidateErrors);
@@ -178,13 +178,13 @@ class TutorServiceImpl implements TutorServiceInterface {
 
       if (persistenceUserTutor.version !== userTutor.version + 1
         && persistenceUserTutor.version !== userTutor.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (savedWorker.version !== userTutor.worker.version + 1
         && savedWorker.version !== userTutor.worker.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (savedUser.version !== userTutor.worker.user.version + 1
         && savedUser.version !== userTutor.worker.user.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
 
       await queryRunner.commitTransaction();
       await queryRunner.release();
@@ -209,7 +209,7 @@ class TutorServiceImpl implements TutorServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
@@ -226,11 +226,15 @@ class TutorServiceImpl implements TutorServiceInterface {
 
   async getCourseDetail(tutorId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) return null;
+    if (course === null)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
+    // Check lockTime
+    if (course.lockTime !== null && course.lockTime !== undefined)
+      throw new ValidationError(['Không tìm thấy thông tin khóa học.']);
     // Check permissions
     const courseIds = await StudySessionRepository.findCourseIdsByTutorId(tutorId);
     const foundId = courseIds.find(object => object.id === course.id);
-    if (!foundId) return null;
+    if (!foundId) throw new ValidationError(['Không tìm thấy thông tin khóa học.']);
     // Return data
     const courseDetail = new CourseDetailDto();
     courseDetail.version = course.version;
@@ -254,6 +258,7 @@ class TutorServiceImpl implements TutorServiceInterface {
     if (userId === undefined || courseSlug === undefined) return { total: 0, students: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course === null) return { total: 0, students: [] };
+    if (course.lockTime !== null && course.lockTime !== undefined) return { total: 0, students: [] };
 
     const courseIds = await StudySessionRepository.findCourseIdsByTutorId(userId);
     const foundId = courseIds.find(object => object.id === course.id);
@@ -271,17 +276,18 @@ class TutorServiceImpl implements TutorServiceInterface {
 
 
   async getStudentDetailsInCourse(userId: number, studentId: number, courseSlug: string): Promise<{ student: UserStudent }> {
-    if (userId === undefined) throw new NotFoundError();
+    if (userId === undefined) throw new NotFoundError("Không tìm thấy thông tin học viên.");
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
+    if (course === null) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
+    if (course.lockTime !== null && course.lockTime !== undefined) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
 
     const courseIds = await StudySessionRepository.findCourseIdsByTutorId(userId);
     const foundId = courseIds.find(object => object.id === course.id);
-    if (!foundId) throw new ValidationError([]);
+    if (!foundId) throw new ValidationError(["Không tìm thấy thông tin khóa học."]);
     if (!StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug))
-      throw new ValidationError([]);
+      throw new ValidationError(["Học viên không tham gia khóa học này."]);
     const student = await UserStudentRepository.findStudentById(studentId);
-    if (student === null) throw new NotFoundError();
+    if (student === null) throw new NotFoundError("Không tìm thấy thông tin học viên.");
     return { student };
   }
 
@@ -291,6 +297,7 @@ class TutorServiceImpl implements TutorServiceInterface {
     if (tutorId === undefined) return { total: 0, studySessions: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course === null) return { total: 0, studySessions: [] };
+    if (course.lockTime !== null && course.lockTime !== undefined) return { total: 0, studySessions: [] };
 
     const courseIds = await StudySessionRepository.findCourseIdsByTutorId(tutorId);
     const foundId = courseIds.find(object => object.id === course.id);
@@ -318,6 +325,10 @@ class TutorServiceImpl implements TutorServiceInterface {
     if (tutorId === undefined || studySessionId === undefined) return result;
     result.studySession = await StudySessionRepository.findStudySessionById(studySessionId);
     if (result.studySession === null) return result;
+    if (result.studySession.course.lockTime !== null && result.studySession.course.lockTime !== undefined) {
+      result.studySession = null;
+      return result;
+    }
     if (result.studySession.tutor.worker.user.id !== tutorId) {
       result.studySession = null;
       return result;
@@ -380,9 +391,9 @@ class TutorServiceImpl implements TutorServiceInterface {
 
   async sendNotification(queryRunner: QueryRunner, notificationDto: NotificationDto): Promise<NotificationResponseDto> {
     if (notificationDto.userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin người nhận thông báo.");
     if (notificationDto.content === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Nội dung thông báo không hợp lệ, vui lòng kiểm tra lại."]);
     const foundUser = await queryRunner.manager
       .findOne(User, {
         where: { id: notificationDto.userId },
@@ -390,7 +401,7 @@ class TutorServiceImpl implements TutorServiceInterface {
         lock: { mode: "pessimistic_read" },
         transaction: true
       });
-    if (foundUser == null) throw new NotFoundError();
+    if (foundUser == null) throw new NotFoundError("Không tìm thấy thông tin người nhận thông báo.");
     const response = new NotificationResponseDto();
 
     const notification = new Notification();
@@ -403,7 +414,7 @@ class TutorServiceImpl implements TutorServiceInterface {
     if (validateErrors.length) throw new ValidationError(validateErrors);
     const savedNotification = await queryRunner.manager.save(notification);
     if (savedNotification === null || savedNotification.id === undefined || savedNotification.id === null)
-      throw new SystemError();
+      throw new SystemError("Gửi thông báo thất bại, vui lòng thử lại sau.");
 
     response.success = true;
     response.receiverSocketStatuses = foundUser.socketStatuses;
@@ -421,7 +432,7 @@ class TutorServiceImpl implements TutorServiceInterface {
 
   async requestOffStudySession(userId?: number, studySessionId?: number, excuse?: string): Promise<boolean> {
     if (userId === undefined || studySessionId === undefined || excuse === undefined)
-      return false;
+      throw new ValidationError(['Dữ liệu không hợp lệ, vui lòng kiểm tra lại.'])
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -437,7 +448,7 @@ class TutorServiceImpl implements TutorServiceInterface {
         .leftJoinAndSelect("worker.user", "user")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (tutor === null) throw new NotFoundError();
+      if (tutor === null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
       // Find study session
       const studySession = await queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -452,13 +463,15 @@ class TutorServiceImpl implements TutorServiceInterface {
         .where("ss.id = :studySessionId", { studySessionId })
         .orderBy({ "shifts.startTime": "ASC" })
         .getOne();
-      if (studySession === null) throw new NotFoundError();
+      if (studySession === null) throw new NotFoundError("Không tìm thấy thông tin buổi học.");
+      if (studySession.course.lockTime !== null && studySession.course.lockTime !== undefined)
+        throw new ValidationError(["Buổi học đã bị khóa, không thể gửi yêu cầu."]);
       // Check studySession is ready
       if (getStudySessionState(studySession) !== StudySessionState.Ready)
-        throw new ValidationError([])
+        throw new ValidationError(["Buổi học đang diễn ra hoặc đã kết thúc, không thể gửi yêu cầu."])
       // Check tutor
       if (studySession.tutor.worker.user.id !== userId)
-        throw new ValidationError([])
+        throw new ValidationError(["Buổi học không thuộc về bạn, vui lòng kiểm tra lại."])
       // Query employees by branch
       const employees = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -498,7 +511,7 @@ class TutorServiceImpl implements TutorServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 

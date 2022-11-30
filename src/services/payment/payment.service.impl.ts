@@ -79,7 +79,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
     if (expectedClosingDate < currentDate) return { feeDate: expectedClosingDate, amount: 0 };
     // Find constants
     const constants = await TransactionConstantsRepository.find();
-    if (constants === null) throw new NotFoundError();
+    if (constants === null) throw new NotFoundError("Không tìm thấy dữ liệu, vui lòng kiểm tra lại.");
     // Calculate feeDate
     let feeDate = null;
     if (course.curriculum.type == TermCourse.ShortTerm)
@@ -106,9 +106,9 @@ class PaymentServiceImpl implements PaymentServiceInterface {
 
   async sendNotification(queryRunner: QueryRunner, notificationDto: NotificationDto): Promise<NotificationResponseDto> {
     if (notificationDto.userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin người nhận thông báo.");
     if (notificationDto.content === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Nội dung thông báo không hợp lệ, vui lòng kiểm tra lại."]);
     const foundUser = await queryRunner.manager
       .findOne(User, {
         where: { id: notificationDto.userId },
@@ -116,7 +116,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         lock: { mode: "pessimistic_read" },
         transaction: true
       });
-    if (foundUser == null) throw new NotFoundError();
+    if (foundUser == null) throw new NotFoundError("Không tìm thấy thông tin người nhận thông báo.");
     const response = new NotificationResponseDto();
 
     const notification = new Notification();
@@ -129,7 +129,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
     if (validateErrors.length) throw new ValidationError(validateErrors);
     const savedNotification = await queryRunner.manager.save(notification);
     if (savedNotification === null || savedNotification.id === undefined || savedNotification.id === null)
-      throw new SystemError();
+      throw new SystemError("Gửi thông báo thất bại, vui lòng thử lại sau.");
 
     response.success = true;
     response.receiverSocketStatuses = foundUser.socketStatuses;
@@ -147,25 +147,36 @@ class PaymentServiceImpl implements PaymentServiceInterface {
 
   async getStudentOrderDetail(userId: number, courseSlug: string, parentId?: number): Promise<object> {
     // Check data
-    if (userId === undefined || courseSlug === undefined) throw new NotFoundError();
+    if (userId === undefined || courseSlug === undefined) 
+    throw new NotFoundError("Không tìm thấy thông tin, vui lòng kiểm tra lại.");
     // Check course
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
+    if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
+    // Check course isn't closed
+    if (course.closingDate !== null && course.closingDate !== undefined)
+      throw new ValidationError(["Khóa học đã kết thúc, không thể tham gia khóa học."]);
+    // Check course doesn't start
+    const today = new Date();
+    if (today >= new Date(course.openingDate))
+      throw new ValidationError(["Khóa học đã bắt đầu, không thể tham gia khóa học."]);
+    // Check course is lock
+    if (course.lockTime !== null && course.lockTime !== undefined)
+      throw new ValidationError(["Khóa học đã bị khóa, không thể tham gia khóa học."]);
     // Check student
     const student = await UserStudentRepository.findStudentById(userId);
-    if (student === null) throw new NotFoundError();
+    if (student === null) throw new NotFoundError("Không tìm thấy thông tin của học viên.");
     // Check numberOfStudent
     const count = await StudentParticipateCourseRepository.countStudentsByCourseSlug(courseSlug);
     if (course.maxNumberOfStudent <= count)
-      throw new ValidationError([]);
+      throw new ValidationError(["Khóa học đã đầy, vui lòng chọn khóa học khác."]);
     // Check parent
     if (parentId) {
       if (student.userParent === null || student.userParent.user.id !== parentId)
-        throw new NotFoundError();
+        throw new NotFoundError("Không tìm thấy thông tin phụ huynh.");
     }
     // Haven't participate course
     const participation = await StudentParticipateCourseRepository.findByStudentAndCourse(userId, courseSlug);
-    if (participation !== null) throw new DuplicateError();
+    if (participation !== null) throw new DuplicateError("Bạn đã tham gia khóa học này rồi, vui lòng chọn khóa học khác.");
     // Create orders
     const resultFee = await this.caculateFeeAmount(course);
     const createPaymentJson = {
@@ -194,11 +205,11 @@ class PaymentServiceImpl implements PaymentServiceInterface {
 
     try {
       if (studentId === undefined || courseSlug === undefined || orderId === undefined)
-        throw new NotFoundError();
+        throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
       // Find order
       const data: any = await this.getOrderDetail(orderId);
       if (data === undefined || data === null || data.status !== "COMPLETED")
-        throw new NotFoundError();
+        throw new NotFoundError("Dữ liệu thanh toán không hợp lệ, vui lòng kiểm tra lại.");
       // Find course
       const course = await queryRunner.manager
         .createQueryBuilder(Course, "course")
@@ -214,7 +225,17 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         .leftJoinAndSelect("managerWorker.user", "managerUser")
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
-      if (course === null) throw new NotFoundError();
+      if (course === null) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
+      // Check course isn't closed
+      if (course.closingDate !== null && course.closingDate !== undefined)
+        throw new ValidationError(["Khóa học đã kết thúc, không thể tham gia khóa học."]);
+      // Check course doesn't start
+      const today = new Date();
+      if (today >= new Date(course.openingDate))
+        throw new ValidationError(["Khóa học đã bắt đầu, không thể tham gia khóa học."]);
+      // Check course is lock
+      if (course.lockTime !== null && course.lockTime !== undefined)
+        throw new ValidationError(["Khóa học đã bị khóa, không thể tham gia khóa học."]);
       // Find student
       const student = await queryRunner.manager
         .createQueryBuilder(UserStudent, "student")
@@ -223,7 +244,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         .leftJoinAndSelect("student.user", "user")
         .where("user.id = :studentId", { studentId })
         .getOne();
-      if (student === null) throw new NotFoundError();
+      if (student === null) throw new NotFoundError("Không tìm thấy thông tin của học viên.");
       //Check student participate course
       const participations = await queryRunner.manager
         .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
@@ -235,43 +256,41 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .getMany();
       const found = participations.find(s => s.student.user.id === studentId)
-      if (found) throw new DuplicateError();
+      if (found) throw new DuplicateError("Bạn đã tham gia khóa học này rồi, vui lòng chọn khóa học khác.");
       // Check max student number
       if (course.maxNumberOfStudent <= participations.length)
-        throw new ValidationError([]);
+        throw new ValidationError(["Khóa học đã đầy, vui lòng chọn khóa học khác."]);
       // Add participation
       const studentParticipateCourse = new StudentParticipateCourse();
       studentParticipateCourse.student = student;
       studentParticipateCourse.course = course;
       // Transaction
       const resultFee = await this.caculateFeeAmount(course);
-      if (resultFee.amount > 0) {
-        const transaction = new Transaction();
-        transaction.transCode = faker.random.numeric(16);
-        transaction.content = course.curriculum.type === TermCourse.LongTerm
-          ? `Tiền học phí tháng ${resultFee.feeDate.getMonth() + 1}`
-          : `Tiền học phí khóa học ${course.name}`;
-        transaction.amount = resultFee.amount;
-        transaction.type = TransactionType.Fee;
-        transaction.branch = course.branch;
-        transaction.payDate = new Date();
-        transaction.userEmployee = course.branch.userEmployee;
-        // Validate entity
-        const transValidateErrors = await validate(transaction);
-        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
-        // Save data
-        const savedTransaction = await queryRunner.manager.save(transaction);
-        // Create free
-        const fee = new Fee();
-        fee.transCode = savedTransaction;
-        fee.userStudent = student;
-        fee.course = course;
-        // Validate entity
-        const feeValidateErrors = await validate(fee);
-        if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
-        // Save data
-        await queryRunner.manager.save(fee);
-      }
+      const transaction = new Transaction();
+      transaction.transCode = faker.random.numeric(16);
+      transaction.content = course.curriculum.type === TermCourse.LongTerm
+        ? `Tiền học phí tháng ${resultFee.feeDate.getMonth() + 1}`
+        : `Tiền học phí khóa học ${course.name}`;
+      transaction.amount = resultFee.amount;
+      transaction.type = TransactionType.Fee;
+      transaction.branch = course.branch;
+      transaction.payDate = new Date();
+      transaction.userEmployee = course.branch.userEmployee;
+      // Validate entity
+      const transValidateErrors = await validate(transaction);
+      if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+      // Save data
+      const savedTransaction = await queryRunner.manager.save(transaction);
+      // Create free
+      const fee = new Fee();
+      fee.transCode = savedTransaction;
+      fee.userStudent = student;
+      fee.course = course;
+      // Validate entity
+      const feeValidateErrors = await validate(fee);
+      if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
+      // Save data
+      await queryRunner.manager.save(fee);
       studentParticipateCourse.billingDate = new Date(resultFee.feeDate);
       // Add user attend study session
       const attendanceQuery = queryRunner.manager
@@ -332,7 +351,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 }

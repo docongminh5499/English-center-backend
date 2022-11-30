@@ -3,12 +3,13 @@ import { BaseError } from "./base.error";
 export class UnauthorizedError extends BaseError {
   statusCode = 401;
 
-  constructor() {
+  constructor(message?: string) {
     super("Unauthorized");
+    this.message = message || "Unauthorized";
     Object.setPrototypeOf(this, UnauthorizedError.prototype);
   }
 
   serialize() {
-    return { message: "Unauthorized" };
+    return { message: this.message };
   }
 }

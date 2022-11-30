@@ -131,9 +131,9 @@ export class Course extends MyBaseEntity {
   @JoinColumn()
   curriculum: Curriculum;
 
-  @IsNotEmpty()
+  @IsOptional()
   @ManyToOne(() => Branch, {
-    nullable: false,
+    nullable: true,
     onUpdate: "CASCADE",
     onDelete: "CASCADE",
   })

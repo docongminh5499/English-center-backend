@@ -22,7 +22,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
                 .where("teacherWorker = :id")
                 .getQuery()
             return "Course.id IN " + subQuery
-        }).setParameter("id", teacherId);
+        }).andWhere("Course.lockTime IS NULL").setParameter("id", teacherId);
         return query.getCount()
     }
 
@@ -35,6 +35,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("Course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
+            .andWhere("Course.lockTime IS NULL")
             .andWhere((qb: any) => {
                 const subQuery = qb
                     .subQuery()
@@ -202,7 +203,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
                 .where("tutorWorker = :id")
                 .getQuery()
             return "Course.id IN " + subQuery
-        }).setParameter("id", tutorId);
+        }).andWhere("Course.lockTime IS NULL").setParameter("id", tutorId);
         return query.getCount()
     }
 
@@ -216,6 +217,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("Course.teacher", "teacher")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
+            .andWhere("Course.lockTime IS NULL")
             .andWhere((qb: any) => {
                 const subQuery = qb
                     .subQuery()
@@ -322,6 +324,9 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("course.studySessions", "studySessions")
             .leftJoinAndSelect("studySessions.shifts", "shifts")
             .where("course.slug = :courseSlug", { courseSlug })
+            .andWhere("course.closingDate IS NULL")
+            .andWhere("course.openingDate > CURDATE()")
+            .andWhere("course.lockTime IS NULL")
             .orderBy({
                 "lectures.order": "ASC",
                 "studySessions.date": "ASC"

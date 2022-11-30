@@ -3,12 +3,13 @@ import { BaseError } from "./base.error";
 export class QueryDatabaseError extends BaseError {
   statusCode = 422;
 
-  constructor() {
-    super("Query failed");
+  constructor(message?: string) {
+    super("Some error occur when querying database");
+    this.message = message || "Some error occur when querying database";
     Object.setPrototypeOf(this, QueryDatabaseError.prototype);
   }
 
   serialize() {
-    return { message: "Some error occur when querying database" };
+    return { message: this.message };
   }
 }

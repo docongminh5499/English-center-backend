@@ -19,7 +19,7 @@ export class TransactionConstants extends MyBaseEntity {
   @Min(1)
   @Max(28)
   @Column({ type: "int", nullable: false })
-  feeDueDay: number;       // Ngày trễ hạn học phí (> feeDay)
+  feeDueDay: number;       // Ngày trễ hạn học phí (1-28)
 
   @IsNotEmpty()
   @IsNumber()

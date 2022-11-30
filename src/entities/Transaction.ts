@@ -2,11 +2,11 @@ import { Entity, ManyToOne, Column, PrimaryColumn, JoinColumn, Index } from "typ
 import {
   IsNotEmpty,
   IsNumber,
-  IsPositive,
   IsString,
   Length,
   IsEnum,
   IsDate,
+  Min,
 } from "class-validator";
 import { Branch } from "./Branch";
 import { MyBaseEntity } from "./MyBaseEntity";
@@ -30,7 +30,7 @@ export class Transaction extends MyBaseEntity {
 
   @IsNotEmpty()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   @Column({
     type: "decimal",
     precision: 9,

@@ -116,6 +116,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             }))
             .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
             .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .andWhere("course.lockTime IS NULL")
             .orderBy({ "ss.date": "ASC" });
         queryStmt = pageable.buildQuery(queryStmt);
         const results = await queryStmt.getMany();
@@ -144,6 +145,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             }))
             .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
             .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .andWhere("course.lockTime IS NULL")
             .getCount();
     }
 
@@ -161,6 +163,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .where("tutorUser.id = :tutorId", { tutorId })
             .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
             .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .andWhere("course.lockTime IS NULL")
             .orderBy({ "ss.date": "ASC" });
         queryStmt = pageable.buildQuery(queryStmt);
         const results = await queryStmt.getMany();
@@ -185,6 +188,7 @@ class StudySessionRepositoryImpl implements StudySessionRepositoryInterface {
             .where("tutorUser.id = :tutorId", { tutorId })
             .andWhere("ss.date >= :startDate", { startDate: moment(startDate).format("YYYY-MM-DD") })
             .andWhere("ss.date <= :endDate", { endDate: moment(endDate).format("YYYY-MM-DD") })
+            .andWhere("course.lockTime IS NULL")
             .getCount();
     }
 

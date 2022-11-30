@@ -82,11 +82,15 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getCourseDetail(teacherId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) return null;
+    if (course === null)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
+    // Check lockTime
+    if (course.lockTime !== null && course.lockTime !== undefined)
+      throw new ValidationError(['Không tìm thấy thông tin khóa học.']);
     // Check permissions
     const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(teacherId);
     const foundId = courseIds.find(object => object.id === course.id);
-    if (!foundId) return null;
+    if (!foundId) throw new ValidationError(['Không tìm thấy thông tin khóa học.']);
     // Return data
     const courseDetail = new CourseDetailDto();
     courseDetail.version = course.version;
@@ -112,6 +116,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (userId === undefined || courseSlug === undefined) return { total: 0, students: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course === null) return { total: 0, students: [] };
+    if (course.lockTime !== null && course.lockTime !== undefined) return { total: 0, students: [] };
 
     const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(userId);
     const foundId = courseIds.find(object => object.id === course.id);
@@ -130,15 +135,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getStudentDetailsInCourse(userId: number, studentId: number,
     courseSlug: string): Promise<{ student: UserStudent, doExercises: StudentDoExercise[], attendences: UserAttendStudySession[], makeUpLessons: MakeUpLession[] }> {
-    if (userId === undefined) throw new NotFoundError();
+    if (userId === undefined) throw new NotFoundError("Không tìm thấy thông tin học viên.");
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
+    if (course === null) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
+    if (course.lockTime !== null && course.lockTime !== undefined) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
 
     const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(userId);
     const foundId = courseIds.find(object => object.id === course.id);
-    if (!foundId) throw new ValidationError([]);
+    if (!foundId) throw new ValidationError(["Không tìm thấy thông tin khóa học."]);
     if (!StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug))
-      throw new ValidationError([]);
+      throw new ValidationError(["Học viên không tham gia khóa học này."]);
 
     const isSameTeacher = course.teacher.worker.user.id === userId;
     const [student, doExercises, attendences, makeUpLessons] = await Promise.all([
@@ -147,7 +153,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       UserAttendStudySessionRepository.findAttendenceByStudentAndCourse(studentId, courseSlug, isSameTeacher ? undefined : userId),
       MakeUpLessionRepository.findByStudentAndCourse(studentId, courseSlug, isSameTeacher ? undefined : userId),
     ]);
-    if (student === null) throw new NotFoundError();
+    if (student === null) throw new NotFoundError("Không tìm thấy thông tin học viên.");
     return { student, doExercises, attendences, makeUpLessons };
   }
 
@@ -155,7 +161,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getExercises(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, exercises: Exercise[] }> {
     if (userId === undefined) return { total: 0, exercises: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== userId) return { total: 0, exercises: [] };
+    if (course === null) return { total: 0, exercises: [] };
+    if (course.lockTime !== null && course.lockTime !== undefined) return { total: 0, exercises: [] };
+    if (course.teacher.worker.user.id !== userId) return { total: 0, exercises: [] };
 
     const pageable = new Pageable(pageableDto);
     const result = await ExerciseRepository.findExercisesByCourseSlug(courseSlug, pageable);
@@ -169,14 +177,19 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async deleteExercise(teacherId: number, exerciseId: number): Promise<boolean> {
-    if (teacherId === undefined) return false;
+    if (teacherId === undefined)
+      throw new NotFoundError("Bạn không có quyền xóa bài tập này.");
     const exercise = await ExerciseRepository.findExerciseById(exerciseId);
-    if (exercise === null) return false;
-    if (exercise.course.teacher.worker.user.id !== teacherId) return false;
+    if (exercise === null)
+      throw new NotFoundError("Không tìm thấy thông tin bài tập.");
+    if (exercise.course.teacher.worker.user.id !== teacherId)
+      throw new ValidationError(["Bạn không có quyền xóa bài tập này."]);
     if (exercise.course.closingDate !== null && exercise.course.closingDate !== undefined)
-      return false;
+      throw new ValidationError(["Khóa học đã kết thúc, không thể xóa bài tập."]);
+    if (exercise.course.lockTime !== null && exercise.course.lockTime !== undefined)
+      throw new ValidationError(["Khóa học đã bị khóa, không thể xóa bài tập."]);
     if (getExerciseStatus(exercise.openTime, exercise.endTime) === ExerciseStatus.Opened)
-      return false;
+      throw new ValidationError(["Bài tập đang diễn ra, không thể xóa bài tập."]);
     const result = await ExerciseRepository.deleteExercise(exerciseId);
     return result;
   }
@@ -185,7 +198,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   async getDocuments(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, documents: Document[] }> {
     if (userId === undefined) return { total: 0, documents: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== userId) return { total: 0, documents: [] };
+    if (course === null) return { total: 0, documents: [] };
+    if (course.lockTime !== null && course.lockTime !== undefined) return { total: 0, documents: [] };
+    if (course.teacher.worker.user.id !== userId) return { total: 0, documents: [] };
 
     const pageable = new Pageable(pageableDto);
     const result = await DocumentRepository.findDocumentsByCourseSlug(courseSlug, pageable);
@@ -198,13 +213,17 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async deleteDocument(teacherId: number, documentId: number): Promise<boolean> {
-    if (teacherId === undefined) return false;
-
+    if (teacherId === undefined)
+      throw new NotFoundError("Bạn không có quyền xóa tài liệu này.");
     const document = await DocumentRepository.findDocumentById(documentId);
-    if (document === null) return false;
-    if (document.course.teacher.worker.user.id !== teacherId) return false;
+    if (document === null)
+      throw new NotFoundError("Không tìm thấy thông tin tài liệu.");
+    if (document.course.teacher.worker.user.id !== teacherId)
+      throw new ValidationError(["Bạn không có quyền xóa tài liệu này."]);
+    if (document.course.lockTime !== null && document.course.lockTime !== undefined)
+      throw new ValidationError(["Khóa học đã bị khóa, không thể xóa tài liệu."]);
     if (document.course.closingDate !== null && document.course.closingDate !== undefined)
-      return false;
+      throw new ValidationError(["Khóa học đã kết thúc, không thể xóa tài liệu."]);
     const result = await DocumentRepository.deleteDocument(documentId);
     if (document.src) {
       const filePath = path.join(process.cwd(), "public", document.src);
@@ -216,24 +235,26 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
   async createDocument(userId: number, documentDto: DocumentDto): Promise<Document | null> {
-    if (userId === undefined) return null;
-
+    if (userId === undefined)
+      throw new NotFoundError("Bạn không có quyền thêm tài liệu.");
     if (documentDto.courseSlug === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Không tìm thấy thông tin khóa học."]);
     const course = await CourseRepository.findCourseBySlug(documentDto.courseSlug);
     if (course === null)
-      throw new ValidationError([]);
-
-    if (course.teacher.worker.user.id !== userId) return null;
+      throw new ValidationError(["Không tìm thấy thông tin khóa học."]);
+    if (course.lockTime !== null && course.lockTime !== undefined)
+      throw new ValidationError(["Khóa học đã bị khóa, không thể thêm tài liệu."]);
+    if (course.teacher.worker.user.id !== userId)
+      throw new NotFoundError("Bạn không có quyền thêm tài liệu.");
     if (course.closingDate !== null && course.closingDate !== undefined)
-      return null;
+      throw new ValidationError(["Khóa học đã kết thúc, không thể thêm tài liệu."]);
 
     let documentSrc = "";
     if (documentDto.documentType === "link" && documentDto.documentLink)
       documentSrc = documentDto.documentLink;
     else if (documentDto.documentType === "file" && documentDto.documentFile && documentDto.documentFile.fieldname)
       documentSrc = DOCUMENT_DESTINATION_SRC + documentDto.documentFile.filename;
-    else throw new ValidationError([]);
+    else throw new ValidationError(["Loại tài liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     return await DocumentRepository.createDocument(
       documentDto.documentName,
@@ -251,7 +272,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
     if (userId === undefined) return result;
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.teacher.worker.user.id !== userId) return result;
+    if (course === null) return result;
+    if (course.lockTime !== null && course.lockTime !== undefined) return result;
+    if (course.teacher.worker.user.id !== userId) return result;
     if (course.closingDate === null || course.closingDate === undefined) return result;
 
     const pageable = new Pageable(pageableDto);
@@ -279,6 +302,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (teacherId === undefined) return { total: 0, studySessions: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course === null) return { total: 0, studySessions: [] };
+    if (course.lockTime !== null && course.lockTime !== undefined) return { total: 0, studySessions: [] };
 
     const courseIds = await StudySessionRepository.findCourseIdsByTeacherId(teacherId);
     const foundId = courseIds.find(object => object.id === course.id);
@@ -306,6 +330,10 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (teacherId === undefined || studySessionId === undefined) return result;
     result.studySession = await StudySessionRepository.findStudySessionById(studySessionId);
     if (result.studySession === null) return result;
+    if (result.studySession.course.lockTime !== null && result.studySession.course.lockTime !== undefined) {
+      result.studySession = null;
+      return result;
+    }
     if (result.studySession.teacher.worker.user.id !== teacherId &&
       result.studySession.course.teacher.worker.user.id !== teacherId) {
       result.studySession = null;
@@ -369,7 +397,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async modifyStudySessionDetail(teacherId?: number, studySession?: StudySession, attendences?: UserAttendStudySession[], makeups?: MakeUpLession[]): Promise<boolean> {
-    if (teacherId === undefined || studySession === undefined || attendences === undefined || makeups === undefined) return false;
+    if (teacherId === undefined || studySession === undefined || attendences === undefined || makeups === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction();
@@ -389,15 +418,17 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           "shifts.startTime": "ASC",
         }).getOne();
       if (foundStudySession === null || foundStudySession.teacher.worker.user.id !== teacherId)
-        throw new NotFoundError();
+        throw new NotFoundError("Không tìm thấy thông tin buổi học.");
       // Check course and studySession state
       if (getStudySessionState(foundStudySession) === StudySessionState.Ready)
-        throw new ValidationError([]);
+        throw new ValidationError(["Buổi học chưa bắt đầu, bạn không thể chỉnh sửa buổi học."]);
       if (foundStudySession.course.closingDate !== null)
-        throw new ValidationError([]);
+        throw new ValidationError(["Khóa học đã kết thúc, bạn không thể chỉnh sửa buổi học."]);
+      if (foundStudySession.course.lockTime !== null && foundStudySession.course.lockTime !== undefined)
+        throw new ValidationError(["Khóa học đã bị khóa, bạn không thể chỉnh sửa buổi học."]);
       // Update study session
       if (foundStudySession.version !== studySession.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       foundStudySession.notes = studySession.notes;
       // Validation
       const validateErrors = await validate(foundStudySession);
@@ -406,12 +437,12 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       const savedStudySession = await queryRunner.manager.save(foundStudySession);
       if (savedStudySession.version !== studySession.version + 1
         && savedStudySession.version !== studySession.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       // Update attendences
       for (let index = 0; index < attendences.length; index++) {
         const attendence = attendences[index];
         if (attendence.studySession.id !== studySession.id)
-          throw new ValidationError([]);
+          throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
         const foundAttendence = await queryRunner.manager
           .createQueryBuilder(UserAttendStudySession, "a")
           .setLock("pessimistic_write")
@@ -423,21 +454,21 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           .andWhere("user.id = :userId", { userId: attendence.student.user.id })
           .getOne();
         if (foundAttendence === null)
-          throw new NotFoundError();
+          throw new NotFoundError("Không tìm thấy dữ liệu học sinh tham gia buổi học, vui lòng kiểm tra lại.");
         if (foundAttendence.version !== attendence.version)
-          throw new InvalidVersionColumnError();
+          throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
         foundAttendence.isAttend = attendence.isAttend;
         foundAttendence.commentOfTeacher = attendence.commentOfTeacher;
         await queryRunner.manager.upsert(UserAttendStudySession, foundAttendence, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
         await foundAttendence.reload();
         if (foundAttendence.version !== attendence.version + 1
           && foundAttendence.version !== attendence.version)
-          throw new InvalidVersionColumnError();
+          throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       }
       for (let index = 0; index < makeups.length; index++) {
         const makeup = makeups[index];
         if (makeup.targetStudySession.id !== studySession.id)
-          throw new ValidationError([]);
+          throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
         const foundMakeUp = await queryRunner.manager
           .createQueryBuilder(MakeUpLession, "mul")
           .setLock("pessimistic_write")
@@ -449,16 +480,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           .andWhere("user.id = :userId", { userId: makeup.student.user.id })
           .getOne();
         if (foundMakeUp === null)
-          throw new NotFoundError();
+          throw new NotFoundError("Không tìm thấy dữ liệu học sinh đăng ký học bù buổi học, vui lòng kiểm tra lại.");
         if (foundMakeUp.version !== makeup.version)
-          throw new InvalidVersionColumnError();
+          throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
         foundMakeUp.isAttend = makeup.isAttend;
         foundMakeUp.commentOfTeacher = makeup.commentOfTeacher;
         await queryRunner.manager.upsert(MakeUpLession, foundMakeUp, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
         await foundMakeUp.reload();
         if (foundMakeUp.version !== makeup.version + 1
           && foundMakeUp.version !== makeup.version)
-          throw new InvalidVersionColumnError();
+          throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
         const foundAttendence = await queryRunner.manager
           .createQueryBuilder(UserAttendStudySession, "a")
           .setLock("pessimistic_write")
@@ -470,7 +501,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
           .andWhere("user.id = :userId", { userId: makeup.student.user.id })
           .getOne();
         if (foundAttendence === null)
-          throw new NotFoundError();
+          throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
         foundAttendence.isAttend = makeup.isAttend;
         foundAttendence.commentOfTeacher = makeup.commentOfTeacher;
         await queryRunner.manager.upsert(UserAttendStudySession, foundAttendence, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
@@ -482,7 +513,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 
@@ -490,17 +521,18 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async getPersonalInformation(userId: number): Promise<UserTeacher> {
     if (userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn");
     const userTeacher = await UserTeacherRepository.findUserTeacherByid(userId);
     if (userTeacher === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn");
     return userTeacher;
   }
 
 
   async modifyPersonalInformation(userId: number, userTeacher: UserTeacher, avatarFile?: FileDto | null): Promise<CredentialDto | null> {
     const persistenceUserTeacher = await UserTeacherRepository.findUserTeacherByid(userId);
-    if (persistenceUserTeacher === null) return null;
+    if (persistenceUserTeacher === null)
+      throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
     const oldAvatarSrc = persistenceUserTeacher.worker.user.avatar;
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -534,11 +566,11 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       persistenceUserTeacher.slug = slug;
 
       if (persistenceUserTeacher.version !== userTeacher.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (persistenceUserTeacher.worker.version !== userTeacher.worker.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (persistenceUserTeacher.worker.user.version !== userTeacher.worker.user.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
 
       const userValidateErrors = await validate(persistenceUserTeacher.worker.user);
       if (userValidateErrors.length) throw new ValidationError(userValidateErrors);
@@ -553,13 +585,13 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
       if (persistenceUserTeacher.version !== userTeacher.version + 1
         && persistenceUserTeacher.version !== userTeacher.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (savedWorker.version !== userTeacher.worker.version + 1
         && savedWorker.version !== userTeacher.worker.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (savedUser.version !== userTeacher.worker.user.version + 1
         && savedUser.version !== userTeacher.worker.user.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       await queryRunner.commitTransaction();
       await queryRunner.release();
       if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
@@ -583,7 +615,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
@@ -604,9 +636,11 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async modifyCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
-    if (userId === undefined) return null;
+    if (userId === undefined)
+      throw new NotFoundError("Bạn không có quyền chỉnh sửa chương trình dạy này.");
     const isManager = await BranchRepository.checkIsManager(userId);
-    if (!isManager) return null;
+    if (!isManager)
+      throw new ValidationError(["Bạn không có quyền chỉnh sửa chương trình dạy này."])
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -614,7 +648,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
     try {
       if (curriculumDto == undefined || curriculumDto.curriculum.id == undefined)
-        throw new NotFoundError();
+        throw new NotFoundError("Không tìm thấy thông tin chương trình dạy.");
       const foundCurriculum = await queryRunner.manager
         .createQueryBuilder(Curriculum, "curriculum")
         .setLock("pessimistic_write")
@@ -626,9 +660,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         .getOne();
 
       if (foundCurriculum === null)
-        throw new NotFoundError();
+        throw new NotFoundError("Không tìm thấy thông tin chương trình dạy.");
       if (curriculumDto.curriculum.version !== foundCurriculum?.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
 
       const newCurriculum = new Curriculum();
       newCurriculum.name = curriculumDto.curriculum.name;
@@ -707,7 +741,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       const validateErrors = await validate(newCurriculum);
       if (validateErrors.length) throw new ValidationError(validateErrors);
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
-      if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
+      if (savedCurriculum.id === null || savedCurriculum.id === undefined)
+        throw new SystemError("Chỉnh sửa chương trình dạy thất bại, vui lòng thử lại sau.");
       for (const prefer of prefers) {
         const preferEntity = new TeacherPreferCurriculum();
         preferEntity.curriculum = savedCurriculum;
@@ -729,7 +764,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         const lectureValidateErrors = await validate(newLecture);
         if (lectureValidateErrors.length) throw new ValidationError(lectureValidateErrors);
         const savedLecture = await queryRunner.manager.save(newLecture);
-        if (savedLecture.id === null || savedLecture.id === undefined) throw new Error();
+        if (savedLecture.id === null || savedLecture.id === undefined)
+          throw new SystemError("Chỉnh sửa chương trình dạy thất bại, vui lòng thử lại sau.");
       }
       await queryRunner.commitTransaction();
       await queryRunner.release();
@@ -738,16 +774,18 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
 
 
   async createCurriculum(userId?: number, curriculumDto?: CurriculumDto): Promise<Curriculum | null> {
-    if (userId === undefined) return null;
+    if (userId === undefined)
+      throw new NotFoundError("Bạn không có quyền thêm chương trình dạy.");
     const isManager = await BranchRepository.checkIsManager(userId);
-    if (!isManager) return null;
+    if (!isManager)
+      throw new ValidationError(["Bạn không có quyền thêm chương trình dạy."])
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -755,7 +793,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
     try {
       if (curriculumDto == undefined)
-        throw new NotFoundError();
+        throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
 
       const newCurriculum = new Curriculum();
       newCurriculum.name = curriculumDto.curriculum.name;
@@ -789,7 +827,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (curriculumValidateErrors.length) throw new ValidationError(curriculumValidateErrors);
 
       const savedCurriculum = await queryRunner.manager.save(newCurriculum);
-      if (savedCurriculum.id === null || savedCurriculum.id === undefined) throw new Error();
+      if (savedCurriculum.id === null || savedCurriculum.id === undefined)
+        throw new SystemError("Thêm chương trình dạy thất bại, vui lòng thử lại sau.");
       for (let index = 0; index < curriculumDto.curriculum.lectures.length; index++) {
         const lecture = curriculumDto.curriculum.lectures[index];
         const newLecture = new Lecture();
@@ -802,7 +841,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         const lectureValidateErrors = await validate(newLecture);
         if (lectureValidateErrors.length) throw new ValidationError(lectureValidateErrors);
         const savedLecture = await queryRunner.manager.save(newLecture);
-        if (savedLecture.id === null || savedLecture.id === undefined) throw new Error();
+        if (savedLecture.id === null || savedLecture.id === undefined)
+          throw new SystemError("Thêm chương trình dạy thất bại, vui lòng thử lại sau.");
       }
       await queryRunner.commitTransaction();
       await queryRunner.release();
@@ -811,7 +851,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
@@ -819,11 +859,14 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async deleteCurriculum(userId?: number, curriculumId?: number): Promise<boolean> {
-    if (userId === undefined || curriculumId === undefined) return false;
+    if (userId === undefined || curriculumId === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
-    if (curriculum === null) return false;
+    if (curriculum === null)
+      throw new NotFoundError("Không tìm thấy thông tin chương trình dạy.");
     const isManager = await BranchRepository.checkIsManager(userId);
-    if (!isManager) return false;
+    if (!isManager)
+      throw new ValidationError(["Bạn không có quyền xóa chương trình dạy này."]);
 
     const count = await CourseRepository.countByCurriculumId(curriculumId);
     if (count === 0) {
@@ -1192,21 +1235,26 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async addPreferredCurriculum(userId?: number, teacherId?: number, curriculumId?: number): Promise<boolean> {
-    if (userId === undefined || teacherId === undefined || curriculumId === undefined) return false;
+    if (userId === undefined || teacherId === undefined || curriculumId === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.")
     // Check is manager
     const manager = await UserTeacherRepository.findUserTeacherByid(userId);
     if (manager === null || manager.worker.user.id !== manager.worker.branch.userTeacher.worker.user.id)
-      return false;
+      throw new ValidationError(['Bạn không có quyền chỉ định giáo viên vào chương trình dạy hiện tại.'])
     // Check existed curriculum
     const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
-    if (curriculum === null) return false;
+    if (curriculum === null)
+      throw new NotFoundError("Không tìm thấy thông tin chương trình dạy")
     // Check existed teacher
     const teacher = await UserTeacherRepository.findPreferedCurriculums(teacherId);
-    if (teacher === null) return false;
+    if (teacher === null)
+      throw new NotFoundError("Không tìm thấy thông tin giáo viên.")
     // Check manager is same branch with teacher
-    if (teacher.worker.branch.id !== manager.worker.branch.id) return false;
+    if (teacher.worker.branch.id !== manager.worker.branch.id)
+      throw new ValidationError(['Bạn không có quyền chỉ định giáo viên này vào chương trình dạy hiện tại.'])
     // Check prefered existed or not
-    if (teacher.preferredCurriculums.find(cur => cur.curriculum.id === curriculumId) !== undefined) return false;
+    if (teacher.preferredCurriculums.find(cur => cur.curriculum.id === curriculumId) !== undefined)
+      throw new ValidationError(['Giáo viên đã được chỉ định trước đó.'])
     // Save data
     const prefer = new TeacherPreferCurriculum();
     prefer.curriculum = curriculum;
@@ -1220,33 +1268,45 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
 
   async removePreferredCurriculum(userId?: number, teacherId?: number, curriculumId?: number): Promise<boolean> {
-    if (userId === undefined || teacherId === undefined || curriculumId === undefined) return false;
+    if (userId === undefined || teacherId === undefined || curriculumId === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.")
     // Check is manager
     const manager = await UserTeacherRepository.findUserTeacherByid(userId);
     if (manager === null || manager.worker.user.id !== manager.worker.branch.userTeacher.worker.user.id)
-      return false;
+      throw new ValidationError(['Bạn không có quyền xóa giáo viên khỏi chương trình dạy hiện tại.'])
     // Check existed curriculum
     const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
-    if (curriculum === null) return false;
+    if (curriculum === null)
+      throw new NotFoundError("Không tìm thấy thông tin chương trình dạy")
     // Check existed teacher
     const teacher = await UserTeacherRepository.findPreferedCurriculums(teacherId);
-    if (teacher === null) return false;
+    if (teacher === null)
+      throw new NotFoundError("Không tìm thấy thông tin giáo viên.")
     // Check manager is same branch with teacher
-    if (teacher.worker.branch.id !== manager.worker.branch.id) return false;
+    if (teacher.worker.branch.id !== manager.worker.branch.id)
+      throw new ValidationError(['Bạn không có quyền xóa giáo viên khỏi chương trình dạy hiện tại.'])
     // Check prefered existed or not
-    if (teacher.preferredCurriculums.find(cur => cur.curriculum.id === curriculumId) === undefined) return false;
+    if (teacher.preferredCurriculums.find(cur => cur.curriculum.id === curriculumId) === undefined)
+      throw new ValidationError(['Giáo viên chưa được chỉ định dạy chương trình này.'])
     // Delete data
     return await TeacherPreferCurriculumRepository.deletePreferCurriculum(teacherId, curriculumId);
   }
 
 
   async closeCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
-    if (userId === undefined || courseSlug === undefined) return null;
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) return null;
-    if (course.teacher.worker.user.id !== userId) return null;
-    if (course.closingDate !== null) return null;
-    if (moment().diff(moment(course.expectedClosingDate)) < 0) return null;
+    if (course === null)
+      throw new NotFoundError("Không tìm thấy khóa học.")
+    if (course.teacher.worker.user.id !== userId)
+      throw new ValidationError(["Bạn không có quyền đóng khóa học này."])
+    if (course.lockTime !== null && course.lockTime !== undefined)
+      throw new ValidationError(['Khóa học đã bị khóa, không thể thực hiện tác vụ.'])
+    if (course.closingDate !== null)
+      throw new ValidationError(["Khóa học đã được đóng trước đó."])
+    if (moment().diff(moment(course.expectedClosingDate)) < 0)
+      throw new ValidationError(["Chưa thể đóng quá học ngay bây giờ, chỉ được đóng khóa học sau ngày dự kiến kết thúc của khóa học."])
     course.closingDate = new Date();
     const savedCourse = await course.save();
     return savedCourse;
@@ -1271,9 +1331,9 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async sendNotification(queryRunner: QueryRunner, notificationDto: NotificationDto): Promise<NotificationResponseDto> {
     if (notificationDto.userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin người nhận thông báo.");
     if (notificationDto.content === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Nội dung thông báo không hợp lệ, vui lòng kiểm tra lại."]);
     const foundUser = await queryRunner.manager
       .findOne(User, {
         where: { id: notificationDto.userId },
@@ -1281,7 +1341,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         lock: { mode: "pessimistic_read" },
         transaction: true
       });
-    if (foundUser == null) throw new NotFoundError();
+    if (foundUser == null) throw new NotFoundError("Không tìm thấy thông tin người nhận thông báo.");
     const response = new NotificationResponseDto();
 
     const notification = new Notification();
@@ -1294,7 +1354,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (validateErrors.length) throw new ValidationError(validateErrors);
     const savedNotification = await queryRunner.manager.save(notification);
     if (savedNotification === null || savedNotification.id === undefined || savedNotification.id === null)
-      throw new SystemError();
+      throw new SystemError("Gửi thông báo thất bại, vui lòng thử lại sau.");
 
     response.success = true;
     response.receiverSocketStatuses = foundUser.socketStatuses;
@@ -1312,7 +1372,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
 
   async requestOffStudySession(userId?: number, studySessionId?: number, excuse?: string): Promise<boolean> {
     if (userId === undefined || studySessionId === undefined || excuse === undefined)
-      return false;
+      throw new ValidationError(['Dữ liệu không hợp lệ, vui lòng kiểm tra lại.'])
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -1328,7 +1388,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         .leftJoinAndSelect("worker.user", "user")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (teacher === null) throw new NotFoundError();
+      if (teacher === null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
       // Find study session
       const studySession = await queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -1343,13 +1403,15 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         .where("ss.id = :studySessionId", { studySessionId })
         .orderBy({ "shifts.startTime": "ASC" })
         .getOne();
-      if (studySession === null) throw new NotFoundError();
+      if (studySession === null) throw new NotFoundError("Không tìm thấy thông tin buổi học.");
+      if (studySession.course.lockTime !== null && studySession.course.lockTime !== undefined)
+        throw new ValidationError(["Buổi học đã bị khóa, không thể gửi yêu cầu."]);
       // Check studySession is ready
       if (getStudySessionState(studySession) !== StudySessionState.Ready)
-        throw new ValidationError([])
+        throw new ValidationError(["Buổi học đang diễn ra hoặc đã kết thúc, không thể gửi yêu cầu."])
       // Check teacher
       if (studySession.teacher.worker.user.id !== userId)
-        throw new ValidationError([])
+        throw new ValidationError(["Buổi học không thuộc về bạn, vui lòng kiểm tra lại."])
       // Query employees by branch
       const employees = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -1389,7 +1451,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 

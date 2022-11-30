@@ -92,7 +92,7 @@ class MessageServiceImpl implements MessageServiceInterface {
 
   async getContacts(userId?: number, pageableDto?: PageableDto): Promise<ContactListDto> {
     if (userId === undefined || pageableDto === undefined || pageableDto === null)
-      throw new InvalidTokenError();
+      throw new InvalidTokenError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
 
     const sortable = new Sortable().add("sendingTime", "DESC");
     const pageable = new Pageable(pageableDto);
@@ -157,7 +157,7 @@ class MessageServiceImpl implements MessageServiceInterface {
 
   async getMessages(user: UserDto, targetUser: UserDto, pageableDto: PageableDto): Promise<MessageListDto> {
     if (user.id === undefined || targetUser.id === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     const sortable = new Sortable().add("sendingTime", "DESC");
     const pageable = new Pageable(pageableDto);
@@ -183,10 +183,10 @@ class MessageServiceImpl implements MessageServiceInterface {
 
   async getUnreadMessageCount(user: UserDto): Promise<number> {
     if (user.id === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin của bạn.");
     const userEntity = await UserRepository.findUserByid(user.id);
     if (userEntity === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin của bạn.");
     return UserChatEachOtherRepository.getUnreadMessageCount(userEntity);
   }
 }

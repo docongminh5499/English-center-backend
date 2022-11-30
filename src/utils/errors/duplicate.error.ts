@@ -3,12 +3,13 @@ import { BaseError } from "./base.error";
 export class DuplicateError extends BaseError {
   statusCode = 409;
 
-  constructor() {
+  constructor(message?: string) {
     super("Instance already exists");
+    this.message = message || "Instance already exists";
     Object.setPrototypeOf(this, DuplicateError.prototype);
   }
 
   serialize() {
-    return { message: "Instance already exists" };
+    return { message: this.message };
   }
 }

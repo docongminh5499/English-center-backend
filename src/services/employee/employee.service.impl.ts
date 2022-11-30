@@ -67,10 +67,10 @@ import { TransactionConstants } from "../../entities/TransactionConstants";
 class EmployeeServiceImpl implements EmployeeServiceInterface {
   async getPersonalInformation(userId: number): Promise<UserEmployee> {
     if (userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin của bạn");
     const userEmployee = await EmployeeRepository.findUserEmployeeByid(userId);
     if (userEmployee === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Không tìm thấy thông tin của bạn");
     return userEmployee;
   }
 
@@ -90,7 +90,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (persistenceUserEmployee === null) throw new NotFoundError();
+      if (persistenceUserEmployee === null) throw new NotFoundError("Không tìm thấy thông tin của bạn");
       const oldAvatarSrc = persistenceUserEmployee.worker.user.avatar;
 
       persistenceUserEmployee.worker.user.fullName = userEmployee.worker.user.fullName;
@@ -105,11 +105,11 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (avatarFile && avatarFile.filename)
         persistenceUserEmployee.worker.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
       if (persistenceUserEmployee.version !== userEmployee.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (persistenceUserEmployee.worker.version !== userEmployee.worker.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (persistenceUserEmployee.worker.user.version !== userEmployee.worker.user.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
 
       const userValidateErrors = await validate(persistenceUserEmployee.worker.user);
       if (userValidateErrors.length) throw new ValidationError(userValidateErrors);
@@ -125,13 +125,13 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
       if (persistenceUserEmployee.version !== userEmployee.version + 1
         && persistenceUserEmployee.version !== userEmployee.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (savedWorker.version !== userEmployee.worker.version + 1
         && savedWorker.version !== userEmployee.worker.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       if (savedUser.version !== userEmployee.worker.user.version + 1
         && savedUser.version !== userEmployee.worker.user.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
 
       await queryRunner.commitTransaction();
       await queryRunner.release();
@@ -205,7 +205,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async getCoursesByBranch(employeeId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
     const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn");
     const selectable = new Selectable()
       .add("Course.id", "id")
       .add("Course.image", "image")
@@ -235,11 +235,11 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async getCourseDetail(employeeId: number, courseSlug: string): Promise<Partial<CourseDetailDto> | null> {
     const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
 
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
-    if (course.branch.id !== employee.worker.branch.id) throw new NotFoundError();
+    if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
+    if (course.branch.id !== employee.worker.branch.id) throw new NotFoundError("Bạn không có quyền xem thông tin khóa học này.");
 
     const courseDetail = new CourseDetailDto();
     courseDetail.version = course.version;
@@ -268,16 +268,17 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   async getStudySessions(employeeId: number, courseSlug: string,
     pageableDto: PageableDto, query?: string): Promise<{ total: number, studySessions: StudySession[] }> {
 
-    if (employeeId === undefined) return { total: 0, studySessions: [] };
+    if (employeeId === undefined) throw new NotFoundError("Bạn không có quyền xem danh sách buổi học.");
     const employee = await EmployeeRepository.findUserEmployeeByid(employeeId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền xem danh sách buổi học.");
 
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course?.branch.id !== employee.worker.branch.id) return { total: 0, studySessions: [] };
+    if (course === null) throw new NotFoundError("Không tìm thấy khóa học.")
+    if (course.branch.id !== employee.worker.branch.id) throw new NotFoundError("Bạn không có quyền xem thông tin khóa học này.")
+
     const pageable = new Pageable(pageableDto);
     const result = await StudySessionRepository.findStudySessionsByCourseSlugAndTeacher(courseSlug, pageable, undefined, query);
     const total = await StudySessionRepository.countStudySessionsByCourseSlugAndTeacher(courseSlug, undefined, query);
-
     return {
       total: total,
       studySessions: result,
@@ -287,7 +288,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
 
   async createCourse(userId?: number, createCourseDto?: CreateCourseDto): Promise<Course | null> {
-    if (userId === undefined || createCourseDto === undefined || createCourseDto === null) return null;
+    if (userId === undefined || createCourseDto === undefined || createCourseDto === null)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     if (createCourseDto.name === undefined ||
       createCourseDto.maxNumberOfStudent === undefined ||
       createCourseDto.price === undefined ||
@@ -296,7 +298,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       createCourseDto.curriculum === undefined ||
       createCourseDto.teacher === undefined ||
       createCourseDto.branch === undefined)
-      return null;
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
     const queryRunner = AppDataSource.createQueryRunner();
@@ -314,11 +316,12 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         createCourseDto.shifts.length !== createCourseDto.classrooms.length ||
         createCourseDto.shifts.length !== createCourseDto.tutors.length ||
         createCourseDto.classrooms.length !== createCourseDto.tutors.length)
-        throw new ValidationError([]);
+        throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
       // Course need to belong to the branch
       const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== createCourseDto.branch) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền tạo khóa học.");
+      if (employee.worker.branch.id !== createCourseDto.branch)
+        throw new ValidationError(["Bạn không có quyền tạo khóa học tại chi nhánh hiện tại."]);
       // Teacher want to teach the course
       const preferedTeachers = await queryRunner.manager
         .createQueryBuilder(UserTeacher, "teacher")
@@ -332,10 +335,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .andWhere("curriculums.latest = true")
         .getMany();
       const foundTeacher = preferedTeachers.find(teacher => teacher.worker.user.id === createCourseDto.teacher);
-      if (!foundTeacher) throw new ValidationError([]);
+      if (!foundTeacher) throw new ValidationError(["Giáo viên được chọn không dạy chương trình học này."]);
       //Find curriculum
       const curriculum = await CurriculumRepository.getCurriculumById(createCourseDto.curriculum);
-      if (curriculum === null) throw new NotFoundError();
+      if (curriculum === null) throw new NotFoundError("Không tìm thấy dữ liệu chương trình dạy");
       //ChoseSchedule
       const choseSchedule = {
         choseTeacher: foundTeacher,
@@ -347,11 +350,13 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const availableShiftsofTeacher = await ShiftRepository.findAvailableShiftsOfTeacher(createCourseDto.teacher, createCourseDto.openingDate);
       let currentShiftsPerSession = curriculum.shiftsPerSession;
       createCourseDto.shifts.forEach(shiftArray => {
-        if (shiftArray.length !== currentShiftsPerSession) throw new ValidationError([]);
+        if (shiftArray.length !== currentShiftsPerSession)
+          throw new ValidationError(["Dữ liệu ca học không hợp lệ, vui lòng kiểm tra lại."]);
         const shifts: Shift[] = [];
         shiftArray.forEach(shiftId => {
           const foundShift = availableShiftsofTeacher.find(shift => shift.id === shiftId);
-          if (!foundShift) throw new ValidationError([]);
+          if (!foundShift)
+            throw new ValidationError(["Giáo viên không rảnh trong khung giờ đã chọn, vui lòng kiểm tra lại."]);
           else shifts.push(foundShift);
         });
         choseSchedule.choseShifts.push(shifts);
@@ -361,16 +366,16 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         const classroom = createCourseDto.classrooms[index];
         // Classroom need to be the same branch
         if (classroom.branchId !== createCourseDto.branch)
-          throw new ValidationError([]);
+          throw new ValidationError(["Phòng học không thuộc chi nhánh của khóa học, vui lòng kiểm tra lại."]);
         // Check classroom is available or not
         const availableClassrooms = await ClassroomRepository
           .findClassroomAvailable(createCourseDto.branch, createCourseDto.openingDate, createCourseDto.shifts[index]);
         const foundClassroom = availableClassrooms.find(c =>
           c.branch.id === classroom.branchId && c.name.toLowerCase() === classroom.name.toLowerCase());
         if (!foundClassroom)
-          throw new ValidationError([]);
+          throw new ValidationError(["Phòng học không trống trong khung giờ đã chọn, vui lòng kiểm tra lại."]);
         if (foundClassroom.capacity < createCourseDto.maxNumberOfStudent)
-          throw new ValidationError([]);
+          throw new ValidationError(["Sức chứa phòng học không đủ cho khóa học"]);
         choseSchedule.choseClassroom.push(foundClassroom);
       }
       // Check tutors
@@ -381,7 +386,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .findTutorsAvailable(createCourseDto.openingDate, createCourseDto.shifts[index]);
         const foundTtutor = availableTutors.find(t => t.worker.user.id === tutor);
         if (!foundTtutor)
-          throw new ValidationError([]);
+          throw new ValidationError(["Trợ giảng không rảnh trong khung giờ đã chọn, vui lòng kiểm tra lại."]);
         else choseSchedule.choseTutor.push(foundTtutor);
       }
       // Count course by slug
@@ -516,7 +521,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
@@ -529,13 +534,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async modifyCourse(userId?: number, courseSlug?: string, courseDto?: CreateCourseDto): Promise<Course | null> {
     if (userId === undefined || courseSlug === undefined || courseDto === undefined || courseDto === null)
-      return null;
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction()
     try {
-      if (courseDto.curriculum !== undefined) throw new ValidationError([]);
+      if (courseDto.curriculum !== undefined)
+        throw new ValidationError(["Không được chỉnh sửa chương trình học của khóa học."]);
       // Course
       const course = await queryRunner.manager
         .createQueryBuilder(Course, "course")
@@ -548,22 +554,25 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("course.curriculum", "curriculum")
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
-      if (course === null) throw new NotFoundError();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
       course.openingDate = new Date(course.openingDate);
       course.expectedClosingDate = new Date(course.expectedClosingDate);
       const courseName = this.getName(course.name, courseDto.name || "");
       // Course shouldn't be closed
       if (course.closingDate !== null && course.closingDate !== undefined)
-        throw new ValidationError([]);
+        throw new ValidationError(["Khóa học đã kết thúc, không thể chỉnh sửa khóa học"]);
+      // Course shouldn't be lock
+      if (course.lockTime !== null && course.lockTime !== undefined)
+        throw new ValidationError(["Khóa học đã bị khóa, không thể chỉnh sửa khóa học"]);
       // Employee
       const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-      if (employee === null) throw new NotFoundError();
+      if (employee === null) throw new NotFoundError("Bạn không có quyền chỉnh sửa khóa học.");
       // Check branch
       if (employee.worker.branch.id !== course.branch.id)
-        throw new ValidationError([]);
+        throw new ValidationError(["Bạn không có quyền chỉnh sửa khóa học này."]);
       // Version
       if (course.version != courseDto.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       // Find participations
       const participationCount = await queryRunner.manager
         .createQueryBuilder(StudentParticipateCourse, "p")
@@ -590,12 +599,12 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Max student counts
       if (courseDto.maxNumberOfStudent !== undefined) {
         if (courseDto.maxNumberOfStudent < participationCount)
-          throw new ValidationError([]);
+          throw new ValidationError(["Số lượng học viên tối đa không hợp lệ."]);
         course.maxNumberOfStudent = courseDto.maxNumberOfStudent;
       }
       // Price
       if (courseDto.price !== undefined) {
-        if (participationCount > 0) throw new ValidationError([]);
+        if (participationCount > 0) throw new ValidationError(["Đã tồn tại học viên tham gia khóa học, không thể thay đổi giá tiền"]);
         course.price = courseDto.price;
       }
       // Image
@@ -624,7 +633,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         tomorrow.setMinutes(0);
         tomorrow.setSeconds(0);
         tomorrow.setMilliseconds(0);
-        if (newOpeningDate < tomorrow) throw new ValidationError([]);
+        if (newOpeningDate < tomorrow) throw new ValidationError(["Ngày khai giảng không hợp lệ. Vui lòng kiểm tra lại."]);
         // Update
         if ((course.closingDate === null || course.closingDate === undefined) &&
           (new Date() < oldOpeningDate) &&
@@ -653,11 +662,35 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             await queryRunner.manager.upsert(StudentParticipateCourse, participation, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
           }
           isChangeStudySession = true;
-        } else throw new ValidationError([]);
+        } else throw new ValidationError(["Ngày khai giảng không hợp lệ hoặc thiếu thông tin giáo viên. Vui lòng kiểm tra lại."]);
       }
       // Calculate end date for finding available teacher, tutor, classroom
       const endDate: Date = new Date(course.expectedClosingDate);
       endDate.setDate(endDate.getDate() + 7);
+      // Old opening date
+      const openingDate = new Date(oldOpeningDate);
+      openingDate.setHours(0);
+      openingDate.setMinutes(0);
+      openingDate.setSeconds(0);
+      openingDate.setMilliseconds(0);
+      // New opening date
+      const newOpeningDate = new Date(course.openingDate);
+      newOpeningDate.setHours(0);
+      newOpeningDate.setMinutes(0);
+      newOpeningDate.setSeconds(0);
+      newOpeningDate.setMilliseconds(0);
+      // Current date
+      const currentDate = new Date();
+      currentDate.setHours(0);
+      currentDate.setMinutes(0);
+      currentDate.setSeconds(0);
+      currentDate.setMilliseconds(0);
+      // Max date
+      const teacherIds = [];
+      const tutorIds = [];
+      const studentIds: number[] = [];
+      const startDate = currentDate < openingDate ? openingDate : currentDate;
+      const newStartDate = currentDate < newOpeningDate ? newOpeningDate : currentDate;
       // Teacher
       if (courseDto.teacher !== undefined) {
         // Check teacher want to teach the course
@@ -673,7 +706,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .andWhere("curriculums.latest = true")
           .getMany();
         const foundTeacher = preferedTeachers.find(teacher => teacher.worker.user.id === courseDto.teacher);
-        if (!foundTeacher) throw new ValidationError([]);
+        if (!foundTeacher) throw new ValidationError(["Giáo viên không dạy chương trình học này."]);
         // Check number of session per week
         if (courseDto.tutors === undefined ||
           courseDto.classrooms === undefined ||
@@ -685,16 +718,17 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           courseDto.shifts.length !== courseDto.tutors.length ||
           courseDto.classrooms.length !== courseDto.tutors.length ||
           courseDto.tutors.length !== course.sessionPerWeek)
-          throw new ValidationError([]);
+          throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
         // Check shifts 
-        const availableShiftsofTeacher = await ShiftRepository.findAvailableShiftsOfTeacher(courseDto.teacher, course.openingDate, endDate, oldSlug);
+        const availableShiftsofTeacher = await ShiftRepository.findAvailableShiftsOfTeacher(courseDto.teacher, newStartDate, endDate, oldSlug);
         let currentShiftsPerSession = course.curriculum.shiftsPerSession;
         courseDto.shifts.forEach(shiftArray => {
-          if (shiftArray.length !== currentShiftsPerSession) throw new ValidationError([]);
+          if (shiftArray.length !== currentShiftsPerSession)
+            throw new ValidationError(["Số ca học không hợp lệ, vui lòng kiểm tra lại."]);
           const shifts: Shift[] = [];
           shiftArray.forEach(shiftId => {
             const foundShift = availableShiftsofTeacher.find(shift => shift.id === shiftId);
-            if (!foundShift) throw new ValidationError([]);
+            if (!foundShift) throw new ValidationError(["Giáo viên không rảnh vào khung giờ đã chọn, vui lòng kiểm tra lại."]);
             else shifts.push(foundShift);
           });
           choseSchedule.choseShifts.push(shifts);
@@ -704,16 +738,16 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           const classroom = courseDto.classrooms[index];
           // Classroom need to be the same branch
           if (classroom.branchId !== course.branch.id)
-            throw new ValidationError([]);
+            throw new ValidationError(["Phòng học không thuộc chi nhánh của khóa học, vui lòng kiểm tra lại."]);
           // Check classroom is available or not
           const availableClassrooms = await ClassroomRepository
-            .findClassroomAvailable(course.branch.id, course.openingDate, courseDto.shifts[index], endDate, oldSlug);
+            .findClassroomAvailable(course.branch.id, newStartDate, courseDto.shifts[index], endDate, oldSlug);
           const foundClassroom = availableClassrooms.find(c =>
             c.branch.id === classroom.branchId && c.name.toLowerCase() === classroom.name.toLowerCase());
           if (!foundClassroom)
-            throw new ValidationError([]);
+            throw new ValidationError(["Phòng học không trống trong khung giờ đã chọn, vui lòng kiểm tra lại."]);
           if (foundClassroom.capacity < course.maxNumberOfStudent)
-            throw new ValidationError([]);
+            throw new ValidationError(["Sức chứa của phòng học không đủ, vui lòng kiểm tra lại."]);
           choseSchedule.choseClassroom.push(foundClassroom);
         }
         // Check tutors
@@ -721,10 +755,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           const tutor = courseDto.tutors[index];
           // Check tutor is available or not
           const availableTutors = await TutorRepository
-            .findTutorsAvailable(course.openingDate, courseDto.shifts[index], undefined, endDate, oldSlug);
+            .findTutorsAvailable(newStartDate, courseDto.shifts[index], undefined, endDate, oldSlug);
           const foundTtutor = availableTutors.find(t => t.worker.user.id === tutor);
           if (!foundTtutor)
-            throw new ValidationError([]);
+            throw new ValidationError(["Trợ giảng không rảnh trong khung giờ đã chọn, vui lòng kiểm tra lại."]);
           else choseSchedule.choseTutor.push(foundTtutor);
         }
         if (course.teacher.worker.user.id != choseSchedule.choseTeacher.worker.user.id) {
@@ -792,30 +826,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           });
         }
       }
-      // Old opening date
-      const openingDate = new Date(oldOpeningDate);
-      openingDate.setHours(0);
-      openingDate.setMinutes(0);
-      openingDate.setSeconds(0);
-      openingDate.setMilliseconds(0);
-      // New opening date
-      const newOpeningDate = new Date(course.openingDate);
-      newOpeningDate.setHours(0);
-      newOpeningDate.setMinutes(0);
-      newOpeningDate.setSeconds(0);
-      newOpeningDate.setMilliseconds(0);
-      // Current date
-      const currentDate = new Date();
-      currentDate.setHours(0);
-      currentDate.setMinutes(0);
-      currentDate.setSeconds(0);
-      currentDate.setMilliseconds(0);
-      // Max date
-      const teacherIds = [];
-      const tutorIds = [];
-      const studentIds: number[] = [];
-      const startDate = currentDate < openingDate ? openingDate : currentDate;
-      const newStartDate = currentDate < newOpeningDate ? newOpeningDate : currentDate;
       // Study session left 
       const studySessions = await queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -997,55 +1007,277 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
 
   async lockCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
-    if (userId === undefined || courseSlug === undefined) return null;
-    // Find course
-    const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
-    // Find employee
-    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
-    // Check permission
-    if (employee.worker.branch.id !== course.branch.id) return null;
-    // Check lock status
-    if (course.lockTime !== null && course.lockTime !== undefined) return null;
-    course.lockTime = new Date();
-    const savedCourse = await course.save();
-    return savedCourse;
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
+
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      // Find course
+      const course = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getOne();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
+      // Find employee
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();;
+      if (employee === null) throw new NotFoundError("Bạn không có quyền khóa khóa học hiện tại.");
+      // Check permission
+      if (employee.worker.branch.id !== course.branch.id)
+        throw new ValidationError(["Bạn không có quyền khóa khóa học hiện tại."]);
+      // Check lock status
+      if (course.lockTime !== null && course.lockTime !== undefined)
+        throw new ValidationError(["Khóa học đã được khóa trước đó."]);
+      course.lockTime = new Date();
+      // Notifications
+      const teacherIds = [];
+      const tutorIds = [];
+      const studySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "teacherWorker")
+        .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+        .leftJoinAndSelect("ss.tutor", "tutor")
+        .leftJoinAndSelect("tutor.worker", "tutorWorker")
+        .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      // Finding tutors and teachers who teach the course
+      for (const studySession of studySessions) {
+        if (teacherIds.find(id => id === studySession.teacher.worker.user.id) === undefined)
+          teacherIds.push(studySession.teacher.worker.user.id);
+        if (tutorIds.find(id => id === studySession.tutor.worker.user.id) === undefined)
+          tutorIds.push(studySession.tutor.worker.user.id);
+      }
+      // Send notification to tutors
+      for (const tutorId of tutorIds) {
+        const notificationDto = { userId: tutorId } as NotificationDto;
+        notificationDto.content = `Khoá học ${course.name} vừa được khoá lại vì lý do kỹ thuật. Bạn sẽ không thấy thông tin về khóa học khi khóa học bị khóa.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Send notification to teachers
+      for (const teacherId of teacherIds) {
+        const notificationDto = { userId: teacherId } as NotificationDto;
+        notificationDto.content = `Khoá học ${course.name} vừa được khoá lại vì lý do kỹ thuật. Bạn sẽ không thấy thông tin về khóa học khi khóa học bị khóa.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Send notifications to students
+      const participations = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, "p")
+        .leftJoinAndSelect("p.course", "course")
+        .leftJoinAndSelect("p.student", "student")
+        .leftJoinAndSelect("student.user", "user")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      for (const participation of participations) {
+        const notificationDto = { userId: participation.student.user.id } as NotificationDto;
+        notificationDto.content = `Khoá học ${course.name} vừa được khoá lại vì lý do kỹ thuật. Bạn sẽ không thấy thông tin về khóa học khi khóa học bị khóa.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Save data
+      const savedCourse = await queryRunner.manager.save(course);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return savedCourse;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      throw error;
+    }
   }
 
 
   async unLockCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
-    if (userId === undefined || courseSlug === undefined) return null;
-    // Find course
-    const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
-    // Find employee
-    const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
-    // Check permission
-    if (employee.worker.branch.id !== course.branch.id) return null;
-    // Check lock status
-    if (course.lockTime === null || course.lockTime === undefined) return null;
-    course.lockTime = null;
-    const savedCourse = await course.save();
-    return savedCourse;
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
+
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      // Find course
+      const course = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getOne();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
+      // Find employee
+      const employee = await queryRunner.manager
+        .createQueryBuilder(UserEmployee, "employee")
+        .leftJoinAndSelect("employee.worker", "worker")
+        .leftJoinAndSelect("worker.user", "user")
+        .leftJoinAndSelect("worker.branch", "branch")
+        .where("user.id = :userId", { userId })
+        .getOne();
+      if (employee === null) throw new NotFoundError("Bạn không có quyền mở khóa khóa học hiện tại.");
+      // Check permission
+      if (employee.worker.branch.id !== course.branch.id)
+        throw new ValidationError(["Bạn không có quyền mở khóa khóa học hiện tại."]);
+      // Check lock status
+      if (course.lockTime === null || course.lockTime === undefined)
+        throw new ValidationError(["Khóa học hiện không bị khóa để mở khóa"]);
+      course.lockTime = null;
+      // Notifications
+      const teacherIds = [];
+      const tutorIds = [];
+      const studySessions = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .leftJoinAndSelect("ss.course", "course")
+        .leftJoinAndSelect("ss.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "teacherWorker")
+        .leftJoinAndSelect("teacherWorker.user", "teacherUser")
+        .leftJoinAndSelect("ss.tutor", "tutor")
+        .leftJoinAndSelect("tutor.worker", "tutorWorker")
+        .leftJoinAndSelect("tutorWorker.user", "tutorUser")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      // Finding tutors and teachers who teach the course
+      for (const studySession of studySessions) {
+        if (teacherIds.find(id => id === studySession.teacher.worker.user.id) === undefined)
+          teacherIds.push(studySession.teacher.worker.user.id);
+        if (tutorIds.find(id => id === studySession.tutor.worker.user.id) === undefined)
+          tutorIds.push(studySession.tutor.worker.user.id);
+      }
+      // Send notification to tutors
+      for (const tutorId of tutorIds) {
+        const notificationDto = { userId: tutorId } as NotificationDto;
+        notificationDto.content = `Khoá học ${course.name} vừa được mở khóa và hoạt động bình thường. Vui lòng lên website và kiểm tra lại thông tin.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Send notification to teachers
+      for (const teacherId of teacherIds) {
+        const notificationDto = { userId: teacherId } as NotificationDto;
+        notificationDto.content = `Khoá học ${course.name} vừa được mở khóa và hoạt động bình thường. Vui lòng lên website và kiểm tra lại thông tin.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Send notifications to students
+      const participations = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, "p")
+        .leftJoinAndSelect("p.course", "course")
+        .leftJoinAndSelect("p.student", "student")
+        .leftJoinAndSelect("student.user", "user")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getMany();
+      for (const participation of participations) {
+        // Cập nhật lại để không tính fee thời gian khóa khóa học
+        const oldBillingDate = new Date(participation.billingDate);
+        const diffDays = this.diffDays(new Date(), participation.course.lockTime || new Date());
+        oldBillingDate.setDate(oldBillingDate.getDate() + diffDays);
+        const expectedClosingDate = new Date(participation.course.expectedClosingDate);
+        const newBillingDate = expectedClosingDate < oldBillingDate ? expectedClosingDate : oldBillingDate;
+        participation.billingDate = newBillingDate;
+        await queryRunner.manager.save(participation);
+        // Thông báo
+        const notificationDto = { userId: participation.student.user.id } as NotificationDto;
+        notificationDto.content = `Khoá học ${course.name} vừa được mở khóa và hoạt động bình thường. Vui lòng lên website và kiểm tra lại thông tin.`;
+        const result = await this.sendNotification(queryRunner, notificationDto);
+        if (result.success && result.receiverSocketStatuses && result.receiverSocketStatuses.length) {
+          notifications.push({
+            socketIds: result.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+            notification: result.notification
+          });
+        }
+      }
+      // Save data
+      const savedCourse = await queryRunner.manager.save(course);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      return savedCourse;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      throw error;
+    }
   }
 
 
   async repoenCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
-    if (userId === undefined || courseSlug === undefined) return null;
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
-    if (course === null) return null;
-    if (course.closingDate === null) return null;
-    if (employee.worker.branch.id !== course.branch.id) return null;
+    if (employee === null)
+      throw new NotFoundError("Bạn không có quyền mở khóa học hiện tại.");
+    if (course === null)
+      throw new NotFoundError("Không tìm thấy khóa học.")
+    if (course.closingDate === null)
+      throw new ValidationError(["Khóa học hiện tại đang diễn ra."])
+    if (employee.worker.branch.id !== course.branch.id)
+      throw new ValidationError(["Bạn không có quyền đóng khóa học này."])
     course.closingDate = null;
     const savedCourse = await course.save();
     return savedCourse;
@@ -1053,7 +1285,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
 
   async removeCourse(userId?: number, courseSlug?: string): Promise<boolean> {
-    if (userId === undefined || courseSlug === undefined) return false;
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -1072,7 +1305,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("curriculum.lectures", "lectures")
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
-      if (course === null) throw new NotFoundError();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
       // Participations
       const participations = await queryRunner.manager
         .createQueryBuilder(StudentParticipateCourse, "p")
@@ -1083,9 +1316,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .getMany();
       // Check lock
       if (course.lockTime === null || course.lockTime === undefined)
-        throw new ValidationError([]);
+        throw new ValidationError(["Bạn cần khóa khóa học trước khi xóa."]);
       if (participations.length > 0)
-        throw new ValidationError([]);
+        throw new ValidationError(["Bạn cần xóa tất cả học sinh ra khỏi khóa học trước khi xóa."]);
       // Check course belong to branch
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -1096,8 +1329,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền chỉnh sửa khóa học.");
+      if (employee.worker.branch.id !== course.branch.id)
+        throw new ValidationError(["Bạn không có quyền chỉnh sửa khóa học."]);
       // Find tutors
       const tutors = await queryRunner.manager
         .createQueryBuilder(UserTutor, "tt")
@@ -1167,14 +1401,11 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .setLock("pessimistic_write")
         .useTransaction(true)
         .leftJoinAndSelect("ss.course", "course")
-        .where("ss.date < :date", { date: moment(course.lockTime).format("YYYY-MM-DD") })
+        .where("ss.date > :date", { date: moment(course.lockTime).format("YYYY-MM-DD") })
         .andWhere("course.slug = :courseSlug", { courseSlug })
         .getMany();
-      for (const studySession of studySessions) {
-        // TODO
-        // studySession.course = null;
-        await queryRunner.manager.save(studySession);
-      }
+      for (const studySession of studySessions)
+        await queryRunner.manager.remove(studySession);
 
       // StudySession
       const sameDayStudySessions = await queryRunner.manager
@@ -1192,33 +1423,43 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .getMany();
       for (const studySession of sameDayStudySessions) {
         const lockTime = new Date(course.lockTime);
-        if (lockTime.getHours() >= studySession.shifts[0].startTime.getHours()) {
-          // TODO
-          // studySession.course = null;
-          await queryRunner.manager.save(studySession);
+        if (lockTime.getHours() < studySession.shifts[0].startTime.getHours()) {
+          await queryRunner.manager.remove(studySession);
         }
       }
-      // Remove image
-      if (course.image) {
-        const filePath = path.join(process.cwd(), "public", course.image);
-        fs.unlinkSync(filePath);
-      }
-      await queryRunner.manager.remove(course);
-      // Curriculum
-      const courseCount = await queryRunner.manager
-        .createQueryBuilder(Course, "course")
-        .setLock("pessimistic_read")
-        .useTransaction(true)
-        .leftJoinAndSelect("course.curriculum", "curriculum")
-        .where("curriculum.id = :curriculumId", { curriculumId: course.curriculum.id })
-        .andWhere("course.id <> :courseId", { courseId: course.id })
+
+      const studySessionLeftCount = await queryRunner.manager
+        .createQueryBuilder(StudySession, "ss")
+        .leftJoinAndSelect("ss.course", "course")
+        .where("course.slug = :courseSlug", { courseSlug })
         .getCount();
-      if (courseCount === 0 && course.curriculum.latest === false) {
-        if (course.curriculum && course.curriculum.image) {
-          const filePath = path.join(process.cwd(), "public", course.curriculum.image);
+
+      if (studySessionLeftCount == 0) {
+        // Remove image
+        if (course.image) {
+          const filePath = path.join(process.cwd(), "public", course.image);
           fs.unlinkSync(filePath);
         }
-        await queryRunner.manager.remove(course.curriculum);
+        await queryRunner.manager.remove(course);
+        // Curriculum
+        const courseCount = await queryRunner.manager
+          .createQueryBuilder(Course, "course")
+          .setLock("pessimistic_read")
+          .useTransaction(true)
+          .leftJoinAndSelect("course.curriculum", "curriculum")
+          .where("curriculum.id = :curriculumId", { curriculumId: course.curriculum.id })
+          .andWhere("course.id <> :courseId", { courseId: course.id })
+          .getCount();
+        if (courseCount === 0 && course.curriculum.latest === false) {
+          if (course.curriculum && course.curriculum.image) {
+            const filePath = path.join(process.cwd(), "public", course.curriculum.image);
+            fs.unlinkSync(filePath);
+          }
+          await queryRunner.manager.remove(course.curriculum);
+        }
+      } else {
+        course.branch = null as any;
+        await queryRunner.manager.save(course);
       }
       // Commit transaction
       await queryRunner.commitTransaction();
@@ -1234,21 +1475,27 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 
 
 
   async closeCourse(userId?: number, courseSlug?: string): Promise<Course | null> {
-    if (userId === undefined || courseSlug === undefined) return null;
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
-    if (course === null) return null;
-    if (course.closingDate !== null) return null;
-    if (employee.worker.branch.id !== course.branch.id) return null;
-    if (moment().diff(moment(course.expectedClosingDate)) < 0) return null;
+    if (employee === null)
+      throw new NotFoundError("Bạn không có quyền đóng khóa học này.");
+    if (course === null)
+      throw new NotFoundError("Không tìm thấy khóa học.")
+    if (course.closingDate !== null)
+      throw new ValidationError(["Khóa học đã được đóng trước đó."])
+    if (employee.worker.branch.id !== course.branch.id)
+      throw new ValidationError(["Bạn không có quyền đóng khóa học này."])
+    if (moment().diff(moment(course.expectedClosingDate)) < 0)
+      throw new ValidationError(["Chưa thể đóng quá học ngay bây giờ, chỉ được đóng khóa học sau ngày dự kiến kết thúc của khóa học."])
     course.closingDate = new Date();
     const savedCourse = await course.save();
     return savedCourse;
@@ -1257,7 +1504,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async getShifts(date: Date): Promise<Shift[]> {
     const weekDay = getWeekdayFromDate(date);
-    if (weekDay === null) throw new ValidationError([]);
+    if (weekDay === null) throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     return await ShiftRepository.findShiftsByWeekDay(weekDay);
   }
 
@@ -1284,9 +1531,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async sendNotification(queryRunner: QueryRunner, notificationDto: NotificationDto): Promise<NotificationResponseDto> {
     if (notificationDto.userId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Thông tin người nhận thông báo không hợp lệ, vui lòng kiểm tra lại.");
     if (notificationDto.content === undefined)
-      throw new ValidationError([]);
+      throw new ValidationError(["Nội dung thông báo không hợp lệ, vui lòng kiểm tra lại."]);
     const foundUser = await queryRunner.manager
       .findOne(User, {
         where: { id: notificationDto.userId },
@@ -1294,7 +1541,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         lock: { mode: "pessimistic_read" },
         transaction: true
       });
-    if (foundUser == null) throw new NotFoundError();
+    if (foundUser == null) throw new NotFoundError("Thông tin người nhận thông báo không hợp lệ, vui lòng kiểm tra lại.");
     const response = new NotificationResponseDto();
 
     const notification = new Notification();
@@ -1307,7 +1554,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (validateErrors.length) throw new ValidationError(validateErrors);
     const savedNotification = await queryRunner.manager.save(notification);
     if (savedNotification === null || savedNotification.id === undefined || savedNotification.id === null)
-      throw new SystemError();
+      throw new SystemError("Gửi thông báo thất bại, vui lòng kiểm tra lại.");
 
     response.success = true;
     response.receiverSocketStatuses = foundUser.socketStatuses;
@@ -1334,8 +1581,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("studySession.course", "course")
         .where("studySession.id = :studySessionId", { studySessionId })
         .getOne();
-      if (foundStudySession === null) throw new NotFoundError();
-      if (foundStudySession.course.slug !== courseSlug) throw new ValidationError([]);
+      if (foundStudySession === null) throw new NotFoundError("Không tìm thấy buổi học, vui lòng kiểm tra lại.");
+      if (foundStudySession.course.slug !== courseSlug) throw new ValidationError(["Tên khóa học không hợp lệ, vui lòng kiểm tra lại."]);
     } else studySessionId = -1;
     // Query total student number of the course
     result.total = await queryRunner.manager
@@ -1393,7 +1640,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userId === undefined || courseSlug === undefined ||
       date === undefined || date === null ||
       shiftIds === undefined || shiftIds === null)
-      throw new NotFoundError();
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
     await queryRunner.startTransaction();
@@ -1414,7 +1661,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async addStudySession(userId?: number, courseSlug?: string, studySessionDto?: StudySessionDto): Promise<StudySession | null> {
     if (userId === undefined || courseSlug === undefined ||
-      studySessionDto === undefined || studySessionDto === null) return null;
+      studySessionDto === undefined || studySessionDto === null)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -1428,7 +1676,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySessionDto.tutorId === undefined || studySessionDto.classroom === undefined ||
         studySessionDto.classroom === null || studySessionDto.classroom.name === undefined ||
         studySessionDto.classroom.branchId === undefined)
-        throw new ValidationError([]);
+        throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
       // Query course
       const course = await queryRunner.manager
         .createQueryBuilder(Course, "course")
@@ -1442,7 +1690,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("curriculum.lectures", "lectures")
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
-      if (course === null) throw new NotFoundError();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học, vui lòng kiểm tra lại.");
       // Check course belong to branch
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -1453,15 +1701,18 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền thêm buổi học cho khóa học.");
+      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError(["Bạn không có quyền thêm buổi học cho khóa học."]);
       // Check course isn't closed
-      if (course.closingDate !== null) throw new ValidationError([]);
+      if (course.closingDate !== null) throw new ValidationError(["Bạn không thể thêm buổi học cho khóa học đã kết thúc."]);
+      // Course shouldn't be lock
+      if (course.lockTime !== null && course.lockTime !== undefined)
+        throw new ValidationError(["Bạn không thể thêm buổi học cho khóa học đã bị khóa."]);
       // Check number of student who can attend new study session
       const result = await this.calculateAvailableStudentCount(queryRunner, course.slug,
         new Date(studySessionDto.date), studySessionDto.shiftIds);
       const percentages = result.total === 0 ? 100 : Math.round(result.free / result.total * 1000) / 10;
-      if (percentages < result.acceptedPercent) throw new ValidationError([]);
+      if (percentages < result.acceptedPercent) throw new ValidationError([`Số lượng học viên có thể tham gia quá thấp, cần thỏa mãn ít nhất ${result.acceptedPercent}% số học viên đăng ký khóa học.`]);
       // Check date
       const openingDate = new Date(course.openingDate);
       openingDate.setHours(0);
@@ -1477,7 +1728,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Max date
       const maxDate = currentDate < openingDate ? openingDate : currentDate;
       if ((new Date(studySessionDto.date)).getTime() < maxDate.getTime())
-        throw new ValidationError([]);
+        throw new ValidationError(["Ngày diễn ra buổi học cần tối thiểu từ ngày hiện tại hoặc ngày khai giảng."]);
       // Add study session
       const studySession = new StudySession();
       studySession.name = studySessionDto.name;
@@ -1491,7 +1742,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where(`s.id IN (:...ids)`, { ids: studySessionDto.shiftIds })
         .getMany();
       if (shifts.length !== studySession.course.curriculum.shiftsPerSession)
-        throw new ValidationError([]);
+        throw new ValidationError(["Số lượng ca học không hợp lệ, vui lòng kiểm tra lại."]);
       studySession.shifts = shifts;
       // Add teacher
       const teacherNotificationDto = {} as NotificationDto;
@@ -1503,7 +1754,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.user", "user")
         .where("user.id = :teacherId", { teacherId: studySessionDto.teacherId })
         .getOne();
-      if (teacher === null) throw new NotFoundError();
+      if (teacher === null) throw new NotFoundError("Không tìm thấy giáo viên.");
       // Check teacher want to teach this study session and is available
       const busyTeacherIdsQuery = queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -1530,7 +1781,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .setParameters(busyTeacherIdsQuery.getParameters());
       const teachers = await teacherQuery.getMany();
       const foundTeacher = teachers.find(t => t.worker.user.id === teacher.worker.user.id);
-      if (foundTeacher === undefined) throw new NotFoundError();
+      if (foundTeacher === undefined) throw new NotFoundError("Giáo viên không rảnh trong khung giờ đã chọn hoặc không dạy chương trình học đã chọn.");
       // Update teacher
       studySession.teacher = teacher;
       // Teacher notification
@@ -1553,7 +1804,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.user", "user")
         .where("user.id = :tutorId", { tutorId: studySessionDto.tutorId })
         .getOne();
-      if (tutor === null) throw new NotFoundError();
+      if (tutor === null) throw new NotFoundError("Không tìm thấy trợ giảng.");
       // Check tutor is available
       const busyTutorIdsQuery = queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -1589,7 +1840,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .setParameters({ ...busyTutorIdsQuery.getParameters(), ...freeTutorsIdQuery.getParameters() });
       const tutors = await tutorQuery.getMany();
       const foundTutor = tutors.find(t => t.worker.user.id === tutor.worker.user.id);
-      if (foundTutor === undefined) throw new NotFoundError();
+      if (foundTutor === undefined) throw new NotFoundError("Trợ giảng không rảnh trong khung giờ đã chọn.");
       //Update tutors
       studySession.tutor = tutor;
       // New tutor notification
@@ -1611,8 +1862,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("cr.name = :name", { name: studySessionDto.classroom.name })
         .andWhere("branch.id = :branchId", { branchId: studySessionDto.classroom.branchId })
         .getOne();
-      if (classroom === null) throw new NotFoundError();
-      if (classroom.branch.id !== studySession.course.branch.id) throw new ValidationError([]);
+      if (classroom === null) throw new NotFoundError("Không tìm thấy phòng học.");
+      if (classroom.branch.id !== studySession.course.branch.id)
+        throw new ValidationError(["Phòng học không thuộc chi nhánh diễn ra khóa học."]);
       // Check classroom is available
       const busyClassroomIdsOfClassroomQuery = queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -1638,9 +1890,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .setParameters(busyClassroomIdsOfClassroomQuery.getParameters());
       const classrooms = await classroomQuery.getMany();
       const foundClassroom = classrooms.find(c => c.name === classroom.name && c.branch.id === classroom.branch.id);
-      if (foundClassroom === undefined) throw new NotFoundError();
+      if (foundClassroom === undefined) throw new NotFoundError("Phòng học không trống trong khung giờ đã chọn.");
       if (foundClassroom.capacity < course.maxNumberOfStudent)
-        throw new ValidationError([]);
+        throw new ValidationError(["Sức chứa của phòng học không đủ."]);
       //Update classroom
       studySession.classroom = classroom;
       // Participations
@@ -1681,13 +1933,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
 
   async updateStudySession(userId?: number, studySessionDto?: StudySessionDto): Promise<StudySession | null> {
-    if (userId === undefined || studySessionDto === undefined || studySessionDto === null) return null;
+    if (userId === undefined || studySessionDto === undefined || studySessionDto === null)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -1702,7 +1955,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         studySessionDto.classroom === null || studySessionDto.classroom.name === undefined ||
         studySessionDto.classroom.branchId === undefined || studySessionDto.version === undefined ||
         studySessionDto.id === undefined)
-        throw new ValidationError([]);
+        throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
       const studySession = await queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -1726,7 +1979,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("classroom.branch", "branchClassroom")
         .where("ss.id = :studySessionId", { studySessionId: studySessionDto.id })
         .getOne();
-      if (studySession === null) throw new NotFoundError();
+      if (studySession === null) throw new NotFoundError("Không tìm thấy buổi học.");
       const studySessionName = this.getName(studySession.name, studySessionDto.name);
       // Check course belong to branch
       const employee = await queryRunner.manager
@@ -1738,13 +1991,16 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== studySession.course.branch.id) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền chỉnh sửa buổi học cho khóa học.");
+      if (employee.worker.branch.id !== studySession.course.branch.id) throw new ValidationError(["Bạn không có quyền chỉnh sửa buổi học cho khóa học."]);
       // Check course isn't closed
-      if (studySession.course.closingDate !== null) throw new ValidationError([]);
+      if (studySession.course.closingDate !== null) throw new ValidationError(["Bạn không thể chỉnh sửa buổi học cho khóa học đã kết thúc."]);
+      // Course shouldn't be lock
+      if (studySession.course.lockTime !== null && studySession.course.lockTime !== undefined)
+        throw new ValidationError(["Bạn không thể chỉnh sửa buổi học cho khóa học đã bị khóa."]);
       // Check version
       if (studySession.version !== studySessionDto.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       // Check date
       const openingDate = new Date(studySession.course.openingDate);
       openingDate.setHours(0);
@@ -1760,9 +2016,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Max date
       const maxDate = currentDate < openingDate ? openingDate : currentDate;
       if ((new Date(studySessionDto.date)).getTime() < maxDate.getTime())
-        throw new ValidationError([]);
+        throw new ValidationError(["Ngày diễn ra buổi học cần tối thiểu từ ngày hiện tại hoặc ngày khai giảng."]);
       if ((new Date(studySession.date)).getTime() < maxDate.getTime())
-        throw new ValidationError([]);
+        throw new ValidationError(["Bạn chỉ được chỉnh sửa các buổi học diễn ra từ hôm nay hoặc ngày khai giảng trở đi."]);
       // Check change shifts and date
       let sameTime = true;
       const oldDate = new Date(studySession.date);
@@ -1784,7 +2040,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       const result = await this.calculateAvailableStudentCount(queryRunner, studySession.course.slug,
         updatedDate, studySessionDto.shiftIds, studySessionDto.id);
       const percentages = result.total === 0 ? 100 : Math.round(result.free / result.total * 1000) / 10;
-      if (percentages < result.acceptedPercent) throw new ValidationError([]);
+      if (percentages < result.acceptedPercent) throw new ValidationError([`Số lượng học viên có thể tham gia quá thấp, cần thỏa mãn ít nhất ${result.acceptedPercent}% số học viên đăng ký khóa học.`]);
       // Update study session
       studySession.name = studySessionDto.name;
       studySession.date = updatedDate;
@@ -1796,7 +2052,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where(`s.id IN (:...ids)`, { ids: studySessionDto.shiftIds })
         .getMany();
       if (shifts.length !== studySession.course.curriculum.shiftsPerSession)
-        throw new ValidationError([]);
+        throw new ValidationError(["Số lượng ca học không hợp lệ, vui lòng kiểm tra lại."]);
       studySession.shifts = shifts;
       // Update teacher
       if (studySession.teacher.worker.user.id == studySessionDto.teacherId) {
@@ -1830,7 +2086,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .leftJoinAndSelect("worker.user", "user")
           .where("user.id = :teacherId", { teacherId: studySessionDto.teacherId })
           .getOne();
-        if (teacher === null) throw new NotFoundError();
+        if (teacher === null) throw new NotFoundError("Không tìm thấy giáo viên.");
         // Check teacher want to teach this study session and is available
         const busyTeacherIdsQuery = queryRunner.manager
           .createQueryBuilder(StudySession, "ss")
@@ -1858,7 +2114,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .setParameters(busyTeacherIdsQuery.getParameters());
         const teachers = await teacherQuery.getMany();
         const foundTeacher = teachers.find(t => t.worker.user.id === teacher.worker.user.id);
-        if (foundTeacher === undefined) throw new NotFoundError();
+        if (foundTeacher === undefined) throw new NotFoundError("Giáo viên không rảnh trong khung giờ đã chọn hoặc không dạy chương trình học đã chọn.");
         // Update teacher
         studySession.teacher = teacher;
         // New teacher notification
@@ -1905,7 +2161,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .leftJoinAndSelect("worker.user", "user")
           .where("user.id = :tutorId", { tutorId: studySessionDto.tutorId })
           .getOne();
-        if (tutor === null) throw new NotFoundError();
+        if (tutor === null) throw new NotFoundError("Không tìm thấy trợ giảng.");
         // Check tutor is available
         const busyTutorIdsQuery = queryRunner.manager
           .createQueryBuilder(StudySession, "ss")
@@ -1941,7 +2197,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           .setParameters({ ...busyTutorIdsQuery.getParameters(), ...freeTutorsIdQuery.getParameters() });
         const tutors = await tutorQuery.getMany();
         const foundTutor = tutors.find(t => t.worker.user.id === tutor.worker.user.id);
-        if (foundTutor === undefined) throw new NotFoundError();
+        if (foundTutor === undefined) throw new NotFoundError("Trợ giảng không rảnh trong khung giờ đã chọn.");
         //Update tutors
         studySession.tutor = tutor;
         // New tutor notification
@@ -1964,8 +2220,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("cr.name = :name", { name: studySessionDto.classroom.name })
         .andWhere("branch.id = :branchId", { branchId: studySessionDto.classroom.branchId })
         .getOne();
-      if (classroom === null) throw new NotFoundError();
-      if (classroom.branch.id !== studySession.course.branch.id) throw new ValidationError([]);
+      if (classroom === null) throw new NotFoundError("Không tìm thấy phòng học.");
+      if (classroom.branch.id !== studySession.course.branch.id) throw new ValidationError(["Phòng học không thuộc chi nhánh diễn ra khóa học."]);
       // Check classroom is available
       const busyClassroomIdsOfClassroomQuery = queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
@@ -1991,9 +2247,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .setParameters(busyClassroomIdsOfClassroomQuery.getParameters());
       const classrooms = await classroomQuery.getMany();
       const foundClassroom = classrooms.find(c => c.name === classroom.name && c.branch.id === classroom.branch.id);
-      if (foundClassroom === undefined) throw new NotFoundError();
+      if (foundClassroom === undefined) throw new NotFoundError("Phòng học không trống trong khung giờ đã chọn.");
       if (foundClassroom.capacity < studySession.course.maxNumberOfStudent)
-        throw new ValidationError([]);
+        throw new ValidationError(["Sức chứa của phòng học không đủ."]);
       //Update classroom
       studySession.classroom = classroom;
       // Delete makeup lession
@@ -2064,13 +2320,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
 
   async removeStudySession(userId?: number, studySessionId?: number): Promise<boolean> {
-    if (userId === undefined || studySessionId === undefined) return false;
+    if (userId === undefined || studySessionId === undefined)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -2097,7 +2354,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("ss.shifts", "shifts")
         .where("ss.id = :studySessionId", { studySessionId })
         .getOne();
-      if (studySession === null) throw new NotFoundError();
+      if (studySession === null) throw new NotFoundError("Không tìm thấy buổi học.");
       // Check course belong to branch
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -2108,10 +2365,13 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== studySession.course.branch.id) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền xóa buổi học của khóa học này.");
+      if (employee.worker.branch.id !== studySession.course.branch.id) throw new ValidationError(["Bạn không có quyền xóa buổi học của khóa học này."]);
       // Check course isn't closed
-      if (studySession.course.closingDate !== null) throw new ValidationError([]);
+      if (studySession.course.closingDate !== null) throw new ValidationError(['Bạn không thể xóa buổi học của khóa học đã kết thúc.']);
+      // Course shouldn't be lock
+      if (studySession.course.lockTime !== null && studySession.course.lockTime !== undefined)
+        throw new ValidationError(['Bạn không thể xóa buổi học của khóa học đã bị khóa.']);
       // Check date
       const currentDate = new Date();
       currentDate.setHours(0);
@@ -2119,14 +2379,15 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       currentDate.setSeconds(0);
       currentDate.setMilliseconds(0);
       if ((new Date(studySession.date)).getTime() < currentDate.getTime())
-        throw new ValidationError([]);
+        throw new ValidationError(['Bạn chỉ có thể xóa buổi học diễn ra từ ngày hôm nay hoặc ngày khai giảng.']);
       // Check current study session number > curriculum lectures
       const studySessionCount = await queryRunner.manager
         .createQueryBuilder(StudySession, "ss")
         .leftJoinAndSelect("ss.course", "course")
         .where("course.id = :courseId", { courseId: studySession.course.id })
         .getCount();
-      if (studySession.course.curriculum.lectures.length >= studySessionCount) throw new ValidationError([]);
+      if (studySession.course.curriculum.lectures.length >= studySessionCount)
+        throw new ValidationError(["Số lượng buổi học không đủ so với chương trình học, bạn cần thêm buổi học trước khi xóa."]);
       // Teacher
       const teacherNotificationDto = {} as NotificationDto;
       teacherNotificationDto.userId = studySession.teacher.worker.user.id;
@@ -2200,7 +2461,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 
@@ -2224,10 +2485,11 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
 
   async addClassroom(userId?: number, classroomDto?: ClassroomDto): Promise<Classroom | null> {
-    if (userId === undefined || classroomDto === null || classroomDto === undefined) return null;
+    if (userId === undefined || classroomDto === null || classroomDto === undefined)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     if (classroomDto.name === undefined || classroomDto.capacity === undefined ||
       classroomDto.function === undefined || classroomDto.branch === undefined)
-      return null;
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -2243,8 +2505,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== classroomDto.branch) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền thêm phòng học.");
+      if (employee.worker.branch.id !== classroomDto.branch) throw new ValidationError(["Bạn không có quyền thêm phòng học."]);
       // Check existing classroom
       const existedClassroom = await queryRunner.manager
         .createQueryBuilder(Classroom, "classroom")
@@ -2254,7 +2516,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("classroom.name = :name", { name: classroomDto.name })
         .andWhere("branch.id = :branchId", { branchId: classroomDto.branch })
         .getOne();
-      if (existedClassroom !== null) throw new DuplicateError();
+      if (existedClassroom !== null) throw new DuplicateError("Tên phòng học đã tồn tại, vui lòng chọn tên khác.");
       // Create new existing classroom
       const classroom = new Classroom();
       classroom.name = classroomDto.name;
@@ -2273,17 +2535,18 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
 
   async modifyClassroom(userId?: number, classroomDto?: ClassroomDto): Promise<Classroom | null> {
-    if (userId === undefined || classroomDto === null || classroomDto === undefined) return null;
+    if (userId === undefined || classroomDto === null || classroomDto === undefined)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     if (classroomDto.name === undefined || classroomDto.capacity === undefined ||
       classroomDto.function === undefined || classroomDto.branch === undefined ||
       classroomDto.oldName === undefined)
-      return null;
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -2299,8 +2562,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== classroomDto.branch) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền chỉnh sửa phòng học.");
+      if (employee.worker.branch.id !== classroomDto.branch) throw new ValidationError(["Bạn không có quyền chỉnh sửa phòng học."]);
       // Check existing classroom
       const existedClassroom = await queryRunner.manager
         .createQueryBuilder(Classroom, "classroom")
@@ -2310,10 +2573,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("classroom.name = :name", { name: classroomDto.oldName })
         .andWhere("branch.id = :branchId", { branchId: classroomDto.branch })
         .getOne();
-      if (existedClassroom === null) throw new NotFoundError();
+      if (existedClassroom === null) throw new NotFoundError("Không tìm thấy phòng học.");
       // Check version
       if (existedClassroom.version !== classroomDto.version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       // Update existing classroom
       existedClassroom.name = classroomDto.name;
       existedClassroom.branch = employee.worker.branch;
@@ -2341,13 +2604,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
 
   async removeClassroom(userId?: number, name?: string, branchId?: number): Promise<boolean> {
-    if (userId === undefined || name === undefined || branchId === undefined) return false;
+    if (userId === undefined || name === undefined || branchId === undefined)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -2363,8 +2627,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
-      if (employee.worker.branch.id !== branchId) throw new ValidationError([]);
+      if (employee === null) throw new NotFoundError("Bạn không có quyền xóa phòng học.");
+      if (employee.worker.branch.id !== branchId) throw new ValidationError(["Bạn không có quyền xóa phòng học."]);
       // Check existing classroom
       const existedClassroom = await queryRunner.manager
         .createQueryBuilder(Classroom, "classroom")
@@ -2374,7 +2638,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("classroom.name = :name", { name: name })
         .andWhere("branch.id = :branchId", { branchId: branchId })
         .getOne();
-      if (existedClassroom === null) throw new NotFoundError();
+      if (existedClassroom === null) throw new NotFoundError("Không tìm thấy phòng học.");
       // Commit transaction
       await queryRunner.manager.remove(existedClassroom);
       await queryRunner.commitTransaction();
@@ -2384,7 +2648,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 
@@ -2431,9 +2695,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
 
   async getStudentDetails(userId: number, studentId: number): Promise<{ student: UserStudent }> {
-    if (userId === undefined || studentId === undefined) throw new NotFoundError();
+    if (userId === undefined || studentId === undefined)
+      throw new NotFoundError("Không tìm thấy thông tin học sinh.");
     const student = await UserStudentRepository.findStudentById(studentId);
-    if (student === null) throw new NotFoundError();
+    if (student === null) throw new NotFoundError("Không tìm thấy thông tin học sinh.");
     return { student };
   }
 
@@ -2458,7 +2723,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   async modifyParent(userId: number, parentId: number, studentId: number, version: number): Promise<UserParent | null> {
     if (userId === undefined || parentId === undefined ||
       studentId === undefined || version === undefined)
-      return null;
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -2472,9 +2737,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("us.user", "user")
         .where("user.id = :studentId", { studentId })
         .getOne();
-      if (student === null) throw new NotFoundError();
+      if (student === null) throw new NotFoundError("Không tìm thấy thông tin học sinh.");
       if (student.version !== version)
-        throw new InvalidVersionColumnError();
+        throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       // Get parents
       const parent = await queryRunner.manager
         .createQueryBuilder(UserParent, "up")
@@ -2483,7 +2748,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("up.user", "user")
         .where("user.id = :parentId", { parentId })
         .getOne();
-      if (parent === null) throw new NotFoundError();
+      if (parent === null) throw new NotFoundError("Không tìm thấy thông tin phụ huynh.");
       student.userParent = parent;
       // Save and commit
       await queryRunner.manager.update(UserStudent, { user: studentId }, student);
@@ -2494,7 +2759,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return null;
+      throw error;
     }
   }
 
@@ -2525,7 +2790,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (expectedClosingDate < currentDate) return { feeDate: expectedClosingDate, amount: 0 };
     // Find constants
     const constants = await TransactionConstantsRepository.find();
-    if (constants === null) throw new NotFoundError();
+    if (constants === null) throw new NotFoundError("Không tìm thấy dữ liệu, vui lòng kiểm tra lại.");
     // Calculate feeDate
     let feeDate = null;
     if (course.curriculum.type == TermCourse.ShortTerm)
@@ -2550,17 +2815,18 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
 
   async getFeeAmount(userId: number, courseSlug: string, studentId?: number): Promise<number> {
-    if (userId === undefined || courseSlug === undefined) throw new NotFoundError();
+    if (userId === undefined || courseSlug === undefined)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
     // Find employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Find course
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
+    if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
     // Check branch of course and employee
-    if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+    if (employee.worker.branch.id !== course.branch.id) throw new ValidationError(["Bạn không có quyền truy vấn thông tin này."]);
     // Check course is not closed
-    if (course.closingDate !== null) throw new ValidationError([]);
+    if (course.closingDate !== null) throw new ValidationError(["Khóa học đã kết thúc."]);
     // Calculating
     if (studentId === undefined)
       return (await this.caculateFeeAmount(course)).amount;
@@ -2574,7 +2840,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       .where("course.slug = :courseSlug", { courseSlug })
       .andWhere("userStudent.id = :studentId", { studentId })
       .getOne();
-    if (participation === null) throw new NotFoundError();
+    if (participation === null) throw new NotFoundError("Không tìm thấy dữ liệu học sinh tham gia khóa học, vui lòng kiểm tra lại.");
     // Last fee
     const lastedFee = await Fee
       .createQueryBuilder("fee")
@@ -2588,17 +2854,38 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       .andWhere("course.slug = :courseSlug", { courseSlug })
       .orderBy("transCode.payDate", "DESC")
       .getOne();
-    if (lastedFee === null) throw new NotFoundError();
+    if (lastedFee === null) throw new NotFoundError("Không tìm thấy dữ liệu các khoản học phí trước của học sinh, vui lòng kiểm tra lại.");
     // Check đóng tiền
-    const today = new Date();
-    const openingDate = new Date(course.openingDate);
     const billingDate = new Date(participation.billingDate);
-    if (billingDate < today)
-      throw new ValidationError([]); // "Học sinh cần thanh toán tiền phí nợ trước"
+    billingDate.setHours(0);
+    billingDate.setMinutes(0);
+    billingDate.setSeconds(0);
+    billingDate.setMilliseconds(0);
+
+    const expectedClosingDate = new Date(course.expectedClosingDate);
+    expectedClosingDate.setHours(0);
+    expectedClosingDate.setMinutes(0);
+    expectedClosingDate.setSeconds(0);
+    expectedClosingDate.setMilliseconds(0);
+
+    const today = new Date();
+    let latestDate = expectedClosingDate > today ? today : expectedClosingDate;
+    if (course.lockTime) {
+      const lockTime = new Date(course.lockTime);
+      lockTime.setHours(0);
+      lockTime.setMinutes(0);
+      lockTime.setSeconds(0);
+      lockTime.setMilliseconds(0);
+      latestDate = latestDate > lockTime ? lockTime : latestDate;
+    }
+    if (billingDate < latestDate)
+      throw new ValidationError(["Học sinh cần thanh toán tiền phí nợ trước"]);
+
+    const openingDate = new Date(course.openingDate);
     // If course hasn't opened
     if (today < openingDate) return lastedFee.transCode.amount;
     // If course opened
-    const amount = this.diffDays(billingDate, today) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price;
+    const amount = this.diffDays(billingDate, latestDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price;
     return amount;
   }
 
@@ -2611,7 +2898,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
     try {
       if (userId === undefined || courseSlug === undefined || studentId === undefined)
-        throw new NotFoundError();
+        throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
       // Find employee
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -2622,7 +2909,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
+      if (employee === null) throw new NotFoundError("Bạn không có quyền thêm học sinh vào khóa học này.");
       // Find course
       const course = await queryRunner.manager
         .createQueryBuilder(Course, "course")
@@ -2635,7 +2922,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("course.curriculum", "curriculum")
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
-      if (course === null) throw new NotFoundError();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
       // Find student
       const student = await queryRunner.manager
         .createQueryBuilder(UserStudent, "student")
@@ -2644,11 +2931,15 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("student.user", "user")
         .where("user.id = :studentId", { studentId })
         .getOne();
-      if (student === null) throw new NotFoundError();
+      if (student === null) throw new NotFoundError("Không tìm thấy thông tin học sinh.");
       // Check branch of course and employee
-      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError(["Bạn không có quyền thêm học sinh vào khóa học này."]);
       // Check course is not closed
-      if (course.closingDate !== null) throw new ValidationError([]);
+      if (course.closingDate !== null)
+        throw new ValidationError(["Bạn không thể thêm học sinh vào khóa học đã kết thúc."]);
+      // Check course is not locked
+      if (course.lockTime !== null && course.lockTime !== undefined)
+        throw new ValidationError(["Bạn không thể thêm học sinh vào khóa học đã bị khóa."]);
       //Check student participate course
       const participations = await queryRunner.manager
         .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
@@ -2660,41 +2951,40 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .getMany();
       const found = participations.find(s => s.student.user.id === studentId)
-      if (found) throw new DuplicateError();
+      if (found) throw new DuplicateError("Học sinh đã tham gia khóa học rồi.");
       // Check max student number
       if (course.maxNumberOfStudent <= participations.length)
-        throw new ValidationError([]);
+        throw new ValidationError(["Số lượng học sinh tối đa của khóa học không đủ, vui lòng kiểm tra lại."]);
       // Add participation
       const studentParticipateCourse = new StudentParticipateCourse();
       studentParticipateCourse.student = student;
       studentParticipateCourse.course = course;
       // Transaction
       const resultFee = await this.caculateFeeAmount(course);
-      if (resultFee.amount > 0) {
-        const transaction = new Transaction();
-        transaction.transCode = faker.random.numeric(16);
-        transaction.content = `Tiền học phí tháng ${resultFee.feeDate.getMonth() + 1}`;
-        transaction.amount = resultFee.amount;
-        transaction.type = TransactionType.Fee;
-        transaction.branch = course.branch;
-        transaction.payDate = new Date();
-        transaction.userEmployee = employee;
-        // Validate entity
-        const transValidateErrors = await validate(transaction);
-        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
-        // Save data
-        const savedTransaction = await queryRunner.manager.save(transaction);
-        // Create free
-        const fee = new Fee();
-        fee.transCode = savedTransaction;
-        fee.userStudent = student;
-        fee.course = course;
-        // Validate entity
-        const feeValidateErrors = await validate(fee);
-        if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
-        // Save data
-        await queryRunner.manager.save(fee);
-      }
+      const transaction = new Transaction();
+      transaction.transCode = faker.random.numeric(16);
+      transaction.content = `Tiền học phí tháng ${resultFee.feeDate.getMonth() + 1}`;
+      transaction.amount = resultFee.amount;
+      transaction.type = TransactionType.Fee;
+      transaction.branch = course.branch;
+      transaction.payDate = new Date();
+      transaction.userEmployee = employee;
+      // Validate entity
+      const transValidateErrors = await validate(transaction);
+      if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+      // Save data
+      const savedTransaction = await queryRunner.manager.save(transaction);
+      // Create free
+      const fee = new Fee();
+      fee.transCode = savedTransaction;
+      fee.userStudent = student;
+      fee.course = course;
+      // Validate entity
+      const feeValidateErrors = await validate(fee);
+      if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
+      // Save data
+      await queryRunner.manager.save(fee);
+
       studentParticipateCourse.billingDate = new Date(resultFee.feeDate);
       // Add user attend study session
       const attendanceQuery = queryRunner.manager
@@ -2766,7 +3056,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 
@@ -2779,7 +3069,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
     try {
       if (userId === undefined || courseSlug === undefined || studentId === undefined)
-        throw new NotFoundError();
+        throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
       // Find employee
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -2790,7 +3080,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
+      if (employee === null) throw new NotFoundError("Bạn không có quyền xóa học sinh ra khỏi khóa học này.");
       // Find course
       const course = await queryRunner.manager
         .createQueryBuilder(Course, "course")
@@ -2803,7 +3093,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("course.curriculum", "curriculum")
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
-      if (course === null) throw new NotFoundError();
+      if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
       // Find student
       const student = await queryRunner.manager
         .createQueryBuilder(UserStudent, "student")
@@ -2812,9 +3102,9 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("student.user", "user")
         .where("user.id = :studentId", { studentId })
         .getOne();
-      if (student === null) throw new NotFoundError();
+      if (student === null) throw new NotFoundError("Không tìm thấy thông tin học sinh.");
       // Check branch of course and employee
-      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+      if (employee.worker.branch.id !== course.branch.id) throw new ValidationError(["Bạn không có quyền xóa học sinh ra khỏi khóa học này."]);
       // Check course is not closed
       if (course.closingDate !== null) throw new ValidationError([]);
       //Check student participate course
@@ -2828,57 +3118,79 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .getMany();
       const found = participations.find(s => s.student.user.id === studentId)
-      if (!found) throw new NotFoundError();
+      if (!found) throw new NotFoundError("Không tìm thấy dữ liệu học sinh đã tham gia khóa học.");
       // Remove participation
       await queryRunner.manager.remove(found);
       // Transaction
-      const today = new Date();
-      const openingDate = new Date(course.openingDate);
       const billingDate = new Date(found.billingDate);
-      const currentDate = today < openingDate ? openingDate : today;
-      const amount = this.diffDays(billingDate, currentDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price;
+      billingDate.setHours(0);
+      billingDate.setMinutes(0);
+      billingDate.setSeconds(0);
+      billingDate.setMilliseconds(0);
 
-      if (amount > 0) {
-        // Last fee
-        const lastedFee = await queryRunner.manager
-          .createQueryBuilder(Fee, "fee")
-          .innerJoinAndSelect("fee.userStudent", "userStudent")
-          .innerJoinAndSelect("userStudent.user", "user")
-          .innerJoinAndSelect("fee.course", "course")
-          .innerJoinAndSelect("fee.transCode", "transCode")
-          .setLock("pessimistic_read")
-          .useTransaction(true)
-          .where("user.id = :studentId", { studentId })
-          .andWhere("course.slug = :courseSlug", { courseSlug })
-          .orderBy("transCode.payDate", "DESC")
-          .getOne();
-        if (lastedFee === null) throw new NotFoundError();
-        // Amount
-        const refundAmount = today < openingDate ? lastedFee.transCode.amount : amount;
-        // Transaction
-        const transaction = new Transaction();
-        transaction.transCode = faker.random.numeric(16);
-        transaction.content = `Hoàn phí khóa học "${course.name}"`;
-        transaction.amount = refundAmount;
-        transaction.type = TransactionType.Refund;
-        transaction.branch = course.branch;
-        transaction.payDate = new Date();
-        transaction.userEmployee = employee;
-        // Validation
-        const transValidateErrors = await validate(transaction);
-        if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
-        const savedTransaction = await queryRunner.manager.save(transaction);
+      const expectedClosingDate = new Date(course.expectedClosingDate);
+      expectedClosingDate.setHours(0);
+      expectedClosingDate.setMinutes(0);
+      expectedClosingDate.setSeconds(0);
+      expectedClosingDate.setMilliseconds(0);
 
-        if (lastedFee.transCode.amount < refundAmount) throw new ValidationError([]);
-        // Create Refund
-        const refund = new Refund();
-        refund.transCode = savedTransaction;
-        refund.fee = lastedFee;
-        // Validation
-        const refundValidateErrors = await validate(transaction);
-        if (refundValidateErrors.length) throw new ValidationError(refundValidateErrors);
-        await queryRunner.manager.save(refund);
+      const today = new Date();
+      let latestDate = expectedClosingDate > today ? today : expectedClosingDate;
+      if (course.lockTime) {
+        const lockTime = new Date(course.lockTime);
+        lockTime.setHours(0);
+        lockTime.setMinutes(0);
+        lockTime.setSeconds(0);
+        lockTime.setMilliseconds(0);
+        latestDate = latestDate > lockTime ? lockTime : latestDate;
       }
+
+      if (billingDate < latestDate)
+        throw new ValidationError(["Học sinh cần thanh toán tiền phí nợ trước"]);
+      const openingDate = new Date(course.openingDate);
+      // If course opened
+      const amount = this.diffDays(billingDate, latestDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price;
+      // Last fee
+      const lastedFee = await queryRunner.manager
+        .createQueryBuilder(Fee, "fee")
+        .innerJoinAndSelect("fee.userStudent", "userStudent")
+        .innerJoinAndSelect("userStudent.user", "user")
+        .innerJoinAndSelect("fee.course", "course")
+        .innerJoinAndSelect("fee.transCode", "transCode")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .where("user.id = :studentId", { studentId })
+        .andWhere("course.slug = :courseSlug", { courseSlug })
+        .orderBy("transCode.payDate", "DESC")
+        .getOne();
+      if (lastedFee === null)
+        throw new NotFoundError("Không tìm thấy dữ liệu các khoản học phí trước của học sinh, vui lòng kiểm tra lại.");
+      // Amount
+      const refundAmount = today < openingDate ? lastedFee.transCode.amount : amount;
+      // Transaction
+      const transaction = new Transaction();
+      transaction.transCode = faker.random.numeric(16);
+      transaction.content = `Hoàn phí khóa học "${course.name}"`;
+      transaction.amount = refundAmount;
+      transaction.type = TransactionType.Refund;
+      transaction.branch = course.branch;
+      transaction.payDate = new Date();
+      transaction.userEmployee = employee;
+      // Validation
+      const transValidateErrors = await validate(transaction);
+      if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+      const savedTransaction = await queryRunner.manager.save(transaction);
+
+      if (lastedFee.transCode.amount < refundAmount)
+        throw new ValidationError(["Dữ liệu hoàn phí không hợp lệ, vui lòng kiểm tra lại."]);
+      // Create Refund
+      const refund = new Refund();
+      refund.transCode = savedTransaction;
+      refund.fee = lastedFee;
+      // Validation
+      const refundValidateErrors = await validate(transaction);
+      if (refundValidateErrors.length) throw new ValidationError(refundValidateErrors);
+      await queryRunner.manager.save(refund);
       // Remove user attend study session
       const attendances = await queryRunner.manager
         .createQueryBuilder(UserAttendStudySession, "uas")
@@ -2947,7 +3259,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 
@@ -2959,7 +3271,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (!isManager) return { total: 0, salaries: [] };
     // Find branch by employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Query data
     const pageable = new Pageable(pageableDto);
     const [total, salaries] = await Promise.all([
@@ -2974,7 +3286,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, fees: [] };
     // Find branch by employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Query data
     const pageable = new Pageable(pageableDto);
     const [total, fees] = await Promise.all([
@@ -2989,7 +3301,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, refunds: [] };
     // Find branch by employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Query data
     const pageable = new Pageable(pageableDto);
     const [total, refunds] = await Promise.all([
@@ -3004,7 +3316,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, teachers: [] };
     // Find branch by employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Query data
     const pageable = new Pageable(pageableDto);
     const [total, teachers] = await Promise.all([
@@ -3019,7 +3331,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, tutors: [] };
     // Find branch by employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Query data
     const pageable = new Pageable(pageableDto);
     const [total, tutors] = await Promise.all([
@@ -3037,7 +3349,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (!isManager) return { total: 0, employees: [] };
     // Find branch by employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Query data
     const pageable = new Pageable(pageableDto);
     const [total, employees] = await Promise.all([
@@ -3050,18 +3362,18 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   async checkStudentParticipateCourse(userId: number, courseSlug: string, studentId: number): Promise<boolean> {
     if (userId === undefined || courseSlug === undefined || studentId === undefined)
-      throw new NotFoundError();
+      throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
     // Find employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn thông tin này.");
     // Find course
     const course = await CourseRepository.findCourseBySlug(courseSlug);
-    if (course === null) throw new NotFoundError();
+    if (course === null) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
     // Find student
     const student = await UserStudentRepository.findStudentById(studentId);
-    if (student === null) throw new NotFoundError();
+    if (student === null) throw new NotFoundError("Không tìm thấy thông tin học sinh.");
     // Check branch of course and employee
-    if (employee.worker.branch.id !== course.branch.id) throw new ValidationError([]);
+    if (employee.worker.branch.id !== course.branch.id) throw new ValidationError(["Bạn không có quyền truy vấn thông tin này."]);
     return await StudentParticipateCourseRepository.checkStudentParticipateCourse(studentId, courseSlug);
   }
 
@@ -3072,24 +3384,24 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     await queryRunner.connect()
     await queryRunner.startTransaction();
     try {
-      if (userId === undefined) throw new NotFoundError();
+      if (userId === undefined) throw new NotFoundError("Bạn không có quyền thực hiện thanh toán lương.");
       // Check is manager
       const isManager = BranchRepository.checkIsManager(userId);
-      if (!isManager) throw new ValidationError([]);
+      if (!isManager) throw new ValidationError(["Bạn không có quyền thực hiện thanh toán lương."]);
       // Find branch by employee
       const manager = await EmployeeRepository.findUserEmployeeByid(userId);
-      if (manager === null) throw new NotFoundError();
+      if (manager === null) throw new NotFoundError("Bạn không có quyền thực hiện thanh toán lương.");
       // Constants
       const constants = await queryRunner.manager
         .createQueryBuilder(TransactionConstants, "c")
         .setLock("pessimistic_read")
         .useTransaction(true)
         .getOne();
-      if (constants === null) throw new NotFoundError();
+      if (constants === null) throw new NotFoundError("Không tìm thấy dữ liệu, vui lòng kiểm tra lại.");
       // Employees
       const employees = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "em")
-        .setLock("pessimistic_write")
+        .setLock("pessimistic_read")
         .useTransaction(true)
         .leftJoinAndSelect("em.worker", "worker")
         .leftJoinAndSelect("worker.user", "user")
@@ -3135,7 +3447,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Teacher
       const teachers = await queryRunner.manager
         .createQueryBuilder(UserTeacher, "em")
-        .setLock("pessimistic_write")
+        .setLock("pessimistic_read")
         .useTransaction(true)
         .leftJoinAndSelect("em.worker", "worker")
         .leftJoinAndSelect("worker.user", "user")
@@ -3151,7 +3463,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           // Query all study session
           const studySessions = await queryRunner.manager
             .createQueryBuilder(StudySession, 'ss')
-            .setLock("pessimistic_write")
+            .setLock("pessimistic_read")
             .useTransaction(true)
             .leftJoinAndSelect("ss.course", "course")
             .leftJoinAndSelect("course.curriculum", "curriculum")
@@ -3214,7 +3526,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Tutors
       const tutors = await queryRunner.manager
         .createQueryBuilder(UserTutor, "em")
-        .setLock("pessimistic_write")
+        .setLock("pessimistic_read")
         .useTransaction(true)
         .leftJoinAndSelect("em.worker", "worker")
         .leftJoinAndSelect("worker.user", "user")
@@ -3230,7 +3542,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           // Query all study session
           const studySessions = await queryRunner.manager
             .createQueryBuilder(StudySession, 'ss')
-            .setLock("pessimistic_write")
+            .setLock("pessimistic_read")
             .useTransaction(true)
             .leftJoinAndSelect("ss.course", "course")
             .leftJoinAndSelect("course.curriculum", "curriculum")
@@ -3297,19 +3609,62 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (salaryDate > currentDate) salaryDate.setMonth(salaryDate.getMonth() - 1);
       const studySessions = await queryRunner.manager
         .createQueryBuilder(StudySession, 'ss')
-        .setLock("pessimistic_write")
+        .setLock("pessimistic_read")
         .useTransaction(true)
+        .leftJoinAndSelect("ss.course", "course")
         .leftJoinAndSelect("ss.teacher", "teacher")
         .leftJoinAndSelect("teacher.worker", "teacherWorker")
         .leftJoinAndSelect("ss.tutor", "tutor")
         .leftJoinAndSelect("tutor.worker", "tutorWorker")
-        .where("ss.courseId IS NULL")
+        .where("course.branchId IS NULL")
+        .andWhere("course.lockTime IS NOT NULL")
         .andWhere("ss.date < :endingDate", { endingDate: moment(salaryDate).format("YYYY-MM-DD") })
         .andWhere("teacherWorker.salaryDate >= :teacherSalaryDate", { teacherSalaryDate: moment(salaryDate).format("YYYY-MM-DD") })
         .andWhere("tutorWorker.salaryDate >= :tutorSalaryDate", { tutorSalaryDate: moment(salaryDate).format("YYYY-MM-DD") })
         .getMany();
       for (const studySession of studySessions)
         await queryRunner.manager.remove(studySession);
+      // Remove courses
+      const courses = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .where((qb) => {
+          const subQuery = qb
+            .subQuery()
+            .select("c.id", "id")
+            .distinct(true)
+            .from(Course, "c")
+            .leftJoin("c.studySessions", "studySessions")
+            .where("c.lockTime IS NOT NULL")
+            .andWhere("c.branchId IS NULL")
+            .groupBy("c.id")
+            .having("COUNT(*) = 0")
+            .getQuery()
+          return "course.id IN " + subQuery
+        }).getMany();
+      for (const course of courses) {
+        // Remove image
+        if (course.image) {
+          const filePath = path.join(process.cwd(), "public", course.image);
+          fs.unlinkSync(filePath);
+        }
+        await queryRunner.manager.remove(course);
+        // Curriculum
+        const courseCount = await queryRunner.manager
+          .createQueryBuilder(Course, "course")
+          .setLock("pessimistic_read")
+          .useTransaction(true)
+          .leftJoinAndSelect("course.curriculum", "curriculum")
+          .where("curriculum.id = :curriculumId", { curriculumId: course.curriculum.id })
+          .andWhere("course.id <> :courseId", { courseId: course.id })
+          .getCount();
+        if (courseCount === 0 && course.curriculum.latest === false) {
+          if (course.curriculum && course.curriculum.image) {
+            const filePath = path.join(process.cwd(), "public", course.curriculum.image);
+            fs.unlinkSync(filePath);
+          }
+          await queryRunner.manager.remove(course.curriculum);
+        }
+      }
       // Commit data
       await queryRunner.commitTransaction();
       await queryRunner.release();
@@ -3330,7 +3685,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           io.to(ss.socketId).emit("create_salary_failed");
         });
       }
-      return false;
+      throw error;
     }
   }
 
@@ -3340,7 +3695,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       return { total: 0, students: [] };
     // Check employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền truy vấn danh sách học viên trễ học phí.");
     // Query
     const pageable = new Pageable(pageableDto);
     const [total, result] = await Promise.all([
@@ -3358,7 +3713,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     if (userId === undefined) return false;
     // Check employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền để thực hiện nhắc nhở học viên trễ học phí.");
     // Notifications container
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
     // Query runner
@@ -3410,19 +3765,19 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     } catch (err) {
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw err;
     }
   }
 
 
   async getUnpaidFee(userId: number, studentId: number): Promise<UnpaidDto[]> {
-    if (userId === undefined) throw new NotFoundError();
+    if (userId === undefined) throw new NotFoundError("Bạn không có quyền để truy vấn khoản phí chưa đóng của học viên.");
     // Check employee
     const employee = await EmployeeRepository.findUserEmployeeByid(userId);
-    if (employee === null) throw new NotFoundError();
+    if (employee === null) throw new NotFoundError("Bạn không có quyền để truy vấn khoản phí chưa đóng của học viên.");
     // Get transaction constants
     const constants = await TransactionConstantsRepository.find();
-    if (constants === null) throw new NotFoundError();
+    if (constants === null) throw new NotFoundError("Không tìm thấy dữ liệu, vui lòng kiểm tra lại.");
     // Calculate unpaid fee
     const result: UnpaidDto[] = []
     const participations = await StudentParticipateCourseRepository.findUnpaidFeeByStudentAndBranch(studentId, employee.worker.branch.id);
@@ -3438,8 +3793,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       let feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
       if (feeDate <= currentDate) feeDate.setMonth(feeDate.getMonth() + 1);
       if (this.diffDays(feeDate, currentDate) < 10) feeDate.setMonth(feeDate.getMonth() + 1);
+      // Tính học phí tới ngày bị khóa khóa học
+      let latestDate = new Date();
+      if (participation.course.lockTime) {
+        const lockTime = new Date(participation.course.lockTime);
+        latestDate = latestDate > lockTime ? lockTime : latestDate;
+      }
       while (true) {
-        if ((new Date()) < feeDate) isFinished = true;
+        if (latestDate < feeDate) isFinished = true;
         if (expectedClosingDate <= feeDate) {
           feeDate = new Date(expectedClosingDate);
           feeDate.setHours(0);
@@ -3489,7 +3850,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     try {
       if (userId === undefined || studentId === undefined ||
         courseSlug === undefined || fromDate === undefined ||
-        toDate === undefined || amount === undefined) throw new NotFoundError();
+        toDate === undefined || amount === undefined) throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
       // Check employee
       const employee = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "employee")
@@ -3500,7 +3861,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .leftJoinAndSelect("worker.branch", "branch")
         .where("user.id = :userId", { userId })
         .getOne();
-      if (employee === null) throw new NotFoundError();
+      if (employee === null) throw new NotFoundError("Bạn không có quyền để thực hiện thanh toán học phí cho học viên.");
       // Course participation
       const participation = await queryRunner.manager
         .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
@@ -3513,10 +3874,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .andWhere("userStudent.id = :studentId", { studentId })
         .getOne();
-      if (participation === null) throw new NotFoundError();
+      if (participation === null) throw new NotFoundError("Không tìm thấy thông tin học viên tham gia khóa học.");
       // Check branch
       if (employee.worker.branch.id !== participation.course.branch.id)
-        throw new ValidationError([]);
+        throw new ValidationError(["Bạn không có quyền để thực hiện thanh toán khoản học phí này cho học viên."]);
       // Check billingDate
       const billingDate = new Date(participation.billingDate);
       const expectedClosingDate = new Date(participation.course.expectedClosingDate);
@@ -3525,14 +3886,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (billingDate.getFullYear() !== fromDateDto.getFullYear() ||
         billingDate.getMonth() !== fromDateDto.getMonth() ||
         billingDate.getDate() !== fromDateDto.getDate())
-        throw new ValidationError([]);
+        throw new ValidationError(["Cần thực hiện thanh toán theo thứ tự thời gian của khoản phí."]);
       if (expectedClosingDate < toDateDto)
-        throw new ValidationError([]);
+        throw new ValidationError(["Cần thực hiện thanh toán theo thứ tự thời gian của khoản phí."]);
       // Check amount
       const expectedAmount = this.diffDays(fromDateDto, toDateDto) / this.diffDays(
         participation.course.expectedClosingDate, participation.course.openingDate) * participation.course.price;
       if (Math.ceil(expectedAmount) !== Math.ceil(amount))
-        throw new ValidationError([]);
+        throw new ValidationError(["Số liệu khoản phí không hợp lệ, vui lòng kiểm tra lại."]);
       // Create transaction
       if (expectedAmount > 0) {
         const transaction = new Transaction();
@@ -3569,7 +3930,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       console.log(error);
       await queryRunner.rollbackTransaction();
       await queryRunner.release();
-      return false;
+      throw error;
     }
   }
 }

@@ -63,8 +63,7 @@ class UserStudentRepositoryImpl implements UserStudentRepositoryInterface {
     if (feeDate > today)
       feeDate.setMonth(feeDate.getMonth() - 1);
     // Calculate fee due date
-    const feeDueDate = new Date(feeDate);
-    feeDueDate.setDate(feeDueDate.getDate() + constants.feeDueDay - constants.feeDay);
+    const feeDueDate = new Date(feeDate.getFullYear(), feeDate.getMonth(), constants.feeDueDay);
     if (feeDueDate < feeDate)
       feeDueDate.setMonth(feeDueDate.getMonth() + 1);
     // Caculate minimum valid fee date
@@ -82,6 +81,7 @@ class UserStudentRepositoryImpl implements UserStudentRepositoryInterface {
       .leftJoin("course.branch", "branch")
       .where("branch.id = :branchId", { branchId })
       .andWhere("course.expectedClosingDate > studentPaticipateCourses.billingDate")
+      .andWhere("course.lockTime IS NULL OR course.lockTime > studentPaticipateCourses.billingDate")
       .andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
     let queryStmt = UserStudent.createQueryBuilder("s")
       .setLock("pessimistic_read")
@@ -104,8 +104,7 @@ class UserStudentRepositoryImpl implements UserStudentRepositoryInterface {
     if (feeDate > today)
       feeDate.setMonth(feeDate.getMonth() - 1);
     // Calculate fee due date
-    const feeDueDate = new Date(feeDate);
-    feeDueDate.setDate(feeDueDate.getDate() + constants.feeDueDay - constants.feeDay);
+    const feeDueDate = new Date(feeDate.getFullYear(), feeDate.getMonth(), constants.feeDueDay);
     if (feeDueDate < feeDate)
       feeDueDate.setMonth(feeDueDate.getMonth() + 1);
     // Caculate minimum valid fee date
@@ -123,6 +122,7 @@ class UserStudentRepositoryImpl implements UserStudentRepositoryInterface {
       .leftJoin("course.branch", "branch")
       .where("branch.id = :branchId", { branchId })
       .andWhere("course.expectedClosingDate > studentPaticipateCourses.billingDate")
+      .andWhere("course.lockTime IS NULL OR course.lockTime > studentPaticipateCourses.billingDate")
       .andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
     let queryStmt = UserStudent.createQueryBuilder("s")
       .setLock("pessimistic_read")
