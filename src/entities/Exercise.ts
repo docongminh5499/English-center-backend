@@ -25,18 +25,18 @@ export class Exercise extends MyBaseEntity {
 
   @IsOptional()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: true })
-  openTime: Date | null;
+  @Column({ type: "timestamp", precision: 6, nullable: false })
+  openTime: Date;
 
   @IsOptional()
   @IsDate()
-  @Column({ type: "timestamp", precision: 6, nullable: true })
-  endTime: Date | null;
+  @Column({ type: "timestamp", precision: 6, nullable: false })
+  endTime: Date;
 
   @IsOptional()
   @IsNumber()
-  @Column({ type: "integer", default: 3 })
-  maxTime: number | null;
+  @Column({ type: "integer", default: 3, nullable: false })
+  maxTime: number;
 
   @ManyToMany(() => Question, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinTable({ name: "exercise_contain_question" })

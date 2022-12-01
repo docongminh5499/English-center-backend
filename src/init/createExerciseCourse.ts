@@ -12,23 +12,15 @@ export const createExercise = async (course: Course, tags: Tag[]) => {
     exercise.name = faker.random.words();
     exercise.maxTime = faker.datatype.number({ min: 3, max: 6 });
 
-    const status = course.closingDate !== null  // 1: Not Open, 2 Open, 3 Closed 
-      ? 3 : (course.openingDate > new Date() ? 1 : faker.helpers.arrayElement([1, 2, 3]));
-      
-    let openingDate = null;
-    let closingDate = null;
-    if (status === 2 || status === 3) {
-      openingDate = faker.datatype.datetime({
-        min: course.openingDate.getTime(),
-        max: course.expectedClosingDate.getTime(),
-      });
-      if (status === 3) {
-        closingDate = faker.datatype.datetime({
-          min: openingDate.getTime(),
-          max: course.expectedClosingDate.getTime(),
-        });
-      }
-    }
+    let openingDate = faker.datatype.datetime({
+      min: course.openingDate.getTime(),
+      max: course.expectedClosingDate.getTime(),
+    });;
+    let closingDate = faker.datatype.datetime({
+      min: openingDate.getTime(),
+      max: course.expectedClosingDate.getTime(),
+    });
+
     exercise.openTime = openingDate;
     exercise.endTime = closingDate;
     const questions = await createQuestion(faker.helpers.arrayElements(tags, 3));
