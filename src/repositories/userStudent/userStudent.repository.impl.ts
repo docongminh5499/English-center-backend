@@ -1,4 +1,5 @@
 import moment = require("moment");
+import { Brackets } from "typeorm";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { UserStudent } from "../../entities/UserStudent";
 import { NotFoundError } from "../../utils/errors/notFound.error";
@@ -81,8 +82,10 @@ class UserStudentRepositoryImpl implements UserStudentRepositoryInterface {
       .leftJoin("course.branch", "branch")
       .where("branch.id = :branchId", { branchId })
       .andWhere("course.expectedClosingDate > studentPaticipateCourses.billingDate")
-      .andWhere("course.lockTime IS NULL OR course.lockTime > studentPaticipateCourses.billingDate")
-      .andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
+      .andWhere(new Brackets(qb => {
+        qb.where("course.lockTime IS NULL")
+          .orWhere("course.lockTime > studentPaticipateCourses.billingDate")
+      })).andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
     let queryStmt = UserStudent.createQueryBuilder("s")
       .setLock("pessimistic_read")
       .useTransaction(true)
@@ -122,8 +125,10 @@ class UserStudentRepositoryImpl implements UserStudentRepositoryInterface {
       .leftJoin("course.branch", "branch")
       .where("branch.id = :branchId", { branchId })
       .andWhere("course.expectedClosingDate > studentPaticipateCourses.billingDate")
-      .andWhere("course.lockTime IS NULL OR course.lockTime > studentPaticipateCourses.billingDate")
-      .andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
+      .andWhere(new Brackets(qb => {
+        qb.where("course.lockTime IS NULL")
+          .orWhere("course.lockTime > studentPaticipateCourses.billingDate")
+      })).andWhere("studentPaticipateCourses.billingDate <= :date", { date: moment(feeDate).format("YYYY-MM-DD") })
     let queryStmt = UserStudent.createQueryBuilder("s")
       .setLock("pessimistic_read")
       .useTransaction(true)

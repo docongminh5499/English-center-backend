@@ -430,6 +430,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (foundStudySession.version !== studySession.version)
         throw new InvalidVersionColumnError("Dữ liệu hiện tại của bạn đã hết hạn. Vui lòng tải lại trang và thực hiện lại thay đổi.");
       foundStudySession.notes = studySession.notes;
+      foundStudySession.date = new Date(foundStudySession.date);
       // Validation
       const validateErrors = await validate(foundStudySession);
       if (validateErrors.length) throw new ValidationError(validateErrors);

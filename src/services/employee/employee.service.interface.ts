@@ -87,6 +87,8 @@ export default interface EmployeeService {
 
     modifyParent: (userId: number, parentId: number, studentId: number, version: number) => Promise<UserParent | null>;
 
+    removeParentFromStudent: (userId: number, studentId: number) => Promise<boolean>;
+    
     getPersonalSalaries: (userId: number, pageableDto: PageableDto, fromDate: Date, toDate: Date) => Promise<{ total: number, salaries: Salary[] }>;
 
     getFeeAmount: (userId: number, courseSlug: string, studentId?: number) => Promise<number>;
