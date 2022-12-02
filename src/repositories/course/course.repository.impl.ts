@@ -64,6 +64,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("studySessions.shifts", "shifts")
             .leftJoinAndSelect("studySessions.classroom", "classroom")
             .where("course.closingDate IS NULL", { date: moment().utc().format("YYYY-MM-DD hh:mm:ss") })
+            .andWhere("course.lockTime IS NULL OR course.lockTime > :now", {now: new Date()})
             .orderBy({
                 "course.openingDate": "ASC",
                 "studySessions.date": "ASC",
@@ -103,6 +104,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .leftJoinAndSelect("studentPaticipateCourses.student", "student")
             .leftJoinAndSelect("student.user", "userStudent")
             .where("course.slug = :courseSlug", { courseSlug })
+            .andWhere("course.lockTime IS NULL OR course.lockTime > :now", {now: new Date()})
             .getOne();
         return result;
     }

@@ -49,6 +49,6 @@ export default interface StudentService {
 
     modifyPersonalInformation: (userId: number, userStudent: UserStudent, avatarFile?: FileDto | null) => Promise<CredentialDto | null>;
 
-    getPaymentHistory: (studentId: number) => Promise<Fee[] | null>;
+    getPaymentHistory: (studentId: number, limit: number, skip: number) => Promise<{fee: Fee[], total: number} | null>;
     
 }

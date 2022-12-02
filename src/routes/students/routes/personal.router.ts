@@ -92,9 +92,8 @@ router.post("/modify-personal-information", upload.single('avatar'), async (req:
 router.get("/get-payment-history", async (req: any, res: any, next: any) => {
   try {
     console.log("STUDENT PAYMENT HISTORY ROUTE");
-    const result = await StudentService.getPaymentHistory(req.user.userId);
-    console.log(result);
-
+    const result = await StudentService.getPaymentHistory(req.user.userId, req.query.limit, req.query.skip);
+    // console.log(result);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

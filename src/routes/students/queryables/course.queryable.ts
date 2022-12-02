@@ -40,9 +40,9 @@ export default class CourseQueryable implements QueryableInterface<Course> {
             query = query.andWhere("Course.name LIKE :name", { name: '%' + this.name + '%' });
 
         if (this.status == "Open")
-            query = query.andWhere("Course.closingDate > :date", { date: new Date() })
+            query = query.andWhere("Course.closingDate IS NULL", { date: new Date() })
         else if (this.status == "Closed")
-            query = query.andWhere("Course.closingDate < :date", { date: new Date() })
+            query = query.andWhere("Course.closingDate IS NOT NULL", { date: new Date() })
         return query;
     }
 }
