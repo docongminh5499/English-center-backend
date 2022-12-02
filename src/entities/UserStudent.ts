@@ -22,5 +22,5 @@ export class UserStudent extends MyBaseEntity {
     nullable: true,
   })
   @JoinColumn({ name: "parentId" })
-  userParent: UserParent;
+  userParent: UserParent | null;
 }

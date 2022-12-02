@@ -1,14 +1,20 @@
-import { CourseListDto, PageableDto } from "../../dto";
+import moment = require("moment");
+import * as path from "path";
+import * as fs from "fs";
+import * as jwt from "jsonwebtoken";
+import { CourseListDto, CredentialDto, FileDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { Exercise } from "../../entities/Exercise";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
 import { UserParent } from "../../entities/UserParent";
-import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import UserParentRepository from "../../repositories/userParent/userParent.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
+import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
 import { NotFoundError } from "../../utils/errors/notFound.error";
+import { AppDataSource } from "../../utils/functions/dataSource";
 import ParentServiceInterface from "./parent.service.interface";
 
 class ParentServiceImpl implements ParentServiceInterface {
@@ -103,6 +109,60 @@ class ParentServiceImpl implements ParentServiceInterface {
             return null;
         }
     }
+
+    async modifyPersonalInformation(userId: number, userParent: UserParent, avatarFile?: FileDto | null): Promise<CredentialDto | null> {
+		const persistenceUserParent = await UserParent
+                                            .createQueryBuilder("userParent")
+                                            .leftJoinAndSelect("userParent.user", "user")
+                                            .where("user.id = :userId", {userId})
+                                            .getOne();
+
+		if (persistenceUserParent === null)
+			throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
+		const oldAvatarSrc = persistenceUserParent.user.avatar;
+
+		const queryRunner = AppDataSource.createQueryRunner();
+		await queryRunner.connect()
+		await queryRunner.startTransaction()
+		try {
+			persistenceUserParent.user.fullName = userParent.user.fullName;
+			persistenceUserParent.user.dateOfBirth = moment(userParent.user.dateOfBirth).toDate();
+			persistenceUserParent.user.sex = userParent.user.sex;
+			persistenceUserParent.user.address = userParent.user.address;
+			persistenceUserParent.user.email = userParent.user.email;
+			persistenceUserParent.user.phone = userParent.user.phone;
+
+			if (avatarFile && avatarFile.filename)
+            persistenceUserParent.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+
+			const savedUser = await queryRunner.manager.save(persistenceUserParent.user);
+			await queryRunner.manager.upsert(UserParent, persistenceUserParent, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+			await persistenceUserParent.reload();
+
+			await queryRunner.commitTransaction();
+			await queryRunner.release();
+			if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
+				const filePath = path.join(process.cwd(), "public", oldAvatarSrc);
+				fs.unlinkSync(filePath);
+			}
+			const account = await AccountRepository.findByUserId(savedUser.id);
+			const credentialDto = new CredentialDto();
+			credentialDto.token = jwt.sign({
+				fullName: account?.user.fullName,
+				userId: account?.user.id,
+				userName: account?.username,
+				role: account?.role,
+				avatar: account?.user.avatar,
+				version: account?.version,
+			}, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
+			return credentialDto;
+		} catch (error) {
+			console.log(error);
+			await queryRunner.rollbackTransaction();
+			await queryRunner.release();
+			throw error;
+		}
+	}
 }
 
 const ParentService = new ParentServiceImpl();

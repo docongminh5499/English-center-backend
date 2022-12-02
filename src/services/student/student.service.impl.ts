@@ -1,4 +1,8 @@
-import { CourseListDto, PageableDto } from "../../dto";
+import moment = require("moment");
+import * as path from "path";
+import * as fs from "fs";
+import * as jwt from "jsonwebtoken";
+import { CourseListDto, CredentialDto, FileDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { Document } from "../../entities/Document";
 import { Exercise } from "../../entities/Exercise";
@@ -7,12 +11,18 @@ import { StudentDoExercise } from "../../entities/StudentDoExercise";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { StudySession } from "../../entities/StudySession";
 import { UserAttendStudySession } from "../../entities/UserAttendStudySession";
-import { CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
+import { UserParent } from "../../entities/UserParent";
+import { UserStudent } from "../../entities/UserStudent";
+import { AccountRepository, CourseRepository, Pageable, Selectable, Sortable } from "../../repositories";
 import ExerciseRepository from "../../repositories/exercise/exercise.repository.impl";
 import StudySessionRepository from "../../repositories/studySession/studySession.repository.impl";
 import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
 import Queryable from "../../utils/common/queryable.interface";
+import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
+import { NotFoundError } from "../../utils/errors/notFound.error";
+import { AppDataSource } from "../../utils/functions/dataSource";
 import StudentServiceInterface from "./student.service.interface";
+import { Fee } from "../../entities/Fee";
 
 class StudentServiceImpl implements StudentServiceInterface {
     async getCoursesForTimetableByStudent(studentId: number) : Promise<Course[]>{
@@ -63,6 +73,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                                 .setLock("pessimistic_read")
                                 .useTransaction(true)
                                 .where("course.id = :courseId", { courseId })
+                                .andWhere("Course.lockTime < :now", {now: new Date()})
                                 .getOne();
 
         if (course === null)
@@ -126,6 +137,10 @@ class StudentServiceImpl implements StudentServiceInterface {
             const student = await UserStudentRepository.findUserStudentById(studentId);
             const exercise = await ExerciseRepository.findExerciseById(exerciseId);
             if(student === null || exercise === null){
+                return null;
+            }
+            const now = new Date();
+            if (exercise.openTime.getTime() > now.getTime() || now.getTime() > exercise.endTime.getTime()){
                 return null;
             }
             let rightAnswer = 0;
@@ -193,11 +208,16 @@ class StudentServiceImpl implements StudentServiceInterface {
                         .where("curriculum.id = :curriculumId", {curriculumId: curriculumId})
                         .andWhere("branch.id = :branchId", {branchId: branchId})
                         .andWhere("course.id != :courseId", {courseId: courseId})
+                        .andWhere("course.closingDate IS NULL")
+                        // .andWhere("course.openingDate < :now>")
                         .getMany();
         console.log(courses);
         const studySession:StudySession[] = [];
         for(const course of courses){
             console.log(course.id);
+            const now = new Date();
+            if (course.openingDate.getTime() - now.getTime() > 14 * 24 * 60 * 60 * 1000)
+                continue;
             const compatibleStudySession = await StudySession
                                             .createQueryBuilder("studySession")
                                             .setLock("pessimistic_read")
@@ -206,7 +226,6 @@ class StudentServiceImpl implements StudentServiceInterface {
                                             .leftJoinAndSelect("studySession.shifts", "shifts")
                                             .leftJoinAndSelect("studySession.classroom", "classroom")
                                             .where("course.id = :cid", {cid: course.id})
-                                            // .andWhere("course.closingDate IS NULL")
                                             .orderBy({
                                                 "studySession.date": "ASC",
                                                 "shifts.startTime": "ASC",
@@ -290,7 +309,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                                     .leftJoinAndSelect("targetStudySession.shifts", "shifts")
                                     .leftJoinAndSelect("targetStudySession.classroom", "classroom")
                                     .where("user.id = :studentId", {studentId})
-                                    // .andWhere("targetStudySession.date > :now", {now: new Date()})
+                                    .andWhere("targetStudySession.date > :now", {now: new Date()})
                                     .orderBy({
                                         "targetStudySession.date": "ASC",
                                         "shifts.startTime": "ASC",
@@ -320,6 +339,144 @@ class StudentServiceImpl implements StudentServiceInterface {
         // console.log(makeupLession);
 
         return true;
+    }
+
+    async getPersonalInformation(studentId: number) : Promise<UserStudent | null>{
+        const userStudent = await UserStudent  
+                                    .createQueryBuilder("userStudent")
+                                    .leftJoinAndSelect("userStudent.user", "user")
+                                    .leftJoinAndSelect("userStudent.userParent", "userParent")
+                                    .leftJoinAndSelect("userParent.user", "us")
+                                    .where("user.id = :studentId", {studentId})
+                                    .getOne();
+        return userStudent;
+    }
+
+    async getParentList(searchValue: string) : Promise<UserParent[] | null>{
+        if (searchValue === "")
+            return null;
+        const userParentList = await UserParent
+                                        .createQueryBuilder("userParent")
+                                        .leftJoinAndSelect("userParent.user", "user")
+                                        .where("user.id like :userId", {userId: "%" + searchValue + "%"})
+                                        .orWhere("user.fullName like :name", {name: "%" + searchValue + "%"})
+                                        .getMany();
+
+        return userParentList;
+    }
+
+    async addParent(studentId: number, parentId: number) : Promise<UserParent | null>{
+        const userParent = await UserParent
+                                    .createQueryBuilder("userParent")
+                                    .leftJoinAndSelect("userParent.user", "user")
+                                    .where("user.id = :parentId", {parentId})
+                                    .getOne();
+
+        const userStudent = await UserStudent
+                                    .createQueryBuilder("userStudent")
+                                    .leftJoinAndSelect("userStudent.user", "user")
+                                    .where("user.id = :studentId", {studentId})
+                                    .getOne();
+
+        if (userParent === null || userStudent === null) {
+            return null;
+        }
+
+        userStudent.userParent = userParent;
+
+        await UserStudent.save(userStudent);
+
+        return userParent;
+    }
+
+    async deleteParent(studentId: number, parentId: number) : Promise<boolean>{
+        const userParent = await UserParent
+                                    .createQueryBuilder("userParent")
+                                    .leftJoinAndSelect("userParent.user", "user")
+                                    .where("user.id = :parentId", {parentId})
+                                    .getOne();
+
+        const userStudent = await UserStudent
+                                    .createQueryBuilder("userStudent")
+                                    .leftJoinAndSelect("userStudent.user", "user")
+                                    .where("user.id = :studentId", {studentId})
+                                    .getOne();
+
+        if (userStudent === null || userParent === null) {
+            return false;
+        }
+
+        userStudent.userParent = null;
+
+        await UserStudent.save(userStudent);
+
+        return true;
+    }
+
+	async modifyPersonalInformation(userId: number, userStudent: UserStudent, avatarFile?: FileDto | null): Promise<CredentialDto | null> {
+		const persistenceUserStudent = await UserStudent
+                                            .createQueryBuilder("userStudent")
+                                            .leftJoinAndSelect("userStudent.user", "user")
+                                            .where("user.id = :userId", {userId})
+                                            .getOne();
+
+		if (persistenceUserStudent === null)
+			throw new NotFoundError("Không tìm thấy thông tin cá nhân của bạn.");
+		const oldAvatarSrc = persistenceUserStudent.user.avatar;
+
+		const queryRunner = AppDataSource.createQueryRunner();
+		await queryRunner.connect()
+		await queryRunner.startTransaction()
+		try {
+			persistenceUserStudent.user.fullName = userStudent.user.fullName;
+			persistenceUserStudent.user.dateOfBirth = moment(userStudent.user.dateOfBirth).toDate();
+			persistenceUserStudent.user.sex = userStudent.user.sex;
+			persistenceUserStudent.user.address = userStudent.user.address;
+			persistenceUserStudent.user.email = userStudent.user.email;
+			persistenceUserStudent.user.phone = userStudent.user.phone;
+
+			if (avatarFile && avatarFile.filename)
+				persistenceUserStudent.user.avatar = AVATAR_DESTINATION_SRC + avatarFile.filename;
+
+			const savedUser = await queryRunner.manager.save(persistenceUserStudent.user);
+			await queryRunner.manager.upsert(UserStudent, persistenceUserStudent, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
+			await persistenceUserStudent.reload();
+
+			await queryRunner.commitTransaction();
+			await queryRunner.release();
+			if (avatarFile && avatarFile.filename && oldAvatarSrc && oldAvatarSrc.length > 0) {
+				const filePath = path.join(process.cwd(), "public", oldAvatarSrc);
+				fs.unlinkSync(filePath);
+			}
+			const account = await AccountRepository.findByUserId(savedUser.id);
+			const credentialDto = new CredentialDto();
+			credentialDto.token = jwt.sign({
+				fullName: account?.user.fullName,
+				userId: account?.user.id,
+				userName: account?.username,
+				role: account?.role,
+				avatar: account?.user.avatar,
+				version: account?.version,
+			}, process.env.TOKEN_KEY || "", { expiresIn: "1d" });
+			return credentialDto;
+		} catch (error) {
+			console.log(error);
+			await queryRunner.rollbackTransaction();
+			await queryRunner.release();
+			throw error;
+		}
+	}
+
+    async getPaymentHistory(studentId: number) : Promise<Fee[] | null>{
+        const paymentHistory = await Fee
+                                    .createQueryBuilder("fee")
+                                    .leftJoinAndSelect("fee.transCode", "transCode")
+                                    .leftJoinAndSelect("fee.course", "course")
+                                    .leftJoinAndSelect("fee.userStudent", "userStudent")
+                                    .leftJoinAndSelect("userStudent.user", "user")
+                                    .where("user.id = :studentId", {studentId})
+                                    .getMany();
+        return paymentHistory;
     }
 }
 
