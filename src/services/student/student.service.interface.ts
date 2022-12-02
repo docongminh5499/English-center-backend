@@ -31,7 +31,10 @@ export default interface StudentService {
 
     getDocument: (courseId: number) => Promise<Document[] | null>;
 
-    getMakeupLessionCompatible: (curriculumId: number, branchId: number, order: number, courseId: number) => Promise<StudySession[] | null>;
+    getMakeupLessionCompatible: (curriculumId: number, branchId: number, order: number, courseId: number) => Promise<{
+        studySession: StudySession,
+        numStudentWillAttend: number,
+        maxStudent: number,}[] | null>;
 
     registerMakeupLession: (studentId: number, studySessionId: number, targetStudySessionId: number) => Promise<MakeUpLession | null>;
     

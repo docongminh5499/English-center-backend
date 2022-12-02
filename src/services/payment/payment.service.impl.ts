@@ -461,39 +461,39 @@ class PaymentServiceImpl implements PaymentServiceInterface {
       await queryRunner.manager.save(fee);
       studentParticipateCourse!.billingDate = new Date(resultFee.feeDate);
       // Add user attend study session
-      const attendanceQuery = queryRunner.manager
-        .createQueryBuilder(UserAttendStudySession, "uas")
-        .setLock("pessimistic_write")
-        .useTransaction(true)
-        .select("studySession.id", "id")
-        .distinct(true)
-        .innerJoin("uas.studySession", "studySession")
-        .innerJoin("studySession.course", "course")
-        .where("course.slug = :courseSlug", { courseSlug })
-        .andWhere("studySession.date > CURDATE()");
-      const studySessions = await queryRunner.manager
-        .createQueryBuilder(StudySession, "ss")
-        .setLock("pessimistic_read")
-        .useTransaction(true)
-        .where(`ss.id IN (${attendanceQuery.getQuery()})`)
-        .setParameters(attendanceQuery.getParameters())
-        .getMany();
-      for (const studySession of studySessions) {
-        const attendance = new UserAttendStudySession();
-        attendance.student = student;
-        attendance.studySession = studySession;
-        attendance.commentOfTeacher = "";
-        attendance.isAttend = true;
-        // Validate
-        const validateErrors = await validate(attendance);
-        if (validateErrors.length) throw new ValidationError(validateErrors);
-        // Save
-        await queryRunner.manager.save(attendance);
-      }
+      // const attendanceQuery = queryRunner.manager
+      //   .createQueryBuilder(UserAttendStudySession, "uas")
+      //   .setLock("pessimistic_write")
+      //   .useTransaction(true)
+      //   .select("studySession.id", "id")
+      //   .distinct(true)
+      //   .innerJoin("uas.studySession", "studySession")
+      //   .innerJoin("studySession.course", "course")
+      //   .where("course.slug = :courseSlug", { courseSlug })
+      //   .andWhere("studySession.date > CURDATE()");
+      // const studySessions = await queryRunner.manager
+      //   .createQueryBuilder(StudySession, "ss")
+      //   .setLock("pessimistic_read")
+      //   .useTransaction(true)
+      //   .where(`ss.id IN (${attendanceQuery.getQuery()})`)
+      //   .setParameters(attendanceQuery.getParameters())
+      //   .getMany();
+      // for (const studySession of studySessions) {
+      //   const attendance = new UserAttendStudySession();
+      //   attendance.student = student;
+      //   attendance.studySession = studySession;
+      //   attendance.commentOfTeacher = "";
+      //   attendance.isAttend = true;
+      //   // Validate
+      //   const validateErrors = await validate(attendance);
+      //   if (validateErrors.length) throw new ValidationError(validateErrors);
+      //   // Save
+      //   await queryRunner.manager.save(attendance);
+      // }
       // Student notification
       const studentNotificationDto = {} as NotificationDto;
       studentNotificationDto.userId = student.user.id;
-      studentNotificationDto.content = `Bạn vừa được thêm vào khoá học "${course.name}". Vui lòng vào trang web để kiểm tra thông tin.`;
+      studentNotificationDto.content = `Bạn vừa thanh toán khoá học "${course.name}". Vui lòng vào kiểm tra thông tin.`;
       const studentNotificationResult = await this.sendNotification(queryRunner, studentNotificationDto);
       if (studentNotificationResult.success && studentNotificationResult.receiverSocketStatuses && studentNotificationResult.receiverSocketStatuses.length) {
         notifications.push({

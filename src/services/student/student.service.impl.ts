@@ -203,25 +203,28 @@ class StudentServiceImpl implements StudentServiceInterface {
         return null;
     }
 
-    async getMakeupLessionCompatible(curriculumId: number, branchId: number, order: number, courseId: number) : Promise<StudySession[] | null>{
+    async getMakeupLessionCompatible(curriculumId: number, branchId: number, order: number, courseId: number) : Promise<{
+        studySession: StudySession,
+        numStudentWillAttend: number,
+        maxStudent: number,}[] | null>{
         const courses = await Course
                         .createQueryBuilder("course")
                         .setLock("pessimistic_read")
                         .useTransaction(true)
                         .leftJoinAndSelect("course.curriculum", "curriculum")
                         .leftJoinAndSelect("course.branch", "branch")
+                        .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
                         .where("curriculum.id = :curriculumId", {curriculumId: curriculumId})
                         .andWhere("branch.id = :branchId", {branchId: branchId})
                         .andWhere("course.id != :courseId", {courseId: courseId})
-                        .andWhere("course.closingDate IS NULL")
-                        // .andWhere("course.openingDate < :now>")
+                        // .andWhere("course.closingDate IS NULL")
                         .getMany();
         console.log(courses);
-        const studySession:StudySession[] = [];
+        const studySession = [];
         for(const course of courses){
             console.log(course.id);
             const now = new Date();
-            if (new Date(course.openingDate).getTime() - now.getTime() < 14 * 24 * 60 * 60 * 1000)
+            if (new Date(course.openingDate).getTime() - now.getTime() > 14 * 24 * 60 * 60 * 1000)
                 continue;
             const compatibleStudySession = await StudySession
                                             .createQueryBuilder("studySession")
@@ -238,9 +241,29 @@ class StudentServiceImpl implements StudentServiceInterface {
                                             .skip(order) 
                                             .take(1)
                                             .getOne();
-                        
+            if (compatibleStudySession === null)
+                continue;
+            let numStudentWillAttend = course.studentPaticipateCourses.length;
+            const numStudentLeave = await MakeUpLession
+                                            .createQueryBuilder("makeupLession")
+                                            .leftJoinAndSelect("makeupLession.studySession", "studySession")
+                                            .where("studySession.id = :ssid", {ssid: compatibleStudySession.id})
+                                            .getCount();
+
+            const numStudentRegisterMakeup = await MakeUpLession
+                                            .createQueryBuilder("makeupLession")
+                                            .leftJoinAndSelect("makeupLession.targetStudySession", "targetStudySession")
+                                            .where("targetStudySession.id = :ssid", {ssid: compatibleStudySession.id})
+                                            .getCount();
+
+            numStudentWillAttend = numStudentWillAttend + numStudentRegisterMakeup - numStudentLeave;
+                                                  
             if (compatibleStudySession !== null)
-                studySession.push(compatibleStudySession);
+                studySession.push({
+                    studySession: compatibleStudySession,
+                    numStudentWillAttend: numStudentWillAttend,
+                    maxStudent: course.maxNumberOfStudent,
+                });
         }
         console.log(studySession);
         return studySession.length === 0 ? null : studySession;
@@ -259,6 +282,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                                 .setLock("pessimistic_read")
                                 .useTransaction(true)
                                 .leftJoinAndSelect("ss.course", "course")
+                                .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
                                 .leftJoinAndSelect("ss.shifts", "shifts")
                                 .leftJoinAndSelect("ss.classroom", "classroom")
                                 .where("ss.id = :ssid", {ssid: targetStudySessionId})
@@ -269,6 +293,27 @@ class StudentServiceImpl implements StudentServiceInterface {
         if (studySession === null || targetStudySession === null || userStudent === null){
             return null;
         }
+
+        let numStudentWillAttend = targetStudySession.course.studentPaticipateCourses.length;
+        const numStudentLeave = await MakeUpLession
+                                        .createQueryBuilder("makeupLession")
+                                        .leftJoinAndSelect("makeupLession.studySession", "studySession")
+                                        .where("studySession.id = :ssid", {ssid: targetStudySession.id})
+                                        .getCount();
+
+        const numStudentRegisterMakeup = await MakeUpLession
+                                        .createQueryBuilder("makeupLession")
+                                        .leftJoinAndSelect("makeupLession.targetStudySession", "targetStudySession")
+                                        .where("targetStudySession.id = :ssid", {ssid: targetStudySession.id})
+                                        .getCount();
+
+        numStudentWillAttend = numStudentWillAttend + numStudentRegisterMakeup - numStudentLeave;
+
+        if (numStudentWillAttend >= targetStudySession.course.maxNumberOfStudent){
+            return null;
+        }
+        // console.log(numStudentWillAttend)
+        // console.log(targetStudySession.course.maxNumberOfStudent)
         
         const makeupLession = new MakeUpLession();
         makeupLession.student = userStudent;
