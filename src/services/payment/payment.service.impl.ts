@@ -73,7 +73,17 @@ class PaymentServiceImpl implements PaymentServiceInterface {
 
   private async caculateFeeAmount(course: Course): Promise<{ feeDate: Date, amount: number }> {
     let openingDate = new Date(course.openingDate);
+    openingDate.setHours(0);
+    openingDate.setMinutes(0);
+    openingDate.setSeconds(0);
+    openingDate.setMilliseconds(0);
+
     let expectedClosingDate = new Date(course.expectedClosingDate);
+    expectedClosingDate.setHours(0);
+    expectedClosingDate.setMinutes(0);
+    expectedClosingDate.setSeconds(0);
+    expectedClosingDate.setMilliseconds(0);
+
     let currentDate = new Date();
     if (currentDate <= openingDate) currentDate = openingDate;
     if (expectedClosingDate < currentDate) return { feeDate: expectedClosingDate, amount: 0 };
@@ -83,7 +93,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
     // Calculate feeDate
     let feeDate = null;
     if (course.curriculum.type == TermCourse.ShortTerm)
-      feeDate = new Date(course.expectedClosingDate);
+      feeDate = expectedClosingDate;
     else {
       // Find feeDate
       feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
@@ -91,14 +101,14 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         feeDate.setMonth(feeDate.getMonth() + 1);
       if (this.diffDays(feeDate, currentDate) < 10)
         feeDate.setMonth(feeDate.getMonth() + 1);
-      if (course.expectedClosingDate <= feeDate)
-        feeDate = new Date(course.expectedClosingDate);
-      else if (this.diffDays(course.expectedClosingDate, feeDate) < 10)
-        feeDate = new Date(course.expectedClosingDate);
+      if (expectedClosingDate <= feeDate)
+        feeDate = expectedClosingDate;
+      else if (this.diffDays(expectedClosingDate, feeDate) < 10)
+        feeDate = expectedClosingDate;
     }
     return {
       feeDate: feeDate,
-      amount: this.diffDays(feeDate, currentDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price,
+      amount: this.diffDays(feeDate, currentDate) / this.diffDays(expectedClosingDate, course.openingDate) * course.price,
     };
   }
 
@@ -147,8 +157,8 @@ class PaymentServiceImpl implements PaymentServiceInterface {
 
   async getStudentOrderDetail(userId: number, courseSlug: string, parentId?: number): Promise<object> {
     // Check data
-    if (userId === undefined || courseSlug === undefined) 
-    throw new NotFoundError("Không tìm thấy thông tin, vui lòng kiểm tra lại.");
+    if (userId === undefined || courseSlug === undefined)
+      throw new NotFoundError("Không tìm thấy thông tin, vui lòng kiểm tra lại.");
     // Check course
     const course = await CourseRepository.findCourseBySlug(courseSlug);
     if (course === null) throw new NotFoundError("Không tìm thấy khóa học.");
