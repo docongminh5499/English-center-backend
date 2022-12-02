@@ -2784,7 +2784,17 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
 
   private async caculateFeeAmount(course: Course): Promise<{ feeDate: Date, amount: number }> {
     let openingDate = new Date(course.openingDate);
+    openingDate.setHours(0);
+    openingDate.setMinutes(0);
+    openingDate.setSeconds(0);
+    openingDate.setMilliseconds(0);
+
     let expectedClosingDate = new Date(course.expectedClosingDate);
+    expectedClosingDate.setHours(0);
+    expectedClosingDate.setMinutes(0);
+    expectedClosingDate.setSeconds(0);
+    expectedClosingDate.setMilliseconds(0);
+
     let currentDate = new Date();
     if (currentDate <= openingDate) currentDate = openingDate;
     if (expectedClosingDate < currentDate) return { feeDate: expectedClosingDate, amount: 0 };
@@ -2794,7 +2804,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
     // Calculate feeDate
     let feeDate = null;
     if (course.curriculum.type == TermCourse.ShortTerm)
-      feeDate = new Date(course.expectedClosingDate);
+      feeDate = expectedClosingDate;
     else {
       // Find feeDate
       feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
@@ -2802,14 +2812,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         feeDate.setMonth(feeDate.getMonth() + 1);
       if (this.diffDays(feeDate, currentDate) < 10)
         feeDate.setMonth(feeDate.getMonth() + 1);
-      if (course.expectedClosingDate <= feeDate)
-        feeDate = new Date(course.expectedClosingDate);
-      else if (this.diffDays(course.expectedClosingDate, feeDate) < 10)
-        feeDate = new Date(course.expectedClosingDate);
+      if (expectedClosingDate <= feeDate)
+        feeDate = expectedClosingDate;
+      else if (this.diffDays(expectedClosingDate, feeDate) < 10)
+        feeDate = expectedClosingDate;
     }
     return {
       feeDate: feeDate,
-      amount: this.diffDays(feeDate, currentDate) / this.diffDays(course.expectedClosingDate, course.openingDate) * course.price,
+      amount: this.diffDays(feeDate, currentDate) / this.diffDays(expectedClosingDate, course.openingDate) * course.price,
     };
   }
 
@@ -3401,7 +3411,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Employees
       const employees = await queryRunner.manager
         .createQueryBuilder(UserEmployee, "em")
-        .setLock("pessimistic_read")
+        .setLock("pessimistic_write")
         .useTransaction(true)
         .leftJoinAndSelect("em.worker", "worker")
         .leftJoinAndSelect("worker.user", "user")
@@ -3447,7 +3457,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Teacher
       const teachers = await queryRunner.manager
         .createQueryBuilder(UserTeacher, "em")
-        .setLock("pessimistic_read")
+        .setLock("pessimistic_write")
         .useTransaction(true)
         .leftJoinAndSelect("em.worker", "worker")
         .leftJoinAndSelect("worker.user", "user")
@@ -3526,7 +3536,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Tutors
       const tutors = await queryRunner.manager
         .createQueryBuilder(UserTutor, "em")
-        .setLock("pessimistic_read")
+        .setLock("pessimistic_write")
         .useTransaction(true)
         .leftJoinAndSelect("em.worker", "worker")
         .leftJoinAndSelect("worker.user", "user")
@@ -3609,7 +3619,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (salaryDate > currentDate) salaryDate.setMonth(salaryDate.getMonth() - 1);
       const studySessions = await queryRunner.manager
         .createQueryBuilder(StudySession, 'ss')
-        .setLock("pessimistic_read")
+        .setLock("pessimistic_write")
         .useTransaction(true)
         .leftJoinAndSelect("ss.course", "course")
         .leftJoinAndSelect("ss.teacher", "teacher")
@@ -3627,6 +3637,8 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       // Remove courses
       const courses = await queryRunner.manager
         .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_write")
+        .useTransaction(true)
         .where((qb) => {
           const subQuery = qb
             .subQuery()
@@ -3651,8 +3663,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         // Curriculum
         const courseCount = await queryRunner.manager
           .createQueryBuilder(Course, "course")
-          .setLock("pessimistic_read")
-          .useTransaction(true)
           .leftJoinAndSelect("course.curriculum", "curriculum")
           .where("curriculum.id = :curriculumId", { curriculumId: course.curriculum.id })
           .andWhere("course.id <> :courseId", { courseId: course.id })
