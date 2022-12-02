@@ -122,7 +122,7 @@ class NotificationServiceImpl implements NotificationServiceInterface {
 
         const notification = new Notification();
         notification.read = false;
-        notification.content = courseNotificationDto.content;
+        notification.content = `Giáo viên khóa học "${course.name}" gửi thông báo tới lớp học: "${courseNotificationDto.content}"`;
         notification.user = studentUser;
         notification.createdAt = new Date();
 

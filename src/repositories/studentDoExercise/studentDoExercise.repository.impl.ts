@@ -24,8 +24,17 @@ class StudentDoExerciseRepositoryImpl implements StudentDoExerciseRepositoryInte
       .where("sde.score = maxScore")
       .andWhere("userStudent.id = :studentId", { studentId })
       .andWhere("course.slug = :courseSlug", { courseSlug })
-      .getMany()
-    return result;
+      .orderBy("sde.startTime", "DESC")
+      .getMany();
+    const exerciseIds = [];
+    const filteredResult = [];
+    for (const data of result) {
+      if (exerciseIds.find(id => id === data.exercise.id) === undefined) {
+        exerciseIds.push(data.exercise.id);
+        filteredResult.push(data);
+      }
+    }
+    return filteredResult;
   }
 }
 

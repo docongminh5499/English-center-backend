@@ -53,6 +53,18 @@ router.post("/modify-parent", async (req: any, res: any, next: any) => {
 })
 
 
+router.post("/remove-parent", async (req: any, res: any, next: any) => {
+  try {
+    const result = await EmployeeService.removeParentFromStudent(req.user.userId, req.body.studentId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+})
+
+
+
 
 router.post("/get-late-fee-students", async (req: any, res: any, next: any) => {
   try {

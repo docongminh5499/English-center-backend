@@ -8,7 +8,7 @@ class ClassroomDtoMapper implements MapperInterface<ClassroomDto> {
         classroomDto.oldName = requestBody.oldName;
         classroomDto.name = requestBody.name;
         classroomDto.branch = requestBody.branchId;
-        classroomDto.capacity = requestBody.capacity;
+        classroomDto.capacity = parseInt(requestBody.capacity);
         classroomDto.function = requestBody.function;
         classroomDto.version = requestBody.version;
         return classroomDto;

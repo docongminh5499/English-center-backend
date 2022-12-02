@@ -1226,14 +1226,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .getMany();
       for (const participation of participations) {
-        // Cập nhật lại để không tính fee thời gian khóa khóa học
-        const oldBillingDate = new Date(participation.billingDate);
-        const diffDays = this.diffDays(new Date(), participation.course.lockTime || new Date());
-        oldBillingDate.setDate(oldBillingDate.getDate() + diffDays);
-        const expectedClosingDate = new Date(participation.course.expectedClosingDate);
-        const newBillingDate = expectedClosingDate < oldBillingDate ? expectedClosingDate : oldBillingDate;
-        participation.billingDate = newBillingDate;
-        await queryRunner.manager.save(participation);
         // Thông báo
         const notificationDto = { userId: participation.student.user.id } as NotificationDto;
         notificationDto.content = `Khoá học ${course.name} vừa được mở khóa và hoạt động bình thường. Vui lòng lên website và kiểm tra lại thông tin.`;
@@ -1244,6 +1236,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             notification: result.notification
           });
         }
+        // Cập nhật lại để không tính fee thời gian khóa khóa học
+        const oldBillingDate = new Date(participation.billingDate);
+        const diffDays = this.diffDays(new Date(), participation.course.lockTime || new Date());
+        oldBillingDate.setDate(oldBillingDate.getDate() + diffDays);
+        const expectedClosingDate = new Date(participation.course.expectedClosingDate);
+        const newBillingDate = expectedClosingDate < oldBillingDate ? expectedClosingDate : oldBillingDate;
+        participation.billingDate = newBillingDate;
+        await queryRunner.manager.upsert(StudentParticipateCourse, participation, { conflictPaths: [], skipUpdateIfNoValuesChanged: true });
       }
       // Save data
       const savedCourse = await queryRunner.manager.save(course);
@@ -2764,6 +2764,21 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
   }
 
 
+  async removeParentFromStudent(userId: number, studentId: number): Promise<boolean> {
+    if (userId === undefined || studentId === undefined)
+      throw new ValidationError(["Dữ liệu không hợp lệ, vui lòng kiểm tra lại."]);
+    const userStudent = await UserStudent
+      .createQueryBuilder("userStudent")
+      .leftJoinAndSelect("userStudent.user", "user")
+      .where("user.id = :studentId", { studentId })
+      .getOne();
+    if (userStudent === null) throw new NotFoundError("Không tìm thấy thông tin học sinh.");
+    userStudent.userParent = null;
+    await UserStudent.update(studentId, userStudent);
+    return true;
+  }
+
+
   async getPersonalSalaries(userId: number, pageableDto: PageableDto, fromDate?: Date, toDate?: Date): Promise<{ total: number, salaries: Salary[] }> {
     if (userId === undefined || pageableDto === undefined || pageableDto === null) return { total: 0, salaries: [] };
     const pageable = new Pageable(pageableDto);
@@ -3795,10 +3810,12 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       let isFinished = false;
       const expectedClosingDate = new Date(participation.course.expectedClosingDate);
       let currentDate = new Date(participation.billingDate);
+      if (currentDate > new Date()) continue;
       currentDate.setHours(0);
       currentDate.setMinutes(0);
       currentDate.setSeconds(0);
       currentDate.setMilliseconds(0);
+
 
       let feeDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), constants.feeDay);
       if (feeDate <= currentDate) feeDate.setMonth(feeDate.getMonth() + 1);
