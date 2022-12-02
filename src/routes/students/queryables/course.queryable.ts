@@ -34,7 +34,8 @@ export default class CourseQueryable implements QueryableInterface<Course> {
     buildQuery(query: SelectQueryBuilder<Course>): SelectQueryBuilder<Course> {
         query = query.leftJoinAndSelect("Course.studentPaticipateCourses", "student_participate_course")
                      .leftJoinAndSelect("Course.curriculum", "curriculum");
-        query = query.where("curriculum.type IN (:...type)", { type: this.type });
+        query = query.where("curriculum.type IN (:...type)", { type: this.type })
+                        // .andWhere("Course.lockTime IS NULL OR Course.lockTime > :now", {now: new Date()});
         if (this.name && this.name.length > 0)
             query = query.andWhere("Course.name LIKE :name", { name: '%' + this.name + '%' });
 

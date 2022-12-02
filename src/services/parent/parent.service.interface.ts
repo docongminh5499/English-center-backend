@@ -1,4 +1,4 @@
-import { CourseListDto, PageableDto } from "../../dto";
+import { CourseListDto, CredentialDto, FileDto, PageableDto } from "../../dto";
 import { Course } from "../../entities/Course";
 import { Exercise } from "../../entities/Exercise";
 import { StudentDoExercise } from "../../entities/StudentDoExercise";
@@ -21,4 +21,6 @@ export default interface ParentService {
 	getAllExercises: (courseId: number) => Promise<Exercise[] | null>;
 
 	getStudentDoExercise: (studentId: number, courseId: number) => Promise<StudentDoExercise[] | null>;
+
+	modifyPersonalInformation: (userId: number, userParent: UserParent, avatarFile?: FileDto | null) => Promise<CredentialDto | null>;
 }

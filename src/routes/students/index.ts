@@ -4,6 +4,7 @@ import { UserRole } from "../../utils/constants/role.constant";
 import { CourseRouter } from "./routes/course.router";
 import { DocumentRouter } from "./routes/document.router";
 import { ExerciseRouter } from "./routes/exercise.route";
+import { StudentPersonalRouter } from "./routes/personal.router";
 import { TimetableRouter } from "./routes/timetable.router";
 
 const router = express.Router();
@@ -13,5 +14,6 @@ router.use("/timetable", TimetableRouter);
 router.use("/courses", CourseRouter);
 router.use("/exercise", ExerciseRouter);
 router.use("/document", DocumentRouter);
+router.use("/personal", StudentPersonalRouter);
 
 export default router;

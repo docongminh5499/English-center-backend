@@ -128,7 +128,8 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         query = selectable.buildQuery(query);
         query = queryable.buildQuery(query);
         if (studentId !== undefined)
-            query = query.andWhere("student_participate_course.studentId = :id", { id: studentId });
+            query = query.andWhere("student_participate_course.studentId = :id", { id: studentId })
+                        .andWhere("Course.lockTime IS NULL OR Course.lockTime > :now", {now: new Date()});
         query = sortable.buildQuery(query);
         query = pageable.buildQuery(query);
         return query.execute()
