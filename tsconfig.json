@@ -29,7 +29,9 @@
 		"downlevelIteration": true,
 		"declaration": true,
 
-		"pretty": true
+		"pretty": true,
+		"allowJs": true,
+		"checkJs": false,
 	},
 	"include": [
 		"typings/**/*",
