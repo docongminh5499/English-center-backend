@@ -5,7 +5,7 @@ import * as entities from "../../entities";
 export const AppDataSource = new DataSource({
   host: process.env.DB_CONFIG_HOST,
   type: "mysql",
-  port: Number(process.env.DB_CONFIG_PORT) || 3305,
+  port: process.env.DEPLOY == "false" ? (Number(process.env.DB_CONFIG_PORT) || 3305) : undefined,
   username: process.env.DB_CONFIG_USERNAME,
   password: process.env.DB_CONFIG_PASSWORD,
   database: process.env.DB_CONFIG_DATABASE,
@@ -14,6 +14,7 @@ export const AppDataSource = new DataSource({
   extra:
     process.env.DEPLOY == "true"
       ? {
+        socketPath: process.env.DB_CONFIG_HOST,
         decimalNumbers: true,
         ssl: {
           rejectUnauthorized: !process.env.DEPLOY,
