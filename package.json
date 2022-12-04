@@ -16,6 +16,10 @@
     "type": "git",
     "url": "git+https://github.com/docongminh5499/English-center-backend.git"
   },
+  "engines": {
+    "node": "16.x",
+    "npm": "8.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
