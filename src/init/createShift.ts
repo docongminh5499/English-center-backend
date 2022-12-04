@@ -1,5 +1,5 @@
 import { Shift } from "../entities/Shift";
-import { cvtWeekDay2Num, Weekday } from "../utils/constants/weekday.constant";
+import { Weekday } from "../utils/constants/weekday.constant";
 
 export async function createShifts() {
   const weekDays = [
@@ -21,7 +21,7 @@ export async function createShifts() {
       shift.weekDay = weekDay;
       shift.startTime = new Date(2000, 10, 10, 7 + offset, 0, 0, 0);
       shift.endTime = new Date(2000, 10, 10, 7 + offset + 1, 0, 0, 0);
-      shift.id = parseInt(cvtWeekDay2Num(weekDay) + (shift.startTime.getHours() < 10 ? '0' : '') + shift.startTime.getHours());
+      // shift.id = parseInt(cvtWeekDay2Num(weekDay) + (shift.startTime.getHours() < 10 ? '0' : '') + shift.startTime.getHours());
       
       shift = await Shift.save(shift);
       shifts.push(shift);
