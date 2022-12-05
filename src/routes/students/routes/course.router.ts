@@ -34,6 +34,19 @@ router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
     }
 });
 
+router.get("/get-total-course-study-session/:courseSlug", async (req: any, res: any, next: any) => {
+  try {
+      // TODO: Admin get all courses, not depending on teacher id
+      console.log("STUDENT GET STAT COURSE STUDYSESSION DETAIL");
+      const total = await StudentService.getTotalCourseStudySession(req.params.courseSlug);
+      console.log(total);
+      return res.status(200).json(total);
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+});
+
 router.post("/assess-course", async (req: any, res: any, next: any) => {
   try {
 

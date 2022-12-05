@@ -16,6 +16,13 @@ import { AVATAR_DESTINATION_SRC } from "../../utils/constants/avatar.constant";
 import { NotFoundError } from "../../utils/errors/notFound.error";
 import { AppDataSource } from "../../utils/functions/dataSource";
 import ParentServiceInterface from "./parent.service.interface";
+import { Fee } from "../../entities/Fee";
+import { Transaction } from "../../entities/Transaction";
+import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
+import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
+import { TermCourse } from "../../utils/constants/termCuorse.constant";
+import TransactionConstantsRepository from "../../repositories/transactionConstants/transactionConstants.repository.impl";
+import { StudySession } from "../../entities/StudySession";
 
 class ParentServiceImpl implements ParentServiceInterface {
 	async getUserParent(parentId: number) : Promise<UserParent | null>{
@@ -71,6 +78,18 @@ class ParentServiceImpl implements ParentServiceInterface {
         if (course?.studentPaticipateCourses.filter(value => value.student.user.id == studentId).length === 0) 
             return null;
         return course;
+    }
+
+    async getTotalCourseStudySession(courseSlug: string) : Promise<number | null>{
+        if(!courseSlug){
+            return null;
+        }
+
+        const totalStudySession = await StudySession.createQueryBuilder("studySession")
+                                    .leftJoinAndSelect("studySession.course", "course")
+                                    .where("course.slug = :courseSlug", {courseSlug})
+                                    .getCount();
+        return totalStudySession;
     }
 
     async getAttendance(studentId: number, courseSlug: string) : Promise<UserAttendStudySession[]>{
@@ -163,6 +182,99 @@ class ParentServiceImpl implements ParentServiceInterface {
 			throw error;
 		}
 	}
+
+    async getStudentPaymentHistory(studentId: number, limit: number, skip: number) : Promise<{fee: Fee[], total: number} | null>{
+        const userStudent = await UserStudentRepository.findUserStudentById(studentId);
+        if (userStudent === null){
+            return null;
+        }
+        const paymentHistory = await Fee
+                                    .createQueryBuilder("fee")
+                                    .leftJoinAndSelect("fee.transCode", "transCode")
+                                    .leftJoinAndSelect("fee.course", "course")
+                                    .leftJoinAndSelect("fee.userStudent", "userStudent")
+                                    .leftJoinAndSelect("userStudent.user", "user")
+                                    .leftJoinAndSelect("transCode.userEmployee", "userEmployee")
+                                    .leftJoinAndSelect("userEmployee.worker", "worker")
+                                    .leftJoinAndSelect("worker.user", "us")
+                                    .where("user.id = :studentId", {studentId})
+                                    .orderBy({
+                                        "transCode.payDate": "DESC",
+                                    })
+                                    .skip(skip)
+                                    .take(limit)
+                                    .getMany();
+
+        let total = await Fee
+                            .createQueryBuilder("fee")
+                            .leftJoinAndSelect("fee.transCode", "transCode")
+                            .leftJoinAndSelect("fee.course", "course")
+                            .leftJoinAndSelect("fee.userStudent", "userStudent")
+                            .leftJoinAndSelect("userStudent.user", "user")
+                            .where("user.id = :studentId", {studentId})
+                            .getCount();
+
+        const arrStudentCourse = await StudentParticipateCourse
+                                    .createQueryBuilder("studentParticipateCourse")
+                                    .leftJoinAndSelect("studentParticipateCourse.student", "student")
+                                    .leftJoinAndSelect("student.user", "user")
+                                    .leftJoinAndSelect("studentParticipateCourse.course", "course")
+                                    .leftJoinAndSelect("course.curriculum", "curriculum")
+                                    .where("user.id = :studentId", {studentId})
+                                    .andWhere("course.closingDate IS NULL")
+                                    .andWhere("curriculum.type = :type", {type: TermCourse.LongTerm})
+                                    .getMany();
+
+        const tranConstants = await TransactionConstantsRepository.find();
+        const arrUnpaidFee: Fee[] = [];
+        console.log(tranConstants);
+        for(const studentParticipateCourse of arrStudentCourse){
+            console.log(studentParticipateCourse.billingDate);
+            console.log(studentParticipateCourse.course.id);
+            let now = new Date();
+
+            let billingDate = studentParticipateCourse.billingDate;
+            const courseClosingDate = new Date(studentParticipateCourse.course.expectedClosingDate);
+
+            while(billingDate.getTime() < now.getTime()){
+                billingDate = moment(billingDate).add(1, "months").toDate();
+                console.log("====================================");
+                if (billingDate.getTime() < now.getTime()){
+                    const unpaidFee = new Fee();
+                    unpaidFee.userStudent = userStudent;
+                    unpaidFee.course = studentParticipateCourse.course;
+
+                    const tranCode = new Transaction();
+                    tranCode.transCode = "-";
+                    tranCode.content = `${studentParticipateCourse.course.name} (Tháng ${billingDate.getMonth() + 1})`;
+                    let price = studentParticipateCourse.course.price;
+                    if(billingDate.getFullYear() === courseClosingDate.getFullYear() && billingDate.getMonth() === courseClosingDate.getMonth()){
+                        price *= courseClosingDate.getDate()/ 30;
+                    }
+                    tranCode.amount = price;
+                    tranCode.payDate = new Date(0);
+                    unpaidFee.transCode = tranCode;
+                    arrUnpaidFee.push(unpaidFee);
+                }
+            }
+        }
+        total += arrUnpaidFee.length;
+        // arrUnpaidFee.sort(function(a: Fee, b: Fee){return a - b});
+        console.log(arrUnpaidFee);
+        if(arrUnpaidFee.length > skip){
+            for (let idx = 0; idx < skip; idx ++){
+                arrUnpaidFee.shift();
+            }
+            const addLength = arrUnpaidFee.length > limit ? limit : arrUnpaidFee.length;
+
+            for (let idx = 0; idx < addLength; idx ++){
+                paymentHistory.pop();
+                paymentHistory.unshift(arrUnpaidFee.shift()!);
+            }
+        }
+
+        return {fee: paymentHistory, total: total};
+    }
 }
 
 const ParentService = new ParentServiceImpl();

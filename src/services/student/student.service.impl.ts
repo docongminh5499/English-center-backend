@@ -72,6 +72,18 @@ class StudentServiceImpl implements StudentServiceInterface {
         return course;
     }
 
+    async getTotalCourseStudySession(courseSlug: string) : Promise<number | null>{
+        if(!courseSlug){
+            return null;
+        }
+
+        const totalStudySession = await StudySession.createQueryBuilder("studySession")
+                                    .leftJoinAndSelect("studySession.course", "course")
+                                    .where("course.slug = :courseSlug", {courseSlug})
+                                    .getCount();
+        return totalStudySession;
+    }
+
     async assessCourse(studentId: number, courseId: number, content: any): Promise<boolean>{
         console.log("ASSESS COURSE SERVICE");
         const course = await Course.createQueryBuilder("course")

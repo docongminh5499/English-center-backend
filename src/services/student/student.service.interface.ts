@@ -18,6 +18,8 @@ export default interface StudentService {
     getCoursesByStudent: (studentId: number, pageableDto: PageableDto, queryable: Queryable<Course>) => Promise<CourseListDto>;
 
     getCourseDetail: (studentId: number, courseSlug: string) => Promise<Partial<Course> | null>;
+    
+    getTotalCourseStudySession: (courseSlug: string) => Promise<number | null>;
 
     assessCourse: (studentId: number, courseId: number, content: any) => Promise<boolean>;
 
