@@ -72,6 +72,16 @@ export default interface TeacherService {
 
     getStdExeResult: (exerciseId: number) => Promise<StudentDoExercise[] | null>;
 
+    saveQuestionImage: (temporaryKey: string, file: any) => Promise<boolean>;
+    
+    saveModifiedQuestionImage: (questionId: number, file: any) => Promise<boolean>;
+
+    saveQuestionAudio: (temporaryKey: string, file: any) => Promise<boolean>;
+    
+    saveModifiedQuestionAudio: (questionId: number, file: any) => Promise<boolean>;
+    
+    deleteQuestionTemporaryKey: (exerciseId: number) => Promise<Exercise | null>;
+    
     //==========================END HOC============================================
     getPreferedCurriculums: (userId?: number) => Promise<Curriculum[]>;
 

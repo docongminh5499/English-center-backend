@@ -14,6 +14,10 @@ export class Question extends MyBaseEntity {
   @Column({ type: "text", nullable: false })
   quesContent: string;
 
+  @IsString()
+  @Column({ type: "text", nullable: true, default: null })
+  temporaryKey: string | null;
+
   @IsNotEmpty()
   @IsString()
   @Length(0, 255)

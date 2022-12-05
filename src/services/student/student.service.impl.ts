@@ -217,14 +217,14 @@ class StudentServiceImpl implements StudentServiceInterface {
                         .where("curriculum.id = :curriculumId", {curriculumId: curriculumId})
                         .andWhere("branch.id = :branchId", {branchId: branchId})
                         .andWhere("course.id != :courseId", {courseId: courseId})
-                        // .andWhere("course.closingDate IS NULL")
+                        .andWhere("course.closingDate IS NULL")
                         .getMany();
         console.log(courses);
         const studySession = [];
         for(const course of courses){
             console.log(course.id);
             const now = new Date();
-            if (new Date(course.openingDate).getTime() - now.getTime() > 14 * 24 * 60 * 60 * 1000)
+            if (new Date(course.openingDate).getTime() - now.getTime() < 14 * 24 * 60 * 60 * 1000)
                 continue;
             const compatibleStudySession = await StudySession
                                             .createQueryBuilder("studySession")
