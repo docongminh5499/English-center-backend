@@ -8,7 +8,7 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 let io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>;
 export const socketInitialization = (server: http.Server) => {
   io = new Server(server, {
-    cors: { origin: "http://localhost:3000" }
+    cors: { origin: process.env.SOCKET_CORS_ACCEPT_URL }
   });
 
   addBasicEventHandler(io);
