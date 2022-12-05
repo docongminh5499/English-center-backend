@@ -5,7 +5,7 @@ import * as entities from "../../entities";
 export const AppDataSource = new DataSource({
   host: process.env.DB_CONFIG_HOST,
   type: "mysql",
-  port: Number(process.env.DB_CONFIG_PORT) || 3305,
+  port: Number(process.env.DB_CONFIG_PORT) || 3306,
   username: process.env.DB_CONFIG_USERNAME,
   password: process.env.DB_CONFIG_PASSWORD,
   database: process.env.DB_CONFIG_DATABASE,
