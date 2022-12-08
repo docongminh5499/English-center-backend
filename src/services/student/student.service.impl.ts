@@ -90,7 +90,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                                 .setLock("pessimistic_read")
                                 .useTransaction(true)
                                 .where("course.id = :courseId", { courseId })
-                                .andWhere("Course.lockTime < :now", {now: new Date()})
+                                .andWhere("course.lockTime IS NULL OR course.lockTime > :now", {now: new Date()})
                                 .getOne();
 
         if (course === null)
@@ -141,6 +141,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                                     .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
                                     .leftJoinAndSelect("questions.tags", "tags")
                                     .where("courseId = :courseId", {courseId: courseId})
+                                    .orderBy("exercise.openTime", "DESC")
                                     .getMany();
             return exercise;
         } catch(error){
