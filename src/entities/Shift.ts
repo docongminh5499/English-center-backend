@@ -24,7 +24,7 @@ export class Shift extends MyBaseEntity {
     transformer: {
       to(value) { return value; },
       from(value) {
-        const date = new Date(0);
+        const date = new Date();
         const times = value.split(":").map((v: string) => parseInt(v));
         date.setHours(times[0]);
         date.setMinutes(times[1]);
@@ -43,7 +43,7 @@ export class Shift extends MyBaseEntity {
     transformer: {
       to(value) { return value; },
       from(value) {
-        const date = new Date(0);
+        const date = new Date();
         const times = value.split(":").map((v: string) => parseInt(v));
         date.setHours(times[0]);
         date.setMinutes(times[1]);
