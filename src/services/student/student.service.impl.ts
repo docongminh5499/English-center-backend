@@ -171,6 +171,8 @@ class StudentServiceImpl implements StudentServiceInterface {
             studentDoExercise.student = student;
             studentDoExercise.exercise = exercise;
             studentDoExercise.score = rightAnswer/ answers.length * 10;
+            studentDoExercise.startTime = new Date();
+            studentDoExercise.startTime = new Date();
             await StudentDoExercise.save(studentDoExercise);
             return studentDoExercise;
         } catch(error){
