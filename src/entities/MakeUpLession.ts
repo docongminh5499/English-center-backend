@@ -4,13 +4,9 @@ import { MyBaseEntity } from "./MyBaseEntity";
 import { UserStudent } from "./UserStudent";
 import { StudySession } from "./StudySession";
 
-//Relation Student--1--<Học bù>--1--StudySession
-//                         1
-// It's actually OneToOne, but TypeORM create unique constraint by default, 
-// so I change to ManyToOne and add unique constraint
+
 @Entity()
 export class MakeUpLession extends MyBaseEntity {
-
 
   @PrimaryColumn({ type: "int", name: "studentId", unique: false })
   @ManyToOne(() => UserStudent, { onDelete: "CASCADE", onUpdate: "CASCADE" })
