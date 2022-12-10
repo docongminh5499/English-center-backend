@@ -426,6 +426,7 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       course.price = createCourseDto.price;
       course.openingDate = createCourseDto.openingDate;
       course.closingDate = null;
+      course.expectedClosingDate = new Date();
       course.image = COURSE_DESTINATION_SRC + createCourseDto.image.filename;
       course.curriculum = curriculum;
       course.teacher = foundTeacher;
