@@ -6,7 +6,7 @@ const router = express.Router();
 router.get("/get-all-student-courses", async (req: any, res: any, next: any) => {
     try{
         const courses = await ParentService.getCoursesForTimetableByParent(req.query.studentId);
-        console.log(courses);
+        // console.log(courses);
         return res.status(200).json(courses);
     }catch(err){
         console.log(err);

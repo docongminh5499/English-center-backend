@@ -24,7 +24,7 @@ import { AppDataSource } from "../../utils/functions/dataSource";
 import StudentServiceInterface from "./student.service.interface";
 import { Fee } from "../../entities/Fee";
 import { TermCourse } from "../../utils/constants/termCuorse.constant";
-import TransactionConstantsRepository from "../../repositories/transactionConstants/transactionConstants.repository.impl";
+// import TransactionConstantsRepository from "../../repositories/transactionConstants/transactionConstants.repository.impl";
 import { Transaction } from "../../entities/Transaction";
 
 class StudentServiceImpl implements StudentServiceInterface {
@@ -34,7 +34,7 @@ class StudentServiceImpl implements StudentServiceInterface {
     }
 
     async getCoursesByStudent(studentId: number, pageableDto: PageableDto, queryable: Queryable<Course>): Promise<CourseListDto> {
-        console.log("STUDENT SERVICE");
+        // console.log("STUDENT SERVICE");
         const selectable = new Selectable()
             .add("Course.id", "id")
             .add("Course.image", "image")
@@ -66,7 +66,7 @@ class StudentServiceImpl implements StudentServiceInterface {
         const course = await CourseRepository.findBriefCourseBySlug(courseSlug);
         if(course === null)
             return null;
-        course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
+        // course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
         if (course?.studentPaticipateCourses.filter(value => value.student.user.id === studentId).length === 0) 
             return null;
         return course;
@@ -85,7 +85,7 @@ class StudentServiceImpl implements StudentServiceInterface {
     }
 
     async assessCourse(studentId: number, courseId: number, content: any): Promise<boolean>{
-        console.log("ASSESS COURSE SERVICE");
+        // console.log("ASSESS COURSE SERVICE");
         const course = await Course.createQueryBuilder("course")
                                 .setLock("pessimistic_read")
                                 .useTransaction(true)
@@ -125,7 +125,7 @@ class StudentServiceImpl implements StudentServiceInterface {
     }
 
     async getAttendance(studentId: number, courseSlug: string): Promise<UserAttendStudySession[]>{
-        console.log("STUDENT ATTENDANCE SERVICE");
+        // console.log("STUDENT ATTENDANCE SERVICE");
         const attendance = await StudySessionRepository.findStudySessionByStudent(studentId, courseSlug);
         // console.log(attendance);
         return attendance!;
@@ -133,7 +133,7 @@ class StudentServiceImpl implements StudentServiceInterface {
 
     async getAllExercises(courseId: number) : Promise<Exercise[] | null>{
         try{
-            console.log(courseId);
+            // console.log(courseId);
             const exercise = await Exercise.createQueryBuilder("exercise")
                                     .setLock("pessimistic_read")
                                     .useTransaction(true)
@@ -150,7 +150,39 @@ class StudentServiceImpl implements StudentServiceInterface {
         }
     }
 
-    async submitExercise(studentId: number, exerciseId: number, answers: any[]) : Promise<StudentDoExercise | null>{
+    async submitExercise(studentId: number, doingId: number, answers: any[]) : Promise<StudentDoExercise | null>{
+        try{
+            const student = await UserStudentRepository.findUserStudentById(studentId);
+            const studentDoExercise = await StudentDoExercise
+                                            .createQueryBuilder("studentDoExercise")
+                                            .leftJoinAndSelect("studentDoExercise.exercise", "exercise")
+                                            .where("studentDoExercise.id = :doingId", {doingId})
+                                            .getOne();
+
+            if(studentDoExercise === null || student === null){
+                return null;
+            }
+            const now = new Date();
+            if (studentDoExercise.exercise.openTime.getTime() > now.getTime() || now.getTime() > studentDoExercise.exercise.endTime.getTime()){
+                return null;
+            }
+            let rightAnswer = 0;
+            answers.forEach((answer: any) => {
+                if(answer.questionId === parseInt(answer.answerId)){
+                    rightAnswer++;
+                }
+            })
+            studentDoExercise.score = parseFloat((rightAnswer/ answers.length * 10).toPrecision(2));
+            studentDoExercise.endTime = new Date();
+            await StudentDoExercise.save(studentDoExercise);
+            return studentDoExercise;
+        } catch(error){
+            console.log(error);
+            return null;
+        }
+    }
+
+    async startDoExercise(studentId: number, exerciseId: number) : Promise<StudentDoExercise | null>{
         try{
             const student = await UserStudentRepository.findUserStudentById(studentId);
             const exercise = await ExerciseRepository.findExerciseById(exerciseId);
@@ -161,18 +193,13 @@ class StudentServiceImpl implements StudentServiceInterface {
             if (exercise.openTime.getTime() > now.getTime() || now.getTime() > exercise.endTime.getTime()){
                 return null;
             }
-            let rightAnswer = 0;
-            answers.forEach((answer: any) => {
-                if(answer.questionId === parseInt(answer.answerId)){
-                    rightAnswer++;
-                }
-            })
+
             const studentDoExercise = new StudentDoExercise();
             studentDoExercise.student = student;
             studentDoExercise.exercise = exercise;
-            studentDoExercise.score = rightAnswer/ answers.length * 10;
-            studentDoExercise.startTime = new Date();
-            studentDoExercise.startTime = new Date();
+            studentDoExercise.score = 0;
+            studentDoExercise.startTime = now;
+            studentDoExercise.endTime = now;
             await StudentDoExercise.save(studentDoExercise);
             return studentDoExercise;
         } catch(error){
@@ -234,10 +261,10 @@ class StudentServiceImpl implements StudentServiceInterface {
                         .andWhere("course.id != :courseId", {courseId: courseId})
                         .andWhere("course.closingDate IS NULL")
                         .getMany();
-        console.log(courses);
+        // console.log(courses);
         const studySession = [];
         for(const course of courses){
-            console.log(course.id);
+            // console.log(course.id);
             const now = new Date();
             if (new Date(course.openingDate).getTime() - now.getTime() < 14 * 24 * 60 * 60 * 1000)
                 continue;
@@ -280,7 +307,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                     maxStudent: course.maxNumberOfStudent,
                 });
         }
-        console.log(studySession);
+        // console.log(studySession);
         return studySession.length === 0 ? null : studySession;
     }
 
@@ -354,7 +381,7 @@ class StudentServiceImpl implements StudentServiceInterface {
                                             // .andWhere("studySession.id = :studySessionId", {studySessionId})
                                             .andWhere("targetStudySession.id = :targetStudySessionId", {targetStudySessionId})
                                             .getOne();
-        console.log(savedMakeupLession);
+        // console.log(savedMakeupLession);
 
         return savedMakeupLession;
     }
@@ -574,12 +601,12 @@ class StudentServiceImpl implements StudentServiceInterface {
                                     .andWhere("curriculum.type = :type", {type: TermCourse.LongTerm})
                                     .getMany();
 
-        const tranConstants = await TransactionConstantsRepository.find();
+        // const tranConstants = await TransactionConstantsRepository.find();
         const arrUnpaidFee: Fee[] = [];
-        console.log(tranConstants);
+        // console.log(tranConstants);
         for(const studentParticipateCourse of arrStudentCourse){
-            console.log(studentParticipateCourse.billingDate);
-            console.log(studentParticipateCourse.course.id);
+            // console.log(studentParticipateCourse.billingDate);
+            // console.log(studentParticipateCourse.course.id);
             let now = new Date();
 
             let billingDate = studentParticipateCourse.billingDate;
@@ -587,7 +614,7 @@ class StudentServiceImpl implements StudentServiceInterface {
 
             while(billingDate.getTime() < now.getTime()){
                 billingDate = moment(billingDate).add(1, "months").toDate();
-                console.log("====================================");
+                // console.log("====================================");
                 if (billingDate.getTime() < now.getTime()){
                     const unpaidFee = new Fee();
                     unpaidFee.userStudent = userStudent;
@@ -609,7 +636,7 @@ class StudentServiceImpl implements StudentServiceInterface {
         }
         total += arrUnpaidFee.length;
         // arrUnpaidFee.sort(function(a: Fee, b: Fee){return a - b});
-        console.log(arrUnpaidFee);
+        // console.log(arrUnpaidFee);
         if(arrUnpaidFee.length > skip){
             for (let idx = 0; idx < skip; idx ++){
                 arrUnpaidFee.shift();

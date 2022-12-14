@@ -21,7 +21,7 @@ import { Transaction } from "../../entities/Transaction";
 import UserStudentRepository from "../../repositories/userStudent/userStudent.repository.impl";
 import { StudentParticipateCourse } from "../../entities/StudentParticipateCourse";
 import { TermCourse } from "../../utils/constants/termCuorse.constant";
-import TransactionConstantsRepository from "../../repositories/transactionConstants/transactionConstants.repository.impl";
+// import TransactionConstantsRepository from "../../repositories/transactionConstants/transactionConstants.repository.impl";
 import { StudySession } from "../../entities/StudySession";
 
 class ParentServiceImpl implements ParentServiceInterface {
@@ -42,7 +42,7 @@ class ParentServiceImpl implements ParentServiceInterface {
 	}
 
 	async getPagecbleStudentCourses(studentId: number, pageableDto: PageableDto, queryable: Queryable<Course>) : Promise<CourseListDto>{
-		console.log("STUDENT SERVICE");
+		// console.log("STUDENT SERVICE");
         const selectable = new Selectable()
             .add("Course.id", "id")
             .add("Course.image", "image")
@@ -74,7 +74,7 @@ class ParentServiceImpl implements ParentServiceInterface {
         const course = await CourseRepository.findBriefCourseBySlug(courseSlug);
         if(course === null)
             return null;
-        course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
+        // course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))
         if (course?.studentPaticipateCourses.filter(value => value.student.user.id == studentId).length === 0) 
             return null;
         return course;
@@ -93,7 +93,7 @@ class ParentServiceImpl implements ParentServiceInterface {
     }
 
     async getAttendance(studentId: number, courseSlug: string) : Promise<UserAttendStudySession[]>{
-        console.log("STUDENT ATTENDANCE SERVICE");
+        // console.log("STUDENT ATTENDANCE SERVICE");
         const attendance = await StudySessionRepository.findStudySessionByStudent(studentId, courseSlug);
         // console.log(attendance);
         return attendance!;
@@ -101,7 +101,7 @@ class ParentServiceImpl implements ParentServiceInterface {
 
     async getAllExercises(courseId: number) : Promise<Exercise[] | null>{
         try{
-            console.log(courseId);
+            // console.log(courseId);
             const exercise = await Exercise.createQueryBuilder("exercise")
                                     .where("courseId = :courseId", {courseId: courseId})
                                     .getMany();
@@ -225,12 +225,12 @@ class ParentServiceImpl implements ParentServiceInterface {
                                     .andWhere("curriculum.type = :type", {type: TermCourse.LongTerm})
                                     .getMany();
 
-        const tranConstants = await TransactionConstantsRepository.find();
+        // const tranConstants = await TransactionConstantsRepository.find();
         const arrUnpaidFee: Fee[] = [];
-        console.log(tranConstants);
+        // console.log(tranConstants);
         for(const studentParticipateCourse of arrStudentCourse){
-            console.log(studentParticipateCourse.billingDate);
-            console.log(studentParticipateCourse.course.id);
+            // console.log(studentParticipateCourse.billingDate);
+            // console.log(studentParticipateCourse.course.id);
             let now = new Date();
 
             let billingDate = studentParticipateCourse.billingDate;
@@ -238,7 +238,7 @@ class ParentServiceImpl implements ParentServiceInterface {
 
             while(billingDate.getTime() < now.getTime()){
                 billingDate = moment(billingDate).add(1, "months").toDate();
-                console.log("====================================");
+                // console.log("====================================");
                 if (billingDate.getTime() < now.getTime()){
                     const unpaidFee = new Fee();
                     unpaidFee.userStudent = userStudent;
@@ -260,7 +260,7 @@ class ParentServiceImpl implements ParentServiceInterface {
         }
         total += arrUnpaidFee.length;
         // arrUnpaidFee.sort(function(a: Fee, b: Fee){return a - b});
-        console.log(arrUnpaidFee);
+        // console.log(arrUnpaidFee);
         if(arrUnpaidFee.length > skip){
             for (let idx = 0; idx < skip; idx ++){
                 arrUnpaidFee.shift();

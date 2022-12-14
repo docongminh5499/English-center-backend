@@ -21,9 +21,9 @@ router.get(
   "/get-personal-infomation",
   async (req: any, res: any, next: any) => {
     try {
-      console.log("AAA");
+      // console.log("AAA");
       const userParent = await ParentService.getUserParent(req.user.userId);
-      console.log(userParent);
+      // console.log(userParent);
       return res.status(200).json(userParent);
     } catch (err) {
       console.log(err);
@@ -70,7 +70,7 @@ router.post(
 
 router.get("/get-student-payment-history", async (req: any, res: any, next: any) => {
   try {
-    console.log("PARENT PAYMENT HISTORY ROUTE");
+    // console.log("PARENT PAYMENT HISTORY ROUTE");
     const result = await ParentService.getStudentPaymentHistory(
       req.query.studentId,
       req.query.limit,

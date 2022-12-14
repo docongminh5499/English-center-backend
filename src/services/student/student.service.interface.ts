@@ -27,7 +27,9 @@ export default interface StudentService {
 
     getAllExercises: (courseId: number) => Promise<Exercise[] | null>;
 
-    submitExercise: (studentId: number, exerciseId: number, answer: any) => Promise<StudentDoExercise | null>;
+    submitExercise: (studentId: number, doingId: number, answer: any) => Promise<StudentDoExercise | null>;
+    
+    startDoExercise: (studentId: number, exerciseId: number) => Promise<StudentDoExercise | null>;
 
     getStudentDoExercise: (studentId: number, courseId: number) => Promise<StudentDoExercise[] | null>;
 

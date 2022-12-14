@@ -10,7 +10,7 @@ router.get("/get-course", async (req: any, res: any, next: any) => {
   try {
 
     // TODO: Admin get all courses, not depending on teacher id
-    console.log("STUDENT GET COURSE");
+    // console.log("STUDENT GET COURSE");
     const pageableDto = PageableMapper.mapToDto(req.query);
     const queryable = new CourseQueryable().map(req.query);
     const courseListDto = await StudentService.getCoursesByStudent(req.user.userId, pageableDto, queryable);
@@ -24,7 +24,7 @@ router.get("/get-course", async (req: any, res: any, next: any) => {
 router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
   try {
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("STUDENT GET COURSE DETAIL");
+      // console.log("STUDENT GET COURSE DETAIL");
       const course = await StudentService.getCourseDetail(req.user.userId, req.params.courseSlug);
       // console.log(course);
       return res.status(200).json(course);
@@ -37,9 +37,9 @@ router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
 router.get("/get-total-course-study-session/:courseSlug", async (req: any, res: any, next: any) => {
   try {
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("STUDENT GET STAT COURSE STUDYSESSION DETAIL");
+      // console.log("STUDENT GET STAT COURSE STUDYSESSION DETAIL");
       const total = await StudentService.getTotalCourseStudySession(req.params.courseSlug);
-      console.log(total);
+      // console.log(total);
       return res.status(200).json(total);
     } catch (err) {
       console.log(err);
@@ -51,14 +51,14 @@ router.post("/assess-course", async (req: any, res: any, next: any) => {
   try {
 
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("STUDENT ASSESS COURSE");
+      // console.log("STUDENT ASSESS COURSE");
       const content = {
         starPoint: req.body.starPoint,
         isIncognito: req.body.isIncognito,
         comment: req.body.comment,
       };
-      console.log(req.body);
-      console.log(req.user.userId);
+      // console.log(req.body);
+      // console.log(req.user.userId);
       const result = await StudentService.assessCourse(req.user.userId, req.body.courseId, content );
       return res.status(200).json(result);
     } catch (err) {
@@ -71,7 +71,7 @@ router.get("/attendance-course/:courseSlug", async (req: any, res: any, next: an
   try {
 
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("STUDENT ATTENDANCE ROUTE");
+      // console.log("STUDENT ATTENDANCE ROUTE");
       const studentId = req.user.userId;
       const courseSlug = req.params.courseSlug;
       // console.log(req.params.courseSlug);

@@ -9,12 +9,12 @@ router.get("/get-pageable-student-courses", async (req: any, res: any, next: any
     try {
 
         // TODO: Admin get all courses, not depending on teacher id
-        console.log("PARENT GET COURSE");
-        console.log(req.query)
+        // console.log("PARENT GET COURSE");
+        // console.log(req.query)
         const pageableDto = PageableMapper.mapToDto(req.query);
         const queryable = new CourseQueryable().map(req.query);
         const courseListDto = await ParentService.getPagecbleStudentCourses(req.query.studentId, pageableDto, queryable);
-        console.log(courseListDto);
+        // console.log(courseListDto);
         return res.status(200).json(courseListDto);
       } catch (err) {
         console.log(err);
@@ -25,10 +25,10 @@ router.get("/get-pageable-student-courses", async (req: any, res: any, next: any
 router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
   try {
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("PARENT GET COURSE DETAIL");
+      // console.log("PARENT GET COURSE DETAIL");
       const course = await ParentService.getCourseDetail(req.query.studentId, req.params.courseSlug);
-      console.log(course);
-      console.log(req.query.studentId);
+      // console.log(course);
+      // console.log(req.query.studentId);
       return res.status(200).json(course);
     } catch (err) {
       console.log(err);
@@ -39,9 +39,9 @@ router.get("/get-course/:courseSlug", async (req: any, res: any, next: any) => {
 router.get("/get-total-course-study-session/:courseSlug", async (req: any, res: any, next: any) => {
   try {
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("PARENT GET TOTAL COURSE STUDYSESSION DETAIL");
+      // console.log("PARENT GET TOTAL COURSE STUDYSESSION DETAIL");
       const total = await ParentService.getTotalCourseStudySession(req.params.courseSlug);
-      console.log(total);
+      // console.log(total);
       return res.status(200).json(total);
     } catch (err) {
       console.log(err);
@@ -53,7 +53,7 @@ router.get("/attendance-course/:courseSlug", async (req: any, res: any, next: an
   try {
 
       // TODO: Admin get all courses, not depending on teacher id
-      console.log("PARENT ATTENDANCE ROUTE");
+      // console.log("PARENT ATTENDANCE ROUTE");
       const studentId = req.query.studentId;
       const courseSlug = req.params.courseSlug;
       // console.log(req.params.courseSlug);

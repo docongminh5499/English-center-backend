@@ -21,9 +21,9 @@ const upload = multer({ storage: storage })
 
 router.get("/get-personal-information", async (req: any, res: any, next: any) => {
   try {
-    console.log("STUDENT PERSONAL INFORMATION ROUTE");
+    // console.log("STUDENT PERSONAL INFORMATION ROUTE");
     const userStudent = await StudentService.getPersonalInformation(req.user.userId);
-    console.log(userStudent);
+    // console.log(userStudent);
     return res.status(200).json(userStudent);
   } catch (err) {
     console.log(err);
@@ -33,10 +33,10 @@ router.get("/get-personal-information", async (req: any, res: any, next: any) =>
 
 router.get("/get-parent-list", async (req: any, res: any, next: any) => {
 	try {
-			console.log("STUDENT PERSONAL GET PARENT LIST ROUTE");
+			// console.log("STUDENT PERSONAL GET PARENT LIST ROUTE");
 			const userParentList = await StudentService.getParentList(req.query.searchValue);
-			console.log("============================================");
-			console.log(userParentList);
+			// console.log("============================================");
+			// console.log(userParentList);
 			return res.status(200).json(userParentList);
 	} catch (err) {
 			console.log(err);
@@ -46,10 +46,10 @@ router.get("/get-parent-list", async (req: any, res: any, next: any) => {
 
 router.post("/add-parent", async (req: any, res: any, next: any) => {
 	try {
-			console.log("STUDENT PERSONAL ADD PARENT INFORMATION ROUTE");
+			// console.log("STUDENT PERSONAL ADD PARENT INFORMATION ROUTE");
 			const userParent = await StudentService.addParent(req.user.userId, req.body.parentId);
-			console.log("============================================");
-			console.log(userParent);
+			// console.log("============================================");
+			// console.log(userParent);
 			return res.status(200).json(userParent);
 	} catch (err) {
 			console.log(err);
@@ -59,10 +59,10 @@ router.post("/add-parent", async (req: any, res: any, next: any) => {
 
 router.post("/delete-parent", async (req: any, res: any, next: any) => {
 	try {
-			console.log("STUDENT PERSONAL DELETE PARENT INFORMATION ROUTE");
+			// console.log("STUDENT PERSONAL DELETE PARENT INFORMATION ROUTE");
 			const success = await StudentService.deleteParent(req.user.userId, req.body.parentId);
-			console.log("============================================");
-			console.log(success);
+			// console.log("============================================");
+			// console.log(success);
 			return res.status(200).json(success);
 	} catch (err) {
 			console.log(err);
@@ -91,7 +91,7 @@ router.post("/modify-personal-information", upload.single('avatar'), async (req:
 
 router.get("/get-payment-history", async (req: any, res: any, next: any) => {
   try {
-    console.log("STUDENT PAYMENT HISTORY ROUTE");
+    // console.log("STUDENT PAYMENT HISTORY ROUTE");
     const result = await StudentService.getPaymentHistory(req.user.userId, req.query.limit, req.query.skip);
     // console.log(result);
     return res.status(200).json(result);
