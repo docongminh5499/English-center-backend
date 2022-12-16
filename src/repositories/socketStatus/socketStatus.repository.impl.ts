@@ -25,7 +25,7 @@ class SocketStatusRepositoryImpl implements SocketStatusRepositoryInterface {
   async remove(socketId: string): Promise<boolean> {
     const result: DeleteResult = await SocketStatus
       .createQueryBuilder()
-      .setLock("pessimistic_write")
+      .setLock("pessimistic_read")
       .useTransaction(true)
       .delete()
       .where("socketId = :socketId", { socketId })

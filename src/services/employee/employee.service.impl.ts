@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { validate } from "class-validator";
 import moment = require("moment");
-import { QueryRunner } from "typeorm";
+import { Brackets, QueryRunner } from "typeorm";
 import { ClassroomDto, CourseDetailDto, CourseListDto, CreateCourseDto, CredentialDto, FileDto, NotificationDto, NotificationResponseDto, PageableDto, StudySessionDto, UnpaidDto } from "../../dto";
 import { Branch } from "../../entities/Branch";
 import { Classroom } from "../../entities/Classroom";
@@ -3505,6 +3505,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .where("ss.date >= :beginingDate", { beginingDate: moment(currentDate).format("YYYY-MM-DD") })
             .andWhere("ss.date < :endingDate", { endingDate: moment(salaryDate).format("YYYY-MM-DD") })
+            .andWhere(new Brackets(qb => {
+              qb.where("course.lockTime IS NULL")
+                .orWhere("ss.date <= course.lockTime")
+            }))
             .andWhere("ss.teacherWorker = :teacherId", { teacherId: teacher.worker.user.id })
             .getMany();
           // Amount of fee
@@ -3584,6 +3588,10 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .where("ss.date >= :beginingDate", { beginingDate: moment(currentDate).format("YYYY-MM-DD") })
             .andWhere("ss.date < :endingDate", { endingDate: moment(salaryDate).format("YYYY-MM-DD") })
+            .andWhere(new Brackets(qb => {
+              qb.where("course.lockTime IS NULL")
+                .orWhere("ss.date <= course.lockTime")
+            }))
             .andWhere("ss.tutorWorker = :tutorId", { tutorId: tutor.worker.user.id })
             .getMany();
           // Amount of fee
@@ -3838,7 +3846,14 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
         latestDate = latestDate > lockTime ? lockTime : latestDate;
       }
       while (true) {
-        if (latestDate < feeDate) isFinished = true;
+        if (latestDate < feeDate) {
+          feeDate = new Date(latestDate);
+          feeDate.setHours(0);
+          feeDate.setMinutes(0);
+          feeDate.setSeconds(0);
+          feeDate.setMilliseconds(0);
+          isFinished = true;
+        }
         if (expectedClosingDate <= feeDate) {
           feeDate = new Date(expectedClosingDate);
           feeDate.setHours(0);
