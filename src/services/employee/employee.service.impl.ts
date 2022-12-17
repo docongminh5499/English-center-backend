@@ -3841,17 +3841,24 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
       if (this.diffDays(feeDate, currentDate) < 10) feeDate.setMonth(feeDate.getMonth() + 1);
       // Tính học phí tới ngày bị khóa khóa học
       let latestDate = new Date();
+      let latestDateIsLockTime = false;
       if (participation.course.lockTime) {
         const lockTime = new Date(participation.course.lockTime);
         latestDate = latestDate > lockTime ? lockTime : latestDate;
+        latestDateIsLockTime = true;
+        if (currentDate >= latestDate) {
+          continue;
+        }
       }
       while (true) {
         if (latestDate < feeDate) {
-          feeDate = new Date(latestDate);
-          feeDate.setHours(0);
-          feeDate.setMinutes(0);
-          feeDate.setSeconds(0);
-          feeDate.setMilliseconds(0);
+          if (latestDateIsLockTime) {
+            feeDate = new Date(latestDate);
+            feeDate.setHours(0);
+            feeDate.setMinutes(0);
+            feeDate.setSeconds(0);
+            feeDate.setMilliseconds(0);
+          }
           isFinished = true;
         }
         if (expectedClosingDate <= feeDate) {
@@ -3880,7 +3887,6 @@ class EmployeeServiceImpl implements EmployeeServiceInterface {
           unpaid.toDate = new Date(feeDate);
           result.push(unpaid);
         }
-
         if (isFinished) break;
         currentDate = new Date(feeDate);
         feeDate.setMonth(feeDate.getMonth() + 1);
