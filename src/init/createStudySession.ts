@@ -100,7 +100,8 @@ export async function createStudySession(course: Course, teachers: UserTeacher[]
     const openingDateOffset = openingDate.getDay() == 0 ? 7 : openingDate.getDay()
     const offset = cvtWeekDay2Num(choseSchedule.choseShifts[index][0].weekDay) - 2;
     const date = openingDate.getDate() - openingDateOffset + offset + 1;
-    const firstDay = new Date(openingDate.setDate(date));
+    const firstDay = new Date(openingDate);
+    firstDay.setDate(date);
 
     if (firstDay >= course.openingDate) {
       sheduleIndex = index;
@@ -114,7 +115,8 @@ export async function createStudySession(course: Course, teachers: UserTeacher[]
     const openingDateOffset = openingDate.getDay() == 0 ? 7 : openingDate.getDay()
     const offset = cvtWeekDay2Num(choseSchedule.choseShifts[0][0].weekDay) - 2;
     const date = openingDate.getDate() - openingDateOffset + offset + 8;
-    firstDayOfSession = new Date(openingDate.setDate(date));
+    firstDayOfSession = new Date(openingDate);
+    firstDayOfSession.setDate(date);
     sheduleIndex = 0;
   }
 
@@ -154,7 +156,10 @@ export async function createStudySession(course: Course, teachers: UserTeacher[]
     sheduleIndex = (sheduleIndex + 1) % numberOfSessionsPerWeek;
     let offset = cvtWeekDay2Num(choseSchedule.choseShifts[sheduleIndex][0].weekDay) - cvtWeekDay2Num(choseSchedule.choseShifts[lastSchedultIndex][0].weekDay);
     offset = offset <= 0 ? offset + 7 : offset;
-    firstDayOfSession = new Date(firstDayOfSession.setDate(firstDayOfSession.getDate() + offset));
+
+    const nextDate = firstDayOfSession.getDate() + offset;
+    firstDayOfSession = new Date(firstDayOfSession);
+    firstDayOfSession.setDate(nextDate);
   }
   console.log(`Created ${studySessions.length} study sessions for course with id = ${course.id}`);
   return studySessions;
