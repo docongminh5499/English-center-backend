@@ -20,7 +20,7 @@ const upload = multer({ storage: storage })
 router.post("/create-exercise", async (req: any, res: any, next: any) => {
     try {
       console.log(req.body);
-      console.log(req.files);
+      // console.log(req.files);
       const exercise = await TeacherService.createExercise(req.body.courseId, req.body.basicInfo, req.body.questions);
       console.log(exercise);
       return res.status(200).json(exercise);
