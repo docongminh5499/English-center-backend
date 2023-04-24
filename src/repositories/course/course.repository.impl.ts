@@ -71,7 +71,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
                 "shifts.startTime": "ASC",
             })
             .getMany();
-        console.log(studentCourses);
+        // console.log(studentCourses);
         return studentCourses;
     }
 
@@ -111,7 +111,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
 
     async countCourseByStudent(queryable: Queryable<Course>, studentId?: number): Promise<number> {
-        console.log("Count Student Repo");
+        // console.log("Count Student Repo");
         let query = Course.createQueryBuilder()
             .setLock("pessimistic_read")
             .useTransaction(true);
@@ -123,7 +123,7 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
 
     async findCourseByStudent(pageable: Pageable, sortable: Sortable,
         selectable: Selectable, queryable: Queryable<Course>, studentId?: number): Promise<Course[]> {
-        console.log("Find Student Repo");
+        // console.log("Find Student Repo");
         let query = Course.createQueryBuilder()
             .setLock("pessimistic_read")
             .useTransaction(true);

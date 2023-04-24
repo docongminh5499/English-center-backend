@@ -1022,8 +1022,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (file !== null && file.filename) {
       question.imgSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
     }
-    const updateQuestion = await Question.save(question);
-    console.log(updateQuestion)
+    await Question.save(question);
+    // console.log(updateQuestion)
     return true;
   }
 
@@ -1044,8 +1044,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     }else {
       question.imgSrc = null;
     }
-    const updateQuestion = await Question.save(question);
-    console.log(updateQuestion)
+    await Question.save(question);
+    // console.log(updateQuestion)
     return true;
   }
 
@@ -1060,8 +1060,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (file !== null && file.filename) {
       question.audioSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
     }
-    const updateQuestion = await Question.save(question);
-    console.log(updateQuestion)
+    await Question.save(question);
+    // console.log(updateQuestion)
     return true;
   }
 
@@ -1082,8 +1082,8 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     }else {
       question.audioSrc = null;
     }
-    const updateQuestion = await Question.save(question);
-    console.log(updateQuestion)
+    await Question.save(question);
+    // console.log(updateQuestion)
     return true;
   }
 
@@ -1203,7 +1203,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
             await queryRunner.manager.delete(WrongAnswer, wrongAnswer.id);
           })
         } else {
-          console.log("--------------------------------------------")
+          // console.log("--------------------------------------------")
           questionEntity.wrongAnswers = [];
           questionEntity.temporaryKey = question.key;
         }

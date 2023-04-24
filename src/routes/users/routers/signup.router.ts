@@ -11,6 +11,7 @@ import { UserParent } from "../../../entities/UserParent";
 const router = express.Router();
 
 router.post("/", async (req: any, res: any, next: any) => {
+  req.body.userInfo.dateOfBirth = new Date(req.body.userInfo.dateOfBirth);
   const user = User.create({...req.body.userInfo});
   
   const accountInfo = req.body.accountInfo;
@@ -29,9 +30,9 @@ router.post("/", async (req: any, res: any, next: any) => {
     userType.user = user;
   }
 
-  console.log(user);
-  console.log("=============================================");
-  console.log(account);
+  // console.log(user);
+  // console.log("=============================================");
+  // console.log(account);
   
   try{
     await UserService.signup(user, account, userType);

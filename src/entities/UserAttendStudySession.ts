@@ -24,7 +24,6 @@ export class UserAttendStudySession extends MyBaseEntity {
   @Column({ type: "boolean", nullable: false })
   isAttend: boolean;
 
-  @IsNotEmpty()
   @IsString()
   @Column({ type: "text", nullable: false })
   commentOfTeacher: string;

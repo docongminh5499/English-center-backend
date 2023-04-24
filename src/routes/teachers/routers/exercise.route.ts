@@ -19,10 +19,10 @@ const upload = multer({ storage: storage })
 
 router.post("/create-exercise", async (req: any, res: any, next: any) => {
     try {
-      console.log(req.body);
+      // console.log(req.body);
       // console.log(req.files);
       const exercise = await TeacherService.createExercise(req.body.courseId, req.body.basicInfo, req.body.questions);
-      console.log(exercise);
+      // console.log(exercise);
       return res.status(200).json(exercise);
     } catch (err) {
       console.log(err);
@@ -32,10 +32,10 @@ router.post("/create-exercise", async (req: any, res: any, next: any) => {
 
 router.post("/modify-exercise", async (req: any, res: any, next: any) => {
   try {
-    console.log("=========================================");
-    console.log(req.body);
+    // console.log("=========================================");
+    // console.log(req.body);
     const exercise = await TeacherService.modifyExercise(req.body.exerciseId, req.body.basicInfo, req.body.questions,  req.body.deleteQuestions);
-    console.log("*****************************************");
+    // console.log("*****************************************");
     // console.log(exercise?.questions[0].wrongAnswers);
     return res.status(200).json(exercise);
   } catch (err) {
@@ -46,7 +46,7 @@ router.post("/modify-exercise", async (req: any, res: any, next: any) => {
 
 router.post("/add-new-question-tag", async (req: any, res: any, next: any) => {
   try {
-    console.log(req.body.tagName);
+    // console.log(req.body.tagName);
     const tag = await TeacherService.addNewQuestionTag(req.body.tagName);
     return res.status(200).json(tag);
   } catch (err) {
@@ -87,9 +87,9 @@ router.get("/get-student-exercise-result", async (req: any, res: any, next: any)
 
 router.post("/send-question-image", upload.single("image"), async (req: any, res: any, next: any) => {
   try {
-    console.log("TEACHER SEND IMAGE ROUTE!");
-    console.log(req.body);
-    console.log(req.file);
+    // console.log("TEACHER SEND IMAGE ROUTE!");
+    // console.log(req.body);
+    // console.log(req.file);
     const result = await TeacherService.saveQuestionImage(req.body.temporaryKey, req.file);
     // console.log(result);
     if (result == false && req.file && req.file.filename) {
@@ -109,11 +109,11 @@ router.post("/send-question-image", upload.single("image"), async (req: any, res
 
 router.post("/send-modified-question-image", upload.single("image"), async (req: any, res: any, next: any) => {
   try {
-    console.log("TEACHER SEND MODIFIED IMAGE ROUTE!");
-    console.log(req.body);
-    console.log(req.file);
+    // console.log("TEACHER SEND MODIFIED IMAGE ROUTE!");
+    // console.log(req.body);
+    // console.log(req.file);
     const result = await TeacherService.saveModifiedQuestionImage(req.body.questionId, req.file);
-    console.log(result);
+    // console.log(result);
     if (result == false && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), QUESTION_IMAGE_AND_AUDIO_DESTINATION, req.file.filename);
       fs.unlinkSync(filePath);
@@ -131,9 +131,9 @@ router.post("/send-modified-question-image", upload.single("image"), async (req:
 
 router.post("/send-question-audio", upload.single("audio"), async (req: any, res: any, next: any) => {
   try {
-    console.log("TEACHER SEND AUDIO ROUTE!");
-    console.log(req.body);
-    console.log(req.file);
+    // console.log("TEACHER SEND AUDIO ROUTE!");
+    // console.log(req.body);
+    // console.log(req.file);
     const result = await TeacherService.saveQuestionAudio(req.body.temporaryKey, req.file);
     // console.log(result);
     if (result == false && req.file && req.file.filename) {
@@ -153,11 +153,11 @@ router.post("/send-question-audio", upload.single("audio"), async (req: any, res
 
 router.post("/send-modified-question-audio", upload.single("audio"), async (req: any, res: any, next: any) => {
   try {
-    console.log("TEACHER SEND AUDIO ROUTE!");
-    console.log(req.body);
-    console.log(req.file);
+    // console.log("TEACHER SEND AUDIO ROUTE!");
+    // console.log(req.body);
+    // console.log(req.file);
     const result = await TeacherService.saveModifiedQuestionAudio(req.body.questionId, req.file);
-    console.log(result);
+    // console.log(result);
     if (result == false && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), QUESTION_IMAGE_AND_AUDIO_DESTINATION, req.file.filename);
       fs.unlinkSync(filePath);
@@ -175,10 +175,10 @@ router.post("/send-modified-question-audio", upload.single("audio"), async (req:
 
 router.post("/delete-question-temporary-key", async (req: any, res: any, next: any) => {
   try {
-    console.log("TEACHER DELETE QUESTION TEMPORATY KEY ROUTE!");
-    console.log(req.body);
+    // console.log("TEACHER DELETE QUESTION TEMPORATY KEY ROUTE!");
+    // console.log(req.body);
     const result = await TeacherService.deleteQuestionTemporaryKey(req.body.exerciseId);
-    console.log(result);
+    // console.log(result);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);

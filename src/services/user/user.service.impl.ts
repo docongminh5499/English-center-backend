@@ -72,7 +72,7 @@ class UserServiceImpl implements UserServiceInterface {
 		} catch (err) {
 			console.log(err);
 			await queryRunner.rollbackTransaction();
-		}finally {
+		} finally {
 			await queryRunner.release();
 		}
 	}
@@ -100,7 +100,16 @@ class UserServiceImpl implements UserServiceInterface {
 				transaction: true,
 			});
 			if (account === null || (await bcrypt.compare(oldAccount.password, account.password)) == false)
-				throw new NotFoundError();
+				throw new NotFoundError('Không tìm thấy thông tin tài khoản');
+			if (oldAccount.username !== newAccount.username) {
+				const account = await queryRunner.manager.findOne(Account, {
+					where: { username: newAccount.username },
+					relations: ['user', 'user.socketStatuses'],
+					lock: { mode: "pessimistic_write" },
+					transaction: true,
+				});
+				if (account !== null) throw new DuplicateError("Tên đăng nhập đã tồn tại, vui lòng chọn tên đăng nhập khác.");
+			}
 			// Update data
 			account.username = newAccount.username;
 			if (newAccount.password)
@@ -121,7 +130,7 @@ class UserServiceImpl implements UserServiceInterface {
 			console.log(error);
 			await queryRunner.rollbackTransaction();
 			await queryRunner.release();
-			return false;
+			throw error;
 		}
 	}
 }
