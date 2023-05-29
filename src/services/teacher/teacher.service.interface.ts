@@ -14,6 +14,7 @@ import { UserStudent } from "../../entities/UserStudent";
 import { UserTeacher } from "../../entities/UserTeacher";
 import Queryable from "../../utils/common/queryable.interface";
 import { Salary } from "../../entities/Salary";
+import { CurriculumExercise } from "../../entities/CurriculumExercise";
 
 export default interface TeacherService {
     getCoursesByTeacher: (teacherId: number, pageableDto: PageableDto, queryable: Queryable<Course>) => Promise<CourseListDto>;
@@ -64,6 +65,8 @@ export default interface TeacherService {
 
     modifyExercise: (exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]) => Promise<Exercise | null>;
 
+    changeExerciseInfo: (teacherId: number, exerciseId: number, basicInfo: any) => Promise<Exercise | null>;
+
     addNewQuestionTag: (tagName: string) => Promise<Tag | null>;
 
     getAllQuestionTags: () => Promise<Tag[]>;
@@ -81,6 +84,22 @@ export default interface TeacherService {
     saveModifiedQuestionAudio: (questionId: number, file: any) => Promise<boolean>;
     
     deleteQuestionTemporaryKey: (exerciseId: number) => Promise<Exercise | null>;
+
+    getAllCurriculumExercise: (teacherId: number, curriculumId: number, courseId: number) => Promise<CurriculumExercise[] | null>;
+
+    addCurriculumExerciseToCourse: (teacherId: number, courseId: number, addExerciseId: number[]) => Promise<Exercise[]>;
+
+    //Curriculum Exercise
+    createCurriculumExercise: (teacherId: number, curriculumId: number, lectureId: number, basicInfo: any, questions: any[]) => Promise<CurriculumExercise | null>;
+    modifyCurruculumExercise: (teacherId: number, exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]) => Promise<CurriculumExercise | null>;
+    saveQuestionImageForCurriculumExercise: (teacherId: number, temporaryKey: string, file: any) => Promise<boolean>;
+    saveQuesitonAudioForCurriculumExercise: (teacherId: number, temporaryKey: string, file: any) => Promise<boolean>;
+    saveModifiedQuestionStoreImage: (teacherId: number, questionId: number, file: any) => Promise<boolean>;
+    saveModifiedQuestionStoreAudio: (teacherId: number, questionId: number, file: any) => Promise<boolean>;
+    getCurriculumExerciseById: (teacherId: number, exerciseId: number) => Promise<CurriculumExercise | null>;
+    deleteQuestionStoreTemporaryKey: (teacherId: number, exerciseId: number) => Promise<CurriculumExercise | null>;
+    changeCurriculumExerciseInfo: (teacherId: number, exerciseId: number, basicInfo: any) => Promise<CurriculumExercise | null>;
+    deleteCurriculumExercise: (teacherId: number, exerciseId: number) => Promise<boolean>;
     
     //==========================END HOC============================================
     getPreferedCurriculums: (userId?: number) => Promise<Curriculum[]>;

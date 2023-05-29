@@ -137,11 +137,12 @@ class StudentServiceImpl implements StudentServiceInterface {
             const exercise = await Exercise.createQueryBuilder("exercise")
                                     .setLock("pessimistic_read")
                                     .useTransaction(true)
+                                    .leftJoinAndSelect("exercise.lecture", "lecture")
                                     .leftJoinAndSelect("exercise.questions", "questions")
                                     .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
                                     .leftJoinAndSelect("questions.tags", "tags")
                                     .where("courseId = :courseId", {courseId: courseId})
-                                    .orderBy("exercise.openTime", "DESC")
+                                    .orderBy("exercise.openTime", "ASC")
                                     .getMany();
             return exercise;
         } catch(error){

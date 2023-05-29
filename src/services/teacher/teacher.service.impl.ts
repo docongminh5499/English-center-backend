@@ -60,6 +60,10 @@ import BranchRepository from "../../repositories/branch/branch.repository.impl";
 import SalaryRepository from "../../repositories/salary/salary.repository.impl";
 import { Salary } from "../../entities/Salary";
 import { QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC } from "../../utils/constants/questionImage.constant";
+import { NotEnoughPermissionError } from "../../utils/errors/notEnoughPermission.error";
+import { CurriculumExercise } from "../../entities/CurriculumExercise";
+import { QuestionStore } from "../../entities/QuestionStore";
+import { WrongAnswerStore } from "../../entities/WrongAnswerStore";
 
 
 class TeacherServiceImpl implements TeacherServiceInterface {
@@ -159,6 +163,25 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
 
+  async getAllCurriculumExercise(teacherId: number, curriculumId: number, courseId: number) : Promise<CurriculumExercise[] | null>{
+    const isTeached = await Course.createQueryBuilder("course")
+                                .leftJoinAndSelect("course.teacher", "teacher")
+                                .leftJoinAndSelect("teacher.worker", "worker")
+                                .leftJoinAndSelect("worker.user", "user")
+                                .where("course.id = :courseId", {courseId})
+                                .andWhere("user.id = :teacherId", {teacherId})
+                                .getCount() > 0;
+    if(!isTeached) {
+      return null;
+    }
+    const exercise = await CurriculumExercise.createQueryBuilder("exercise")
+                                              .leftJoinAndSelect("exercise.lecture", "lecture")
+                                              .leftJoinAndSelect("exercise.curriculum", "curriculum")
+                                              .where("curriculum.id = :curriculumId", {curriculumId})
+                                              .getMany();
+    return exercise;
+  }
+
   async getExercises(userId: number, courseSlug: string, pageableDto: PageableDto): Promise<{ total: number, exercises: Exercise[] }> {
     if (userId === undefined) return { total: 0, exercises: [] };
     const course = await CourseRepository.findCourseBySlug(courseSlug);
@@ -175,7 +198,72 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     };
   }
 
+  async deleteCurriculumExercise(teacherId: number, exerciseId: number) : Promise<boolean>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
 
+    const foundedExercise = await CurriculumExercise.createQueryBuilder("exercise")
+                                          .leftJoinAndSelect("exercise.questions", "questions")
+                                          .where("exercise.id = :exerciseId", {exerciseId})
+                                          .getOne();
+    if (foundedExercise === null)
+      throw new NotFoundError("Không tìm thấy thông tin bài tập.");
+    
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+    try {
+      for(const question of foundedExercise?.questions){
+        if (question.imgSrc != null) {
+          // const numReferedByOtherQues = await queryRunner.manager.createQueryBuilder(Question, "question")
+          //                                             .where("question.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+          //                                             .getCount();
+  
+          // const numReferedByOtherQuesStore = await queryRunner.manager.createQueryBuilder(QuestionStore, "questionStore")
+          //                                             .where("questionStore.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+          //                                             .getCount();
+          if (!(await this.isSourceReferedByOtherQuestion(question.imgSrc, 0))){
+            const filePath = path.join(process.cwd(), "public", question.imgSrc);
+            fs.unlinkSync(filePath);
+          }
+          question.imgSrc = null;
+        }
+        if (question.audioSrc != null) {
+          // const numReferedByOtherQues = await queryRunner.manager.createQueryBuilder(Question, "question")
+          //                                             .where("question.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+          //                                             .getCount();
+  
+          // const numReferedByOtherQuesStore = await queryRunner.manager.createQueryBuilder(QuestionStore, "questionStore")
+          //                                               .where("questionStore.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+          //                                               .getCount();
+          if (!(await this.isSourceReferedByOtherQuestion(question.audioSrc, 1))){
+            const filePath = path.join(process.cwd(), "public", question.audioSrc);
+            fs.unlinkSync(filePath);
+          }
+          question.audioSrc = null;
+        }
+        await queryRunner.manager.createQueryBuilder(QuestionStore, "questionStore")
+            .delete()
+            .where("id = :id", {id: question.id})
+            .execute();
+      }
+      const result = await queryRunner.manager.createQueryBuilder(CurriculumExercise, "exercise")
+                                            .delete()
+                                            .where("id = :id", {id: exerciseId})
+                                            .execute();
+      await queryRunner.commitTransaction();
+      return result.affected !== undefined
+            && result.affected !== null
+            && result.affected > 0;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return false;
+    }finally{
+      await queryRunner.release();
+    }
+  }
 
   async deleteExercise(teacherId: number, exerciseId: number): Promise<boolean> {
     if (teacherId === undefined)
@@ -197,19 +285,62 @@ class TeacherServiceImpl implements TeacherServiceInterface {
                           .leftJoinAndSelect("exercise.questions", "questions")
                           .where("exercise.id = :exerciseId", {exerciseId})
                           .getOne();
+    if (foundedExercise === null)
+      throw new NotFoundError("Không tìm thấy thông tin bài tập.");
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     
-    foundedExercise?.questions.forEach(question => {
-      if (question.imgSrc) {
-        const filePath = path.join(process.cwd(), "public", question.imgSrc);
-        fs.unlinkSync(filePath);
+    try {
+      for(const question of foundedExercise?.questions){
+        if (question.imgSrc != null) {
+          // const numReferedByOtherQues = await queryRunner.manager.createQueryBuilder(Question, "question")
+          //                                             .where("question.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+          //                                             .getCount();
+
+          // const numReferedByOtherQuesStore = await queryRunner.manager.createQueryBuilder(QuestionStore, "questionStore")
+          //                                             .where("questionStore.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+          //                                             .getCount();
+          if (!(await this.isSourceReferedByOtherQuestion(question.imgSrc, 0))){
+            const filePath = path.join(process.cwd(), "public", question.imgSrc);
+            fs.unlinkSync(filePath);
+          }
+          question.imgSrc = null;
+        }
+        if (question.audioSrc != null) {
+          // const numReferedByOtherQues = await queryRunner.manager.createQueryBuilder(Question, "question")
+          //                                             .where("question.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+          //                                             .getCount();
+
+          // const numReferedByOtherQuesStore = await queryRunner.manager.createQueryBuilder(QuestionStore, "questionStore")
+          //                                               .where("questionStore.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+          //                                               .getCount();
+          if (!(await this.isSourceReferedByOtherQuestion(question.audioSrc, 1))){
+            const filePath = path.join(process.cwd(), "public", question.audioSrc);
+            fs.unlinkSync(filePath);
+          }
+          question.audioSrc = null;
+        }
+        await queryRunner.manager.createQueryBuilder(Question, "questionStore")
+            .delete()
+            .where("id = :id", {id: question.id})
+            .execute();
       }
-      if (question.audioSrc) {
-        const filePath = path.join(process.cwd(), "public", question.audioSrc);
-        fs.unlinkSync(filePath);
-      }
-    })
-    const result = await ExerciseRepository.deleteExercise(exerciseId);
-    return result;
+      const result = await queryRunner.manager.createQueryBuilder(Exercise, "exercise")
+            .delete()
+            .where("id = :id", {id: exerciseId})
+            .execute();
+      await queryRunner.commitTransaction();
+      return result.affected !== undefined
+            && result.affected !== null
+            && result.affected > 0;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return false;
+    } finally{
+      await queryRunner.release();
+    }
   }
 
 
@@ -900,6 +1031,193 @@ class TeacherServiceImpl implements TeacherServiceInterface {
   }
 
   //=========================================Hoc Exercise==============================================
+  async createCurriculumExercise(teacherId: number, curriculumId: number, lectureId: number, basicInfo: any, questions: any[]) : Promise<CurriculumExercise | null>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+
+    const curriculum = await CurriculumRepository.getCurriculumById(curriculumId);
+    if (curriculum === null)
+      throw new NotFoundError();
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      //Create Exercise
+      const exercise = new CurriculumExercise();
+      exercise.curriculum = curriculum!;
+      exercise.name = basicInfo.nameExercise;
+      exercise.maxTime = basicInfo.maxTime;
+      exercise.startWeek = basicInfo.startWeek;
+      exercise.questions = [];
+      const lecture = await Lecture.createQueryBuilder("lecture")
+                                      .where("lecture.id = :id", {id: lectureId})
+                                      .getOne();
+      if(lecture !== null){
+        exercise.lecture = lecture;
+      }
+
+      //Create Question
+      for (const question of questions) {
+        const questionEntity = new QuestionStore();
+        questionEntity.quesContent = question.quesContent;
+        questionEntity.answer = question.rightAnswer;
+        questionEntity.temporaryKey = question.key;
+        questionEntity.tags = [];
+        //TODO: add tags
+        if (question.tags !== null) {
+          for (const tag of question.tags) {
+            const findedTag = await Tag.find({
+              where: {
+                name: tag,
+                type: TagsType.Question,
+              }
+            });
+            if (findedTag.length === 0) continue;
+            questionEntity.tags.push(findedTag[0])
+          }
+        }
+
+        const savedQuestion = await queryRunner.manager.save(questionEntity);
+        if (savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
+
+        if (question.wrongAnswer1 !== '') {
+          const wrongAnswer = new WrongAnswerStore();
+          wrongAnswer.answer = question.wrongAnswer1;
+          wrongAnswer.questionStore = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+        }
+        if (question.wrongAnswer2 !== '') {
+          const wrongAnswer = new WrongAnswerStore();
+          wrongAnswer.answer = question.wrongAnswer2;
+          wrongAnswer.questionStore = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+        }
+        if (question.wrongAnswer3 !== '') {
+          const wrongAnswer = new WrongAnswerStore();
+          wrongAnswer.answer = question.wrongAnswer3;
+          wrongAnswer.questionStore = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+        }
+
+        exercise.questions.push(savedQuestion);
+      }
+
+      const savedExercise = await queryRunner.manager.save(exercise);
+      if (savedExercise.id === null || savedExercise.id === undefined) throw new Error();
+
+      await queryRunner.commitTransaction();
+      return savedExercise;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return null;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async addCurriculumExerciseToCourse(teacherId: number, courseId: number, addExerciseId: number[]): Promise<Exercise[]>{
+    const course = await Course.createQueryBuilder("course")
+                                .leftJoinAndSelect("course.teacher", "teacher")
+                                .leftJoinAndSelect("teacher.worker", "worker")
+                                .leftJoinAndSelect("worker.user", "user")
+                                .where("course.id = :courseId", {courseId})
+                                .getOne();
+    if(course === null || course?.teacher.worker.user.id !== teacherId){
+      throw new NotFoundError();
+    }
+    const now = new Date();
+    if(now.getTime() > (new Date(course.expectedClosingDate)).getTime()){
+      return [];
+    }
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try{
+      const addedExercises: Exercise[] = [];
+      for(const curriculumExerciseId of  addExerciseId){
+        const curriculumExercise = await CurriculumExercise.createQueryBuilder("exercise")
+                                                          .leftJoinAndSelect("exercise.questions", "questions")
+                                                          .leftJoinAndSelect("exercise.lecture", "lecture")
+                                                          .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                                                          .leftJoinAndSelect("questions.tags", "tags")
+                                                          .where("exercise.id = :id", {id: curriculumExerciseId})
+                                                          .getOne();
+        if(curriculumExercise === null)
+          continue;
+        const exercise = new Exercise();
+        exercise.course = course;
+        exercise.lecture = curriculumExercise.lecture;
+        exercise.name = curriculumExercise.name;
+        exercise.maxTime = curriculumExercise.maxTime;
+        
+        const courseOpeningDate = new Date(course.openingDate);
+        const expectedOpeningDate = new Date(
+          courseOpeningDate.getFullYear(), 
+          courseOpeningDate.getMonth(), 
+          courseOpeningDate.getDate() + curriculumExercise.startWeek * 7
+        );
+        let exerciseOpeningDate = expectedOpeningDate;
+        if (now.getTime() > expectedOpeningDate.getTime()){
+          exerciseOpeningDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+        }
+        exercise.openTime = new Date(exerciseOpeningDate.getFullYear(), exerciseOpeningDate.getMonth(), exerciseOpeningDate.getDate());
+        exercise.endTime = new Date(exerciseOpeningDate.getFullYear(), exerciseOpeningDate.getMonth(), exerciseOpeningDate.getDate() + 7);
+
+        const listQuestion: Question[] = [];
+
+        for(const questionStore of  curriculumExercise.questions){
+          const question = new Question();
+          question.answer = questionStore.answer;
+          question.imgSrc = questionStore.imgSrc;
+          question.audioSrc = questionStore.audioSrc;
+          question.tags = questionStore.tags;
+          question.quesContent = questionStore.quesContent;
+          const savedQuestion = await queryRunner.manager.save(question); 
+
+          const listWrongAnswer: WrongAnswer[] = [];
+          for(const wrongAnswerStore of  questionStore.wrongAnswers){
+            const wrongAnswer = new WrongAnswer();
+            const returnWrongAnswer = new WrongAnswer();
+
+            wrongAnswer.answer = wrongAnswerStore.answer;
+            wrongAnswer.question = savedQuestion;
+            const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+
+            returnWrongAnswer.answer = wrongAnswerStore.answer;
+            returnWrongAnswer.id = savedWrongAnswer.id;
+            returnWrongAnswer.version = savedWrongAnswer.version;
+            listWrongAnswer.push(returnWrongAnswer)
+          }
+
+          question.wrongAnswers = listWrongAnswer;
+          listQuestion.push(savedQuestion);
+        }
+        exercise.questions = listQuestion;
+        // console.log(listQuestion);
+        await queryRunner.manager.save(exercise);
+        addedExercises.push(exercise);
+      }
+      await queryRunner.commitTransaction();
+      return addedExercises;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return [];
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async createExercise(courseId: number, basicInfo: any, questions: any[]): Promise<Exercise | null> {
     const course = await CourseRepository.findCourseById(courseId);
     if (course === null)
@@ -944,6 +1262,14 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         endTime.getMinutes(),
         endTime.getSeconds(),
       )
+
+      
+      const lecture = await Lecture.createQueryBuilder("lecture")
+                                      .where("lecture.id = :id", {id: basicInfo.lecture})
+                                      .getOne();
+      if(lecture !== null){
+        exercise.lecture = lecture;
+      }
 
       //Create Question
       for (const question of questions) {
@@ -1011,6 +1337,25 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     }
   }
 
+  async saveQuestionImageForCurriculumExercise(teacherId: number, temporaryKey: string, file: any) : Promise<boolean>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+    const question = await QuestionStore
+                            .createQueryBuilder("questionStore")
+                            .where("questionStore.temporaryKey = :temporaryKey", {temporaryKey})
+                            .getOne();
+    if (question === null){
+      return false;
+    }
+    if (file !== null && file.filename) {
+      question.imgSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
+    }
+    await QuestionStore.save(question);
+    // console.log(updateQuestion)
+    return true;
+  }
+
   async saveQuestionImage(temporaryKey: string, file: any) : Promise<boolean>{
     const question = await Question
                             .createQueryBuilder("question")
@@ -1027,6 +1372,67 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     return true;
   }
 
+  //Check if source is refered by other question.
+  //type: image or audio (0 or 1)
+  async isSourceReferedByOtherQuestion(src: string, typ: string | number) : Promise<boolean> {
+    let numReferedByOtherQues = 0;
+    let numReferedByOtherQuesStore = 0;
+
+    if (typ === "image" || typ === 0){
+      numReferedByOtherQues = await Question.createQueryBuilder("question")
+                                                      .where("question.imgSrc = :imgSrc", {imgSrc: src})
+                                                      .getCount();
+
+      numReferedByOtherQuesStore = await QuestionStore.createQueryBuilder("questionStore")
+                                                    .where("questionStore.imgSrc = :imgSrc", {imgSrc: src})
+                                                    .getCount();
+    }else if (typ === "audio" || typ === 1) {
+      numReferedByOtherQues = await Question.createQueryBuilder("question")
+      .where("question.audioSrc = :audioSrc", {audioSrc: src})
+      .getCount();
+
+      numReferedByOtherQuesStore = await QuestionStore.createQueryBuilder("questionStore")
+      .where("questionStore.audioSrc = :audioSrc", {audioSrc: src})
+      .getCount();
+    }
+    return numReferedByOtherQues + numReferedByOtherQuesStore > 1;
+  }
+
+  async saveModifiedQuestionStoreImage(teacherId: number, questionId: number, file: any) : Promise<boolean>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+    const question = await QuestionStore
+                            .createQueryBuilder("question")
+                            .where("question.id = :questionId", {questionId})
+                            .getOne();
+    if (question === null){
+      return false;
+    }
+    if (question.imgSrc != null){
+      // const numReferedByOtherQues = await Question.createQueryBuilder("question")
+      //                                               .where("question.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+      //                                               .getCount();
+
+      // const numReferedByOtherQuesStore = await QuestionStore.createQueryBuilder("questionStore")
+      //                                               .where("questionStore.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+      //                                               .getCount();
+      if (!(await this.isSourceReferedByOtherQuestion(question.imgSrc, 0))){
+        const filePath = path.join(process.cwd(), "public", question.imgSrc);
+        fs.unlinkSync(filePath);
+      }
+      question.imgSrc = null;
+    }
+    if (file && file.filename) {
+      question.imgSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
+    }else {
+      question.imgSrc = null;
+    }
+    await QuestionStore.save(question);
+    // console.log(updateQuestion)
+    return true;
+  }
+
   async saveModifiedQuestionImage(questionId: number, file: any) : Promise<boolean>{
     const question = await Question
                             .createQueryBuilder("question")
@@ -1035,9 +1441,19 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (question === null){
       return false;
     }
-    if (question.imgSrc){
-      const filePath = path.join(process.cwd(), "public", question.imgSrc);
-      fs.unlinkSync(filePath);
+    if (question.imgSrc != null){
+      // const numReferedByOtherQues = await Question.createQueryBuilder("question")
+      //                                               .where("question.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+      //                                               .getCount();
+
+      // const numReferedByOtherQuesStore = await QuestionStore.createQueryBuilder("questionStore")
+      //                                               .where("questionStore.imgSrc = :imgSrc", {imgSrc: question.imgSrc})
+      //                                               .getCount();
+      if (!(await this.isSourceReferedByOtherQuestion(question.imgSrc, 0))){
+        const filePath = path.join(process.cwd(), "public", question.imgSrc);
+        fs.unlinkSync(filePath);
+      }
+      question.imgSrc = null;
     }
     if (file && file.filename) {
       question.imgSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
@@ -1046,6 +1462,24 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     }
     await Question.save(question);
     // console.log(updateQuestion)
+    return true;
+  }
+
+  async saveQuesitonAudioForCurriculumExercise(teacherId: number, temporaryKey: string, file: any) : Promise<boolean>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+    const question = await QuestionStore
+                            .createQueryBuilder("questionStore")
+                            .where("questionStore.temporaryKey = :temporaryKey", {temporaryKey})
+                            .getOne();
+    if (question === null){
+      return false;
+    }
+    if (file !== null && file.filename) {
+      question.audioSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
+    }
+    await QuestionStore.save(question);
     return true;
   }
 
@@ -1065,6 +1499,41 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     return true;
   }
 
+  async saveModifiedQuestionStoreAudio(teacherId: number, questionId: number, file: any) : Promise<boolean>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+    const question = await QuestionStore
+                            .createQueryBuilder("question")
+                            .where("question.id = :questionId", {questionId})
+                            .getOne();
+    if (question === null){
+      return false;
+    }
+    if (question.audioSrc != null){
+      // const numReferedByOtherQues = await Question.createQueryBuilder("question")
+      //                                               .where("question.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+      //                                               .getCount();
+
+      // const numReferedByOtherQuesStore = await QuestionStore.createQueryBuilder("questionStore")
+      //                                               .where("questionStore.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+      //                                               .getCount();
+      if (!(await this.isSourceReferedByOtherQuestion(question.audioSrc, 1))){
+        const filePath = path.join(process.cwd(), "public", question.audioSrc);
+        fs.unlinkSync(filePath);
+      }
+      question.audioSrc = null;
+    }
+    if (file && file.filename) {
+      question.audioSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
+    }else {
+      question.audioSrc = null;
+    }
+    await QuestionStore.save(question);
+    // console.log(updateQuestion)
+    return true;
+  }
+
   async saveModifiedQuestionAudio(questionId: number, file: any) : Promise<boolean>{
     const question = await Question
                             .createQueryBuilder("question")
@@ -1073,9 +1542,19 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     if (question === null){
       return false;
     }
-    if (question.audioSrc){
-      const filePath = path.join(process.cwd(), "public", question.audioSrc);
-      fs.unlinkSync(filePath);
+    if (question.audioSrc != null){
+      // const numReferedByOtherQues = await Question.createQueryBuilder("question")
+      //                                               .where("question.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+      //                                               .getCount();
+
+      // const numReferedByOtherQuesStore = await QuestionStore.createQueryBuilder("questionStore")
+      //                                               .where("questionStore.audioSrc = :audioSrc", {audioSrc: question.audioSrc})
+      //                                               .getCount();
+      if (!(await this.isSourceReferedByOtherQuestion(question.audioSrc, 1))){
+        const filePath = path.join(process.cwd(), "public", question.audioSrc);
+        fs.unlinkSync(filePath);
+      }
+      question.audioSrc = null;
     }
     if (file && file.filename) {
       question.audioSrc = QUESTION_IMAGE_AND_AUDIO_DESTINATION_SRC + file.filename;
@@ -1087,9 +1566,35 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     return true;
   }
 
+  async deleteQuestionStoreTemporaryKey(teacherId: number, exerciseId: number) : Promise<CurriculumExercise | null>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+      
+    const exercise = await CurriculumExercise 
+                            .createQueryBuilder("exercise")
+                            .leftJoinAndSelect("exercise.lecture", "lecture")
+                            .leftJoinAndSelect("exercise.questions", "questions")
+                            .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                            .leftJoinAndSelect("questions.tags", "tags")
+                            .where("exercise.id = :exerciseId", {exerciseId})
+                            .getOne();
+
+    if (exercise === null){
+      return null;
+    }
+
+    exercise.questions.forEach(async (question: QuestionStore) => {
+      question.temporaryKey = null;
+      await QuestionStore.save(question);
+    });
+    return exercise;
+  }
+
   async deleteQuestionTemporaryKey(exerciseId: number) : Promise<Exercise | null>{
     const exercise = await Exercise 
                             .createQueryBuilder("exercise")
+                            .leftJoinAndSelect("exercise.lecture", "lecture")
                             .leftJoinAndSelect("exercise.questions", "questions")
                             .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
                             .leftJoinAndSelect("questions.tags", "tags")
@@ -1106,6 +1611,165 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       await Question.save(question);
     });
     return exercise;
+  }
+
+  async modifyCurruculumExercise(teacherId: number, exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]): Promise<CurriculumExercise | null>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+    const exercise = await CurriculumExercise.createQueryBuilder("exercise")
+                          .leftJoinAndSelect("exercise.questions", "questions")
+                          .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                          .leftJoinAndSelect("questions.tags", "tags")
+                          .where("exercise.id = :exerciseId", { exerciseId: exerciseId })
+                          .getOne();
+    if (exercise === null)
+      throw new NotFoundError();
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      exercise.name = basicInfo.nameExercise;
+      exercise.maxTime = basicInfo.maxTime;
+      exercise.startWeek = basicInfo.startWeek;
+
+      const lecture = await Lecture.createQueryBuilder("lecture")
+                                      .where("lecture.id = :id", {id: basicInfo.lecture})
+                                      .getOne();
+      if(lecture !== null){
+        exercise.lecture = lecture;
+      }
+
+      if (exercise.questions === null)
+        exercise.questions = [];
+
+      const modifyQuestions = [];
+      
+      //Delete Question
+      deleteQuestions.forEach(async (id: number) => {
+        const foundedQuestion = await queryRunner.manager.createQueryBuilder(QuestionStore, "question")
+                                                          .where("question.id = :id", {id: id})
+                                                          .getOne();
+        if (foundedQuestion !== null){
+          if (foundedQuestion.imgSrc) {
+            if (!(await this.isSourceReferedByOtherQuestion(foundedQuestion.imgSrc, 0))){
+              const filePath = path.join(process.cwd(), "public", foundedQuestion.imgSrc);
+              fs.unlinkSync(filePath);
+            }
+            
+          }
+          if (foundedQuestion.audioSrc) {
+            if (!(await this.isSourceReferedByOtherQuestion(foundedQuestion.audioSrc, 1))){
+              const filePath = path.join(process.cwd(), "public", foundedQuestion.audioSrc);
+              fs.unlinkSync(filePath);
+            }
+          }
+        }
+        await queryRunner.manager.delete(QuestionStore, id);
+      })
+
+      //Add new Question
+      for (const question of questions) {
+        let questionEntity = new QuestionStore();
+        //New questions have key field.
+        if (!question.key) {
+          const foundQuestion = await queryRunner.manager.findOne(QuestionStore, {
+            where: {
+              id: question.id,
+            },
+            relations: ["tags", "wrongAnswers"],
+          })
+          if (foundQuestion === null) {
+            throw new NotFoundError();
+          }
+
+          questionEntity = foundQuestion;
+          //Delete wrongAnswer
+          questionEntity.wrongAnswers.forEach(async (wrongAnswer: WrongAnswerStore) => {
+            await queryRunner.manager.delete(WrongAnswerStore, wrongAnswer.id);
+          })
+        } else {
+          questionEntity.wrongAnswers = [];
+          questionEntity.temporaryKey = question.key;
+        }
+        questionEntity.quesContent = question.quesContent;
+        questionEntity.answer = question.rightAnswer;
+        questionEntity.tags = [];
+
+        //Add tags
+        if (question.tags !== null) {
+          for (const tag of question.tags) {
+            const findedTag = await Tag.find({
+              where: {
+                name: tag,
+                type: TagsType.Question,
+              }
+            });
+            if (findedTag.length === 0) continue;
+            questionEntity.tags.push(findedTag[0])
+          }
+        }
+
+        const savedQuestion = await queryRunner.manager.save(questionEntity);
+        if (savedQuestion.id === null || savedQuestion.id === undefined) throw new Error();
+
+        if (question.wrongAnswer1 !== '') {
+          const wrongAnswer = new WrongAnswerStore();
+          wrongAnswer.answer = question.wrongAnswer1;
+          wrongAnswer.questionStore = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+
+          const responseWrongAnswer = new WrongAnswerStore();
+          responseWrongAnswer.answer = savedWrongAnswer.answer;
+          savedQuestion.wrongAnswers.push(responseWrongAnswer);
+        }
+        if (question.wrongAnswer2 !== '') {
+          const wrongAnswer = new WrongAnswerStore();
+          wrongAnswer.answer = question.wrongAnswer2;
+          wrongAnswer.questionStore = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+
+          const responseWrongAnswer = new WrongAnswerStore();
+          responseWrongAnswer.answer = savedWrongAnswer.answer;
+          savedQuestion.wrongAnswers.push(responseWrongAnswer);
+        }
+        if (question.wrongAnswer3 !== '') {
+          const wrongAnswer = new WrongAnswerStore();
+          wrongAnswer.answer = question.wrongAnswer3;
+          wrongAnswer.questionStore = savedQuestion;
+
+          const savedWrongAnswer = await queryRunner.manager.save(wrongAnswer);
+          if (savedWrongAnswer.id === null || savedWrongAnswer.id === undefined) throw new Error();
+
+          const responseWrongAnswer = new WrongAnswerStore();
+          responseWrongAnswer.answer = savedWrongAnswer.answer;
+          savedQuestion.wrongAnswers.push(responseWrongAnswer);
+        }
+        modifyQuestions.push(savedQuestion);
+      }
+      exercise.questions = modifyQuestions;
+      const savedExercise = await queryRunner.manager.save(exercise);
+      if (savedExercise.id === null || savedExercise.id === undefined) throw new Error();
+      await queryRunner.commitTransaction();
+      const returnExercise = await CurriculumExercise.createQueryBuilder("exercise")
+                                    .leftJoinAndSelect("exercise.lecture", "lecture")
+                                    .leftJoinAndSelect("exercise.questions", "questions")
+                                    .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                                    .leftJoinAndSelect("questions.tags", "tags")
+                                    .where("exercise.id = :exerciseId", { exerciseId: savedExercise.id })
+                                    .getOne();
+      return returnExercise;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return null;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async modifyExercise(exerciseId: number, basicInfo: any, questions: any[], deleteQuestions: any[]): Promise<Exercise | null> {
@@ -1159,6 +1823,13 @@ class TeacherServiceImpl implements TeacherServiceInterface {
         endTime.getSeconds(),
       )
 
+      const lecture = await Lecture.createQueryBuilder("lecture")
+                                      .where("lecture.id = :id", {id: basicInfo.lecture})
+                                      .getOne();
+      if(lecture !== null){
+        exercise.lecture = lecture;
+      }
+
       if (exercise.questions === null)
         exercise.questions = [];
 
@@ -1171,12 +1842,16 @@ class TeacherServiceImpl implements TeacherServiceInterface {
                                                           .getOne();
         if (foundedQuestion !== null){
           if (foundedQuestion.imgSrc) {
-            const filePath = path.join(process.cwd(), "public", foundedQuestion.imgSrc);
-            fs.unlinkSync(filePath);
+            if (!(await this.isSourceReferedByOtherQuestion(foundedQuestion.imgSrc, 0))){
+              const filePath = path.join(process.cwd(), "public", foundedQuestion.imgSrc);
+              fs.unlinkSync(filePath);
+            }
           }
           if (foundedQuestion.audioSrc) {
-            const filePath = path.join(process.cwd(), "public", foundedQuestion.audioSrc);
-            fs.unlinkSync(filePath);
+            if (!(await this.isSourceReferedByOtherQuestion(foundedQuestion.audioSrc, 1))){
+              const filePath = path.join(process.cwd(), "public", foundedQuestion.audioSrc);
+              fs.unlinkSync(filePath);
+            }
           }
         }
         await queryRunner.manager.delete(Question, id);
@@ -1203,7 +1878,6 @@ class TeacherServiceImpl implements TeacherServiceInterface {
             await queryRunner.manager.delete(WrongAnswer, wrongAnswer.id);
           })
         } else {
-          // console.log("--------------------------------------------")
           questionEntity.wrongAnswers = [];
           questionEntity.temporaryKey = question.key;
         }
@@ -1271,6 +1945,7 @@ class TeacherServiceImpl implements TeacherServiceInterface {
       if (savedExercise.id === null || savedExercise.id === undefined) throw new Error();
       await queryRunner.commitTransaction();
       const returnExercise = await Exercise.createQueryBuilder("exercise")
+                                    .leftJoinAndSelect("exercise.lecture", "lecture")
                                     .leftJoinAndSelect("exercise.questions", "questions")
                                     .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
                                     .leftJoinAndSelect("questions.tags", "tags")
@@ -1279,6 +1954,119 @@ class TeacherServiceImpl implements TeacherServiceInterface {
                                     .getOne();
       return returnExercise;
     } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return null;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async changeCurriculumExerciseInfo(teacherId: number, exerciseId: number, basicInfo: any) : Promise<CurriculumExercise | null>{
+    const isManager = await BranchRepository.checkIsManager(teacherId);
+    if(!isManager)
+      throw new NotEnoughPermissionError();
+
+    const exercise = await CurriculumExercise.createQueryBuilder("exercise")
+                          .leftJoinAndSelect("exercise.lecture", "lecture")
+                          .leftJoinAndSelect("exercise.questions", "questions")
+                          .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                          .leftJoinAndSelect("questions.tags", "tags")
+                          .where("exercise.id = :exerciseId", { exerciseId: exerciseId })
+                          .getOne();
+    if (exercise === null)
+      throw new NotFoundError();
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
+    try{
+      exercise.name = basicInfo.nameExercise;
+      exercise.maxTime = basicInfo.maxTime;
+      exercise.startWeek = basicInfo.startWeek;
+      const lecture = await Lecture.createQueryBuilder("lecture")
+                                      .where("lecture.id = :id", {id: basicInfo.lecture})
+                                      .getOne();
+      if(lecture !== null){
+        exercise.lecture = lecture;
+      }
+      const savedExercise = await queryRunner.manager.save(exercise);
+      await queryRunner.commitTransaction();
+      return savedExercise;
+    }catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      return null;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async changeExerciseInfo(teacherId: number, exerciseId: number, basicInfo: any) : Promise<Exercise | null>{
+    const exercise = await Exercise.createQueryBuilder("exercise")
+                          .leftJoinAndSelect("exercise.lecture", "lecture")
+                          .leftJoinAndSelect("exercise.questions", "questions")
+                          .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+                          .leftJoinAndSelect("questions.tags", "tags")
+                          .leftJoinAndSelect("exercise.course", "course")
+                          .leftJoinAndSelect("course.teacher", "teacher")
+                          .leftJoinAndSelect("teacher.worker", "worker")
+                          .leftJoinAndSelect("worker.user", "user")
+                          .where("exercise.id = :exerciseId", { exerciseId: exerciseId })
+                          .getOne();
+    if (exercise === null)
+      throw new NotFoundError();
+    if(teacherId !== exercise.course.teacher.worker.user.id)
+      throw new NotEnoughPermissionError();
+
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
+    try{
+      exercise.name = basicInfo.nameExercise;
+      exercise.maxTime = basicInfo.maxTime;
+
+      //Update OpenTime
+      const now = new Date();
+      const startDate = new Date(basicInfo.startDate);
+      const startTime = new Date(basicInfo.startTime);
+      const openTime = new Date(
+        startDate.getFullYear(), 
+        startDate.getMonth(), 
+        startDate.getDate(), 
+        startTime.getHours(),
+        startTime.getMinutes(),
+        startTime.getSeconds(),
+      );
+
+      if(now.getTime() < (new Date(exercise.openTime)).getTime()){
+        exercise.openTime = openTime
+      }
+      
+      //Update EndTime
+      const endDate = new Date(basicInfo.endDate);
+      const endTime = new Date(basicInfo.endTime);
+      exercise.endTime = new Date(
+        endDate.getFullYear(), 
+        endDate.getMonth(), 
+        endDate.getDate(), 
+        endTime.getHours(),
+        endTime.getMinutes(),
+        endTime.getSeconds(),
+      )
+
+      const lecture = await Lecture.createQueryBuilder("lecture")
+                                      .where("lecture.id = :id", {id: basicInfo.lecture})
+                                      .getOne();
+      if(lecture !== null){
+        exercise.lecture = lecture;
+      }
+      const savedExercise = await queryRunner.manager.save(exercise);
+      await queryRunner.commitTransaction();
+      return savedExercise;
+    }catch (error) {
       console.log(error);
       await queryRunner.rollbackTransaction();
       return null;
@@ -1315,10 +2103,34 @@ class TeacherServiceImpl implements TeacherServiceInterface {
     return tag;
   }
 
+  async getCurriculumExerciseById(teacherId: number, exerciseId: number) : Promise<CurriculumExercise | null>{
+    // const isManager = await BranchRepository.checkIsManager(teacherId);
+    // if(!isManager)
+    //   throw new NotEnoughPermissionError();
+    try {
+      const curriculumExercise = await CurriculumExercise.createQueryBuilder("exercise")
+        .leftJoinAndSelect("exercise.questions", "questions")
+        .leftJoinAndSelect("exercise.lecture", "lecture")
+        .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
+        .leftJoinAndSelect("questions.tags", "tags")
+        .where("exercise.id = :exerciseId", { exerciseId })
+        .getOne();
+
+      if (curriculumExercise === null) {
+        throw new Error("Không tìm thấy bài tập.");
+      }
+      return curriculumExercise;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  }
+
   async getExerciseById(exerciseId: number): Promise<Exercise | null> {
     try {
       const exercise = await Exercise.createQueryBuilder("exercise")
         .leftJoinAndSelect("exercise.questions", "questions")
+        .leftJoinAndSelect("exercise.lecture", "lecture")
         .leftJoinAndSelect("questions.wrongAnswers", "wrongAnswers")
         .leftJoinAndSelect("questions.tags", "tags")
         .where("exercise.id = :exerciseId", { exerciseId })

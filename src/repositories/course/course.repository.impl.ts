@@ -97,6 +97,8 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
             .useTransaction(true)
             .leftJoinAndSelect("course.documents", "documents")
             .leftJoinAndSelect("course.teacher", "teacher")
+            .leftJoinAndSelect("course.curriculum", "curriculum")
+            .leftJoinAndSelect("curriculum.lectures", "lectures")
             .leftJoinAndSelect("teacher.worker", "worker")
             .leftJoinAndSelect("worker.user", "userTeacher")
             .leftJoinAndSelect("course.exercises", "exercises")

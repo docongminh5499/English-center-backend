@@ -13,6 +13,7 @@ import { Lecture } from "./Lecture";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
 import { Tag } from "./Tag";
 import { CurriculumLevel } from "../utils/constants/curriculum.constant";
+import { CurriculumExercise } from "./CurriculumExercise";
 
 @Entity()
 export class Curriculum extends MyBaseEntity {
@@ -71,4 +72,11 @@ export class Curriculum extends MyBaseEntity {
   @IsEnum(CurriculumLevel)
   @Column({ type: "enum", enum: CurriculumLevel, nullable: false })
   level: CurriculumLevel;
+
+  @OneToMany(() => CurriculumExercise, (exercise) => exercise.curriculum, {
+    nullable: false,
+    onUpdate: "CASCADE",
+    onDelete: "CASCADE",
+  })
+  exercises: CurriculumExercise[];
 }

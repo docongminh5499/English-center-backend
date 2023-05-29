@@ -4,8 +4,9 @@ import { Lecture } from "../entities/Lecture";
 import { Tag } from "../entities/Tag";
 import { CurriculumLevel } from "../utils/constants/curriculum.constant";
 import { TermCourse } from "../utils/constants/termCuorse.constant";
+import { createCurriculumExercise } from "./createCurriculumExercise";
 
-export const createCurriculums = async (tags: Tag[]) => {
+export const createCurriculums = async (tags: Tag[], questionTag: Tag[]) => {
   const curriculums = [];
 
   //Create Curriculum
@@ -133,8 +134,8 @@ export const createCurriculums = async (tags: Tag[]) => {
     }));
 
     const numberOfLectures = curriculum.type === TermCourse.ShortTerm
-      ? faker.datatype.number({ min: 12, max: 20 })
-      : faker.datatype.number({ min: 80, max: 100 });
+      ? faker.datatype.number({ min: 10, max: 15 })
+      : faker.datatype.number({ min: 10, max: 20 });
     for (let lectureIndex = 0; lectureIndex < numberOfLectures; lectureIndex++) {
       const lecture = await Lecture.save(Lecture.create({
         order: lectureIndex + 1,
@@ -146,6 +147,7 @@ export const createCurriculums = async (tags: Tag[]) => {
       lectures.push(lecture);
     }
     curriculum.lectures = lectures;
+    await createCurriculumExercise(curriculum, faker.helpers.arrayElements(questionTag, 10));
     await Curriculum.save(curriculum);
     curriculums.push(curriculum);
   }

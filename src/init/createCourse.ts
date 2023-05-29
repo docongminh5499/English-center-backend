@@ -5,6 +5,7 @@ import { Curriculum } from "../entities/Curriculum";
 import { TeacherPreferCurriculum } from "../entities/TeacherPreferCurriculum";
 import { UserTeacher } from "../entities/UserTeacher";
 import { slugify } from "../utils/functions/slugify";
+import { TermCourse } from "../utils/constants/termCuorse.constant";
 
 export const createCourse = async (curriculums: Curriculum[], branches: Branch[], prefered: TeacherPreferCurriculum[]) => {
   const courses = [];
@@ -26,14 +27,16 @@ export const createCourse = async (curriculums: Curriculum[], branches: Branch[]
       let slug = slugify(name);
       if (slugs.indexOf(slug) > -1) slug += '-' + faker.datatype.number();
       slugs.push(slug);
-
       const openingDate = faker.datatype.datetime({
         min: (new Date(2019, 0, 1)).getTime(),
         max: (new Date(2024, 0, 1)).getTime(),
       });
+      let duringMonth = [3, 6];
+      if(curriculum.type === TermCourse.LongTerm)
+        duringMonth = [6, 12];
       const expectedClosingDate = faker.datatype.datetime({
-        min: openingDate.getTime(),
-        max: (new Date(2024, 0, 1)).getTime(),
+        min: (new Date(openingDate.getFullYear(), openingDate.getMonth() + duringMonth[0], openingDate.getDate())).getTime(),
+        max: (new Date(openingDate.getFullYear(), openingDate.getMonth() + duringMonth[0], openingDate.getDate())).getTime(),
       });
       const closingDate = null;
       let course = new Course();

@@ -2,12 +2,11 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable, OneToMan
 import { IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Tag } from "./Tag";
-import { WrongAnswer } from "./WrongAnswer";
-import { Exercise } from "./Exercise";
-// import { Exercise } from "./Exercise";
+import { WrongAnswerStore } from "./WrongAnswerStore";
+import { CurriculumExercise } from "./CurriculumExercise";
 
 @Entity()
-export class Question extends MyBaseEntity {
+export class QuestionStore extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -38,16 +37,13 @@ export class Question extends MyBaseEntity {
   @Column({type:'varchar', length: 255, nullable: true })
   audioSrc: string | null;
 
-  @OneToMany(() => WrongAnswer, (wrongAnswer) => wrongAnswer.question)
-  wrongAnswers: WrongAnswer[];
+  @OneToMany(() => WrongAnswerStore, (wrongAnswerStore) => wrongAnswerStore.questionStore)
+  wrongAnswers: WrongAnswerStore[];
 
   @ManyToMany(() => Tag, {onDelete: "CASCADE", onUpdate: "CASCADE"})
-  @JoinTable({ name: "question_belong_tag" })
+  @JoinTable({ name: "question_store_belong_tag" })
   tags: Tag[];
 
-  // @ManyToOne(() => Exercise, (exercise) => exercise.questions, { onDelete: "CASCADE", onUpdate: "CASCADE" })
-  // exercise: Exercise;
-
-  @ManyToMany(() => Exercise, (exercise) => exercise.questions, { onDelete: "CASCADE", onUpdate: "CASCADE" })
-  exercises: Exercise[];
+  @ManyToMany(() => CurriculumExercise, (exercise) => exercise.questions, { onDelete: "CASCADE", onUpdate: "CASCADE" })
+  curriculumExercises: CurriculumExercise[];
 }

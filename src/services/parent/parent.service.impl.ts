@@ -103,7 +103,9 @@ class ParentServiceImpl implements ParentServiceInterface {
         try{
             // console.log(courseId);
             const exercise = await Exercise.createQueryBuilder("exercise")
+                                    .leftJoinAndSelect("exercise.lecture", "lecture")
                                     .where("courseId = :courseId", {courseId: courseId})
+                                    .orderBy("exercise.openTime", "ASC")
                                     .getMany();
             return exercise;
         } catch(error){

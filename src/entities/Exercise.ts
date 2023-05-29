@@ -2,15 +2,16 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToMany,
   JoinTable,
   ManyToOne,
   JoinColumn,
+  ManyToMany,
 } from "typeorm";
 import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
 import { Question } from "./Question";
 import { Course } from "./Course";
+import { Lecture } from "./Lecture";
 
 @Entity()
 export class Exercise extends MyBaseEntity {
@@ -38,11 +39,16 @@ export class Exercise extends MyBaseEntity {
   @Column({ type: "integer", default: 3, nullable: false })
   maxTime: number;
 
-  @ManyToMany(() => Question, { onDelete: "CASCADE", onUpdate: "CASCADE" })
+  @ManyToMany(() => Question, (question) => question.exercises, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinTable({ name: "exercise_contain_question" })
   questions: Question[];
 
   @ManyToOne(() => Course, (course) => course.exercises, { onDelete: "CASCADE", onUpdate: "CASCADE" })
   @JoinColumn({ name: "courseId" })
   course: Course;
+
+  @IsNotEmpty()
+  @ManyToOne(() => Lecture, {onDelete: "CASCADE", onUpdate: "CASCADE", nullable: false})
+  @JoinColumn({name: "lectureId"})
+  lecture: Lecture;
 }

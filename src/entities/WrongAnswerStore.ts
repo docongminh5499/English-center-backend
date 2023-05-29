@@ -7,10 +7,10 @@ import {
 } from "typeorm";
 import { IsNotEmpty, IsString, Length } from "class-validator";
 import { MyBaseEntity } from "./MyBaseEntity";
-import { Question } from "./Question";
+import { QuestionStore } from "./QuestionStore";
 
 @Entity()
-export class WrongAnswer extends MyBaseEntity {
+export class WrongAnswerStore extends MyBaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -21,11 +21,15 @@ export class WrongAnswer extends MyBaseEntity {
   answer: string;
 
   @IsNotEmpty()
-  @ManyToOne(() => Question, (question) => question.wrongAnswers ,{
-    nullable: false,
-    onUpdate: "CASCADE",
-    onDelete: "CASCADE",
-  })
+  @ManyToOne(
+    () => QuestionStore,
+    (questionStore) => questionStore.wrongAnswers,
+    {
+      nullable: false,
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
+    }
+  )
   @JoinColumn()
-  question: Question;
+  questionStore: QuestionStore;
 }

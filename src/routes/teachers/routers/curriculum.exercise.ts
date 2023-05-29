@@ -17,11 +17,11 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage: storage })
 
-router.post("/create-exercise", async (req: any, res: any, next: any) => {
+router.post("/create-curriculum-exercise", async (req: any, res: any, next: any) => {
     try {
       // console.log(req.body);
       // console.log(req.files);
-      const exercise = await TeacherService.createExercise(req.body.courseId, req.body.basicInfo, req.body.questions);
+      const exercise = await TeacherService.createCurriculumExercise(req.user.userId, req.body.curriculumId, req.body.lectureId, req.body.basicInfo, req.body.questions);
       // console.log(exercise);
       return res.status(200).json(exercise);
     } catch (err) {
@@ -30,11 +30,12 @@ router.post("/create-exercise", async (req: any, res: any, next: any) => {
     }
 });
 
-router.post("/add-curriculum-exercise-to-course", async (req: any, res: any, next: any) => {
+
+router.post("/modify-curriculum-exercise", async (req: any, res: any, next: any) => {
   try {
-    console.log(req.body);
-    const exercise = await TeacherService.addCurriculumExerciseToCourse(req.user.userId, req.body.courseId, req.body.addExerciseId);
-    // console.log(exercise);
+    // console.log("=========================================");
+    // console.log(req.body.basicInfo);
+    const exercise = await TeacherService.modifyCurruculumExercise(req.user.userId, req.body.exerciseId, req.body.basicInfo, req.body.questions,  req.body.deleteQuestions);
     return res.status(200).json(exercise);
   } catch (err) {
     console.log(err);
@@ -42,23 +43,11 @@ router.post("/add-curriculum-exercise-to-course", async (req: any, res: any, nex
   }
 });
 
-router.post("/modify-exercise", async (req: any, res: any, next: any) => {
+router.post("/change-curriculum-exercise-info", async (req: any, res: any, next: any) => {
   try {
     // console.log("=========================================");
     // console.log(req.body.basicInfo);
-    const exercise = await TeacherService.modifyExercise(req.body.exerciseId, req.body.basicInfo, req.body.questions,  req.body.deleteQuestions);
-    return res.status(200).json(exercise);
-  } catch (err) {
-    console.log(err);
-    next(err);
-  }
-});
-
-router.post("/change-exercise-info", async (req: any, res: any, next: any) => {
-  try {
-    // console.log("=========================================");
-    // console.log(req.body.basicInfo);
-    const exercise = await TeacherService.changeExerciseInfo(req.user.userId, req.body.exerciseId, req.body.basicInfo);
+    const exercise = await TeacherService.changeCurriculumExerciseInfo(req.user.userId, req.body.exerciseId, req.body.basicInfo);
     return res.status(200).json(exercise);
   } catch (err) {
     console.log(err);
@@ -87,42 +76,19 @@ router.get("/get-all-question-tag", async (req: any, res: any, next: any) => {
   }
 });
 
-router.get("/get-all-curriculum-exercise", async (req: any, res: any, next: any) => {
+router.get("/get-curriculum-exercise-by-id", async (req: any, res: any, next: any) => {
   try {
-    const exercise = await TeacherService.getAllCurriculumExercise(req.user.userId, req.query.curriculumId, req.query.courseId);
-    return res.status(200).json(exercise);
+    const curriculumExercise = await TeacherService.getCurriculumExerciseById(req.user.userId, req.query.exerciseId);
+    return res.status(200).json(curriculumExercise);
   } catch (err) {
     console.log(err);
     next(err);
   }
 });
 
-router.get("/get-exercise-by-id", async (req: any, res: any, next: any) => {
+router.post("/send-question-store-image", upload.single("image"), async (req: any, res: any, next: any) => {
   try {
-    const exercise = await TeacherService.getExerciseById(req.query.exerciseId);
-    return res.status(200).json(exercise);
-  } catch (err) {
-    console.log(err);
-    next(err);
-  }
-});
-
-router.get("/get-student-exercise-result", async (req: any, res: any, next: any) => {
-  try {
-    const exercise = await TeacherService.getStdExeResult(req.query.exerciseId);
-    return res.status(200).json(exercise);
-  } catch (err) {
-    console.log(err);
-    next(err);
-  }
-});
-
-router.post("/send-question-image", upload.single("image"), async (req: any, res: any, next: any) => {
-  try {
-    // console.log("TEACHER SEND IMAGE ROUTE!");
-    // console.log(req.body);
-    // console.log(req.file);
-    const result = await TeacherService.saveQuestionImage(req.body.temporaryKey, req.file);
+    const result = await TeacherService.saveQuestionImageForCurriculumExercise(req.user.userId, req.body.temporaryKey, req.file);
     // console.log(result);
     if (result == false && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), QUESTION_IMAGE_AND_AUDIO_DESTINATION, req.file.filename);
@@ -139,12 +105,12 @@ router.post("/send-question-image", upload.single("image"), async (req: any, res
   }
 });
 
-router.post("/send-modified-question-image", upload.single("image"), async (req: any, res: any, next: any) => {
+router.post("/send-modified-question-store-image", upload.single("image"), async (req: any, res: any, next: any) => {
   try {
     // console.log("TEACHER SEND MODIFIED IMAGE ROUTE!");
     // console.log(req.body);
     // console.log(req.file);
-    const result = await TeacherService.saveModifiedQuestionImage(req.body.questionId, req.file);
+    const result = await TeacherService.saveModifiedQuestionStoreImage(req.user.userId, req.body.questionId, req.file);
     // console.log(result);
     if (result == false && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), QUESTION_IMAGE_AND_AUDIO_DESTINATION, req.file.filename);
@@ -161,12 +127,9 @@ router.post("/send-modified-question-image", upload.single("image"), async (req:
   }
 });
 
-router.post("/send-question-audio", upload.single("audio"), async (req: any, res: any, next: any) => {
+router.post("/send-question-store-audio", upload.single("audio"), async (req: any, res: any, next: any) => {
   try {
-    // console.log("TEACHER SEND AUDIO ROUTE!");
-    // console.log(req.body);
-    // console.log(req.file);
-    const result = await TeacherService.saveQuestionAudio(req.body.temporaryKey, req.file);
+    const result = await TeacherService.saveQuesitonAudioForCurriculumExercise(req.user.userId, req.body.temporaryKey, req.file);
     // console.log(result);
     if (result == false && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), QUESTION_IMAGE_AND_AUDIO_DESTINATION, req.file.filename);
@@ -183,12 +146,12 @@ router.post("/send-question-audio", upload.single("audio"), async (req: any, res
   }
 });
 
-router.post("/send-modified-question-audio", upload.single("audio"), async (req: any, res: any, next: any) => {
+router.post("/send-modified-question-store-audio", upload.single("audio"), async (req: any, res: any, next: any) => {
   try {
     // console.log("TEACHER SEND AUDIO ROUTE!");
     // console.log(req.body);
     // console.log(req.file);
-    const result = await TeacherService.saveModifiedQuestionAudio(req.body.questionId, req.file);
+    const result = await TeacherService.saveModifiedQuestionStoreAudio(req.user.userId, req.body.questionId, req.file);
     // console.log(result);
     if (result == false && req.file && req.file.filename) {
       const filePath = path.join(process.cwd(), QUESTION_IMAGE_AND_AUDIO_DESTINATION, req.file.filename);
@@ -205,12 +168,25 @@ router.post("/send-modified-question-audio", upload.single("audio"), async (req:
   }
 });
 
-router.post("/delete-question-temporary-key", async (req: any, res: any, next: any) => {
+router.post("/delete-question-store-temporary-key", async (req: any, res: any, next: any) => {
   try {
     // console.log("TEACHER DELETE QUESTION TEMPORATY KEY ROUTE!");
     // console.log(req.body);
-    const result = await TeacherService.deleteQuestionTemporaryKey(req.body.exerciseId);
+    const result = await TeacherService.deleteQuestionStoreTemporaryKey(req.user.userId, req.body.exerciseId);
     // console.log(result);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
+
+router.post("/delete-curriculum-exercise", async (req: any, res: any, next: any) => {
+  try {
+    // console.log("TEACHER DELETE QUESTION TEMPORATY KEY ROUTE!");
+    // console.log(req.body);
+    const result = await TeacherService.deleteCurriculumExercise(req.user.userId, req.body.exerciseId);
+    console.log(result);
     return res.status(200).json(result);
   } catch (err) {
     console.log(err);
@@ -218,4 +194,4 @@ router.post("/delete-question-temporary-key", async (req: any, res: any, next: a
   }
 });
   
-export { router as TeacherExerciseRouter };
+export { router as TeacherCurriculumExerciseRouter };

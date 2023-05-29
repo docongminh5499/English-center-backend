@@ -10,6 +10,11 @@ export class User extends MyBaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
+    @Column({
+        default: () => "NOW()"
+    })
+    createdAt: Date;
+
     @IsOptional()
     @IsString()
     @Column({ type:'varchar', length: 50, unique: true, nullable: true })

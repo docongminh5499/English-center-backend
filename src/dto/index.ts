@@ -25,6 +25,11 @@ import NotificationListDto from "./responses/notificationList.dto";
 import NotificationResponseDto from "./responses/notification.response.dto";
 import CourseDetailDto from "./responses/courseDetail.dto";
 import UnpaidDto from "./responses/unpaidFee.dto";
+import RevenueDto from "./responses/revenue.dto";
+import SalaryDto from "./responses/salary.dto";
+import ProfitDto from "./responses/profit.dto";
+import StudentReportDto from "./responses/studentReport.dto";
+import CourseReportDto from "./responses/courseReport.dto";
 
 export {
     // Request DTO
@@ -55,4 +60,9 @@ export {
     NotificationResponseDto,
     CourseDetailDto,
     UnpaidDto,
+    RevenueDto,
+    SalaryDto,
+    ProfitDto,
+    StudentReportDto,
+    CourseReportDto,
 };

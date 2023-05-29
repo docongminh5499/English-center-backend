@@ -26,13 +26,15 @@ class ExerciseRepositoryImpl implements ExerciseRepositoryInterface {
       .setLock("pessimistic_read")
       .useTransaction(true)
       .leftJoinAndSelect("exercise.course", "course")
+      .leftJoinAndSelect("exercise.lecture", "lecture")
       .where("course.slug = :courseSlug", { courseSlug })
-      .orderBy({ "-openTime": "ASC" })
+      .orderBy({ 
+        "lecture.order": "ASC",
+        "openTime": "ASC" 
+      });
     queryStmt = pageable.buildQuery(queryStmt);
     return await queryStmt.getMany();
   }
-
-
 
   async countExercisesByCourseSlug(courseSlug: string): Promise<number> {
     let queryStmt = Exercise.createQueryBuilder('exercise')

@@ -8,6 +8,7 @@ import { EmployeePersonalRouter } from "./routers/personal.router";
 import { EmployeeStudentRouter } from "./routers/student.router";
 import { EmployeeTransactionRouter } from "./routers/transaction.router";
 import { EmployeeWorkerRouter } from "./routers/worker.router";
+import { EmployeeBusinessRouter } from "./routers/business.router";
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use("/classroom", EmployeeClassroomeRouter)
 router.use("/student", EmployeeStudentRouter)
 router.use("/transaction", EmployeeTransactionRouter)
 router.use("/workers", EmployeeWorkerRouter)
+router.use("/business", EmployeeBusinessRouter)
 
 export default router;

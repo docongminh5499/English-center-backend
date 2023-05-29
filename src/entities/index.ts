@@ -33,6 +33,9 @@ import { SocketStatus } from "./SocketStatus";
 import { TeacherPreferCurriculum } from "./TeacherPreferCurriculum";
 import { Refund } from "./Refund";
 import { TransactionConstants } from "./TransactionConstants";
+import { CurriculumExercise } from "./CurriculumExercise";
+import { QuestionStore } from "./QuestionStore";
+import { WrongAnswerStore } from "./WrongAnswerStore";
 
 module.exports = [
   Account,
@@ -69,5 +72,8 @@ module.exports = [
   UserAttendStudySession,
   MakeUpLession,
   StudentDoExercise,
-  SocketStatus
+  SocketStatus,
+  CurriculumExercise,
+  QuestionStore,
+  WrongAnswerStore,
 ];

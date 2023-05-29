@@ -22,6 +22,7 @@ import { createTeachers } from "./createTeacher";
 import { createTeacherPreferCurriculums } from "./createTeacherPreferCurriculum";
 import { createTransactionConstants } from "./createTransactionConstants";
 import { createTutors } from "./createTutor";
+import { createStudentUserForReport } from "./createStudentUserForReport";
 
 export async function initData() {
 
@@ -41,7 +42,7 @@ export async function initData() {
 
   await createClassrooms(branches);
 
-  const curriculums = await createCurriculums(curriculumTags);
+  const curriculums = await createCurriculums(curriculumTags, tags);
 
   const teachers = await createTeachers(branches);
 
@@ -52,6 +53,8 @@ export async function initData() {
   const employees = await createEmployees(branches);
 
   const students = await createStudentUser();
+
+  await createStudentUserForReport();
 
   await createParents(students);
 
@@ -72,7 +75,6 @@ export async function initData() {
     await createStudentDoExercise(courses[courseIndex], exercises, participations);
   }
   await createSalary(teachers, employees, tutors, constants);
-  
 
   console.log("----------------------- Ending init data -----------------------")
 }

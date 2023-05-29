@@ -19,6 +19,8 @@ class CurriculumRepositoryImpl implements CurriculumRepositoryInterface {
       .useTransaction(true)
       .leftJoinAndSelect("curriculum.lectures", "lectures")
       .leftJoinAndSelect("curriculum.tags", "tags")
+      .leftJoinAndSelect("curriculum.exercises", "exercises")
+      .leftJoinAndSelect("exercises.lecture", "lecture_exercise")
       .where("curriculum.id = :curriculumId", { curriculumId })
       .andWhere("curriculum.latest = true")
       .getOne();
