@@ -71,7 +71,7 @@ class ParentServiceImpl implements ParentServiceInterface {
 	}
 
     async getCourseDetail(studentId: number, courseSlug: string) : Promise<Course | null>{
-        const course = await CourseRepository.findBriefCourseBySlug(courseSlug);
+        const course = await CourseRepository.findBriefCourseBySlug(courseSlug, studentId);
         if(course === null)
             return null;
         // course?.studentPaticipateCourses.forEach(value => console.log(value.student.user.id))

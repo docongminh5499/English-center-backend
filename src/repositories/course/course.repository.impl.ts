@@ -91,21 +91,22 @@ class CourseRepositoryImpl implements CourseRepositoryInterface {
         return result;
     }
 
-    async findBriefCourseBySlug(courseSlug: string): Promise<Course | null> {
+    async findBriefCourseBySlug(courseSlug: string, studentId: number): Promise<Course | null> {
         let result = Course.createQueryBuilder("course")
             .setLock("pessimistic_read")
             .useTransaction(true)
             .leftJoinAndSelect("course.documents", "documents")
-            .leftJoinAndSelect("course.teacher", "teacher")
+            // .leftJoinAndSelect("course.teacher", "teacher")
             .leftJoinAndSelect("course.curriculum", "curriculum")
             .leftJoinAndSelect("curriculum.lectures", "lectures")
-            .leftJoinAndSelect("teacher.worker", "worker")
-            .leftJoinAndSelect("worker.user", "userTeacher")
+            // .leftJoinAndSelect("teacher.worker", "worker")
+            // .leftJoinAndSelect("worker.user", "userTeacher")
             .leftJoinAndSelect("course.exercises", "exercises")
             .leftJoinAndSelect("course.studentPaticipateCourses", "studentPaticipateCourses")
             .leftJoinAndSelect("studentPaticipateCourses.student", "student")
             .leftJoinAndSelect("student.user", "userStudent")
             .where("course.slug = :courseSlug", { courseSlug })
+						.andWhere("userStudent.id = :studentId", {studentId})
             .andWhere("course.lockTime IS NULL OR course.lockTime > :now", {now: new Date()})
             .getOne();
         return result;
