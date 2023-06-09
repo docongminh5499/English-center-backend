@@ -25,6 +25,8 @@ import { Notification } from "../../entities/Notification";
 import { SystemError } from "../../utils/errors/system.error";
 import { io } from "../../socket";
 import fetch from "node-fetch";
+import moment = require("moment");
+import { UserParent } from "../../entities/UserParent";
 
 
 const base = "https://api-m.sandbox.paypal.com";
@@ -365,7 +367,155 @@ class PaymentServiceImpl implements PaymentServiceInterface {
     }
   }
 
+  async parentPayment(parentId: number, studentId: number, courseSlug: string,  orderId: string): Promise<boolean>{
+    console.log("START PARENT PAYMENT");
+    const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect()
+    await queryRunner.startTransaction();
+    try {
+      if (parentId === undefined || studentId === undefined || courseSlug === undefined || orderId === undefined)
+        throw new NotFoundError("Dữ liệu không hợp lệ, vui lòng kiểm tra lại.");
+      // Find order
+      const data: any = await this.getOrderDetail(orderId);
+      if (data === undefined || data === null || data.status !== "COMPLETED")
+        throw new NotFoundError("Dữ liệu thanh toán không hợp lệ, vui lòng kiểm tra lại.");
+      // Find course
+      const course = await queryRunner.manager
+        .createQueryBuilder(Course, "course")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("course.branch", "branch")
+        .leftJoinAndSelect("course.teacher", "teacher")
+        .leftJoinAndSelect("teacher.worker", "worker")
+        .leftJoinAndSelect("worker.user", "userTeacher")
+        .leftJoinAndSelect("course.curriculum", "curriculum")
+        .leftJoinAndSelect("branch.userEmployee", "manager")
+        .leftJoinAndSelect("manager.worker", "managerWorker")
+        .leftJoinAndSelect("managerWorker.user", "managerUser")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .getOne();
+      if (course === null) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
+      if (course.lockTime !== null && course.lockTime !== undefined)
+        throw new ValidationError(["Khóa học đã bị khóa, không thể tham gia khóa học."]);
+      // Find parent
+      const parent = await queryRunner.manager
+        .createQueryBuilder(UserParent, "parent")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("parent.user", "user")
+        .where("user.id = :parentId", { parentId })
+        .getOne();
+      if (parent === null) throw new NotFoundError("Không tìm thấy thông tin của phụ huynh");
+
+      // Find student
+      const student = await queryRunner.manager
+        .createQueryBuilder(UserStudent, "student")
+        .setLock("pessimistic_read")
+        .useTransaction(true)
+        .leftJoinAndSelect("student.user", "user")
+        .leftJoinAndSelect("student.userParent", "parent")
+        .leftJoinAndSelect("parent.user", "us")
+        .where("user.id = :studentId", { studentId })
+        .getOne();
+      if (student === null) throw new NotFoundError("Không tìm thấy thông tin của học viên.");
+
+      //Check parent and student
+      if(student.userParent?.user.id !== parent.user.id) throw new NotFoundError("Thông tin phụ huynh và học sinh không khớp.");
+      //Check student participate course
+      const studentParticipateCourse = await queryRunner.manager
+        .createQueryBuilder(StudentParticipateCourse, 'studentPaticipateCourses')
+        .setLock("pessimistic_write")
+        .useTransaction(true)
+        .leftJoinAndSelect("studentPaticipateCourses.student", "student")
+        .leftJoinAndSelect("student.user", "userStudent")
+        .leftJoinAndSelect("studentPaticipateCourses.course", "course")
+        .where("course.slug = :courseSlug", { courseSlug })
+        .andWhere("userStudent.id = :studentId", {studentId})
+        .getOne();
+
+      if (studentParticipateCourse === null) throw new NotFoundError("Không tìm thấy thông tin của học viên tham gia khóa học này.");
+
+      // Transaction
+      const resultFee = await this.caculateFeeForStudentPayment(studentParticipateCourse, course);
+      const transaction = new Transaction();
+      transaction.transCode = faker.random.numeric(16);
+      transaction.content = course.curriculum.type === TermCourse.LongTerm
+        ? `${course.name} (tháng ${resultFee.feeDate.getMonth() + 1})`
+        : `Tiền học phí khóa học ${course.name}`;
+      transaction.amount = resultFee.amount;
+      transaction.type = TransactionType.Fee;
+      transaction.branch = course.branch;
+      transaction.payDate = new Date();
+      transaction.userEmployee = course.branch.userEmployee;
+      // Validate entity
+      const transValidateErrors = await validate(transaction);
+      if (transValidateErrors.length) throw new ValidationError(transValidateErrors);
+      // Save data
+      const savedTransaction = await queryRunner.manager.save(transaction);
+      // Create free
+      const fee = new Fee();
+      fee.transCode = savedTransaction;
+      fee.userStudent = student;
+      fee.course = course;
+      // Validate entity
+      const feeValidateErrors = await validate(fee);
+      if (feeValidateErrors.length) throw new ValidationError(feeValidateErrors);
+      // Save data
+      await queryRunner.manager.save(fee);
+      studentParticipateCourse!.billingDate = new Date(resultFee.feeDate);
+      await queryRunner.manager.update(StudentParticipateCourse, 
+        {
+          student: studentParticipateCourse.student, 
+          course: studentParticipateCourse.course
+        }, 
+        studentParticipateCourse);
+  
+      // Student notification
+      const studentNotificationDto = {} as NotificationDto;
+      studentNotificationDto.userId = student.user.id;
+      studentNotificationDto.content = `Phụ huynh ${parent.user.fullName} thanh toán khoá học "${course.name}" (tháng ${resultFee.feeDate.getMonth() + 1}). Vui lòng vào kiểm tra thông tin.`;
+      const studentNotificationResult = await this.sendNotification(queryRunner, studentNotificationDto);
+
+      if (studentNotificationResult.success && studentNotificationResult.receiverSocketStatuses && studentNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: studentNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: studentNotificationResult.notification
+        });
+      }
+      // Parent notification
+      const parentNotificationDto = {} as NotificationDto;
+      parentNotificationDto.userId = parent.user.id;
+      parentNotificationDto.content = `Thanh toán khoá học "${course.name}" (tháng ${resultFee.feeDate.getMonth() + 1}) cho học viên ${student.user.fullName}. Vui lòng vào kiểm tra thông tin.`;
+      const parentNotificationResult = await this.sendNotification(queryRunner, parentNotificationDto);
+
+      if (parentNotificationResult.success && parentNotificationResult.receiverSocketStatuses && parentNotificationResult.receiverSocketStatuses.length) {
+        notifications.push({
+          socketIds: parentNotificationResult.receiverSocketStatuses.map(socketStatus => socketStatus.socketId),
+          notification: parentNotificationResult.notification
+        });
+      }
+
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      // Send notifications
+      notifications.forEach(notification => {
+        notification.socketIds.forEach(id => {
+          io.to(id).emit("notification", notification.notification);
+        });
+      });
+      console.log("END PARENT PAYMENT");
+      return true;
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      throw error;
+    }
+  }
+
   async studentPayment(studentId: number, courseSlug: string,  orderId: string) : Promise<boolean>{
+    console.log("START");
     const notifications: { socketIds: string[], notification: NotificationDto }[] = [];
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect()
@@ -393,14 +543,6 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .getOne();
       if (course === null) throw new NotFoundError("Không tìm thấy thông tin khóa học.");
-      // Check course isn't closed
-      if (course.closingDate !== null && course.closingDate !== undefined)
-        throw new ValidationError(["Khóa học đã kết thúc, không thể tham gia khóa học."]);
-      // Check course doesn't start
-      const today = new Date();
-      if (today >= new Date(course.openingDate))
-        throw new ValidationError(["Khóa học đã bắt đầu, không thể tham gia khóa học."]);
-      // Check course is lock
       if (course.lockTime !== null && course.lockTime !== undefined)
         throw new ValidationError(["Khóa học đã bị khóa, không thể tham gia khóa học."]);
       // Find student
@@ -423,21 +565,15 @@ class PaymentServiceImpl implements PaymentServiceInterface {
         .where("course.slug = :courseSlug", { courseSlug })
         .andWhere("userStudent.id = :studentId", {studentId})
         .getOne();
-      // const found = participations.find(s => s.student.user.id === studentId)
-      // if (found) throw new DuplicateError("Bạn đã tham gia khóa học này rồi, vui lòng chọn khóa học khác.");
-      // Check max student number
-      // if (course.maxNumberOfStudent <= participations.length)
-      //   throw new ValidationError(["Khóa học đã đầy, vui lòng chọn khóa học khác."]);
-      // Add participation
-      // const studentParticipateCourse = new StudentParticipateCourse();
-      // studentParticipateCourse.student = student;
-      // studentParticipateCourse.course = course;
+
+      if (studentParticipateCourse === null) throw new NotFoundError("Không tìm thấy thông tin của học viên tham gia khóa học này.");
+
       // Transaction
-      const resultFee = await this.caculateFeeAmount(course);
+      const resultFee = await this.caculateFeeForStudentPayment(studentParticipateCourse, course);
       const transaction = new Transaction();
       transaction.transCode = faker.random.numeric(16);
       transaction.content = course.curriculum.type === TermCourse.LongTerm
-        ? `${course.name} (${resultFee.feeDate.getMonth() + 1})`
+        ? `${course.name} (tháng ${resultFee.feeDate.getMonth() + 1})`
         : `Tiền học phí khóa học ${course.name}`;
       transaction.amount = resultFee.amount;
       transaction.type = TransactionType.Fee;
@@ -460,40 +596,17 @@ class PaymentServiceImpl implements PaymentServiceInterface {
       // Save data
       await queryRunner.manager.save(fee);
       studentParticipateCourse!.billingDate = new Date(resultFee.feeDate);
-      // Add user attend study session
-      // const attendanceQuery = queryRunner.manager
-      //   .createQueryBuilder(UserAttendStudySession, "uas")
-      //   .setLock("pessimistic_write")
-      //   .useTransaction(true)
-      //   .select("studySession.id", "id")
-      //   .distinct(true)
-      //   .innerJoin("uas.studySession", "studySession")
-      //   .innerJoin("studySession.course", "course")
-      //   .where("course.slug = :courseSlug", { courseSlug })
-      //   .andWhere("studySession.date > CURDATE()");
-      // const studySessions = await queryRunner.manager
-      //   .createQueryBuilder(StudySession, "ss")
-      //   .setLock("pessimistic_read")
-      //   .useTransaction(true)
-      //   .where(`ss.id IN (${attendanceQuery.getQuery()})`)
-      //   .setParameters(attendanceQuery.getParameters())
-      //   .getMany();
-      // for (const studySession of studySessions) {
-      //   const attendance = new UserAttendStudySession();
-      //   attendance.student = student;
-      //   attendance.studySession = studySession;
-      //   attendance.commentOfTeacher = "";
-      //   attendance.isAttend = true;
-      //   // Validate
-      //   const validateErrors = await validate(attendance);
-      //   if (validateErrors.length) throw new ValidationError(validateErrors);
-      //   // Save
-      //   await queryRunner.manager.save(attendance);
-      // }
+      await queryRunner.manager.update(StudentParticipateCourse, 
+        {
+          student: studentParticipateCourse.student, 
+          course: studentParticipateCourse.course
+        }, 
+        studentParticipateCourse);
+  
       // Student notification
       const studentNotificationDto = {} as NotificationDto;
       studentNotificationDto.userId = student.user.id;
-      studentNotificationDto.content = `Bạn vừa thanh toán khoá học "${course.name}". Vui lòng vào kiểm tra thông tin.`;
+      studentNotificationDto.content = `Thanh toán khoá học "${course.name}" (tháng ${resultFee.feeDate.getMonth() + 1}). Vui lòng vào kiểm tra thông tin.`;
       const studentNotificationResult = await this.sendNotification(queryRunner, studentNotificationDto);
       if (studentNotificationResult.success && studentNotificationResult.receiverSocketStatuses && studentNotificationResult.receiverSocketStatuses.length) {
         notifications.push({
@@ -501,11 +614,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
           notification: studentNotificationResult.notification
         });
       }
-      // Validation
-      // const validateErrors = await validate(studentParticipateCourse!);
-      // if (validateErrors.length) throw new ValidationError(validateErrors);
-      // // Commit 
-      // await queryRunner.manager.save(studentParticipateCourse);
+
       await queryRunner.commitTransaction();
       await queryRunner.release();
       // Send notifications
@@ -514,6 +623,7 @@ class PaymentServiceImpl implements PaymentServiceInterface {
           io.to(id).emit("notification", notification.notification);
         });
       });
+      console.log("END");
       return true;
     } catch (error) {
       console.log(error);
@@ -521,6 +631,30 @@ class PaymentServiceImpl implements PaymentServiceInterface {
       await queryRunner.release();
       throw error;
     }
+  }
+
+  private async caculateFeeForStudentPayment(spc: StudentParticipateCourse, course: Course): Promise<{ feeDate: Date, amount: number }>{
+    // let now = new Date();
+
+    let billingDate = spc.billingDate;
+    let price = 0;
+    const courseClosingDate = new Date(
+      spc.course.expectedClosingDate
+    );
+
+
+    billingDate = moment(billingDate).add(1, "months").toDate();
+    if (billingDate.getTime() < courseClosingDate.getTime()) {
+      price = course.price;
+      if (
+        billingDate.getFullYear() === courseClosingDate.getFullYear() &&
+        billingDate.getMonth() === courseClosingDate.getMonth()
+      ) {
+        price *= courseClosingDate.getDate() / 30;
+      }
+    }
+    
+    return { feeDate: billingDate, amount: price }
   }
 }
 

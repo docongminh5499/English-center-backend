@@ -5,4 +5,6 @@ export default interface PaymentService {
 	onSuccessStudentParticipateCourse: (studentId: number, courseSlug: string,  orderId: string) => Promise<boolean>;
 
 	studentPayment: (studentId: number, courseSlug: string,  orderId: string) => Promise<boolean>;
+
+	parentPayment: (parentId: number, studentId: number, courseSlug: string,  orderId: string) => Promise<boolean>;
 }

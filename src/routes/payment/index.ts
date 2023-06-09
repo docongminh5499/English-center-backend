@@ -41,6 +41,15 @@ router.post("/student-payment", async (req: any, res: any, next: any) => {
   }
 });
 
-
+router.post("/parent-payment", async (req: any, res: any, next: any) => {
+  try {
+    const result = await PaymentService.parentPayment(
+      req.user.userId, req.body.studentId, req.body.courseSlug, req.body.orderId);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+});
 
 export default router;
